@@ -1,3 +1,5 @@
+[![status-badge](https://cd.tiag0ss.dev/api/badges/4/status.svg)](https://cd.tiag0ss.dev/repos/4)
+
 # Synapse
 
 Markdown vaults companion to [Myelin](https://github.com/tiag0ss/myelin). Notes live in MySQL; creating notes never creates PM work — push project/task is always an explicit manual action.
