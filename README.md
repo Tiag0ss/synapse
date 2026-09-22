@@ -1,3 +1,5 @@
+[![Docker Hub](https://img.shields.io/docker/pulls/tiag0ss/synapse?label=Docker%20Pulls&logo=docker)](https://hub.docker.com/r/tiag0ss/synapse)
+[![Docker Image](https://img.shields.io/badge/Docker%20Hub-tiag0ss%2Fsynapse-blue?logo=docker)](https://hub.docker.com/r/tiag0ss/synapse)
 [![status-badge](https://cd.tiag0ss.dev/api/badges/4/status.svg)](https://cd.tiag0ss.dev/repos/4)
 
 # Synapse
