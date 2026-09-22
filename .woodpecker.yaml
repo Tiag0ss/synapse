@@ -1,3 +1,7 @@
+when:
+  - event: tag
+    ref: refs/tags/V*
+
 steps:
   check:
     image: node:22-alpine
@@ -13,7 +17,9 @@ steps:
   get-version:
     image: node:22-alpine
     commands:
-      - VERSION=$(node -p "require('./package.json').version")
+      # Tag format is V<version>, e.g. V0.3.0 — strip the leading V so the
+      # Docker image version matches the git tag exactly.
+      - VERSION=${CI_COMMIT_TAG#V}
       - echo "latest,$VERSION" > .tags
 
   build-and-push:
@@ -25,9 +31,3 @@ steps:
         from_secret: DOCKER_USERNAME
       password:
         from_secret: DOCKER_PASSWORD
-
-when:
-  - event: [push, pull_request]
-    branch:
-      - main
-      - master
