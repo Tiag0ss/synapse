@@ -411,14 +411,14 @@ export async function unlinkCheckboxFromPmTask(params: {
 
   const cleared = await updatePmTask(params.pmUserId, pmTaskId, { clearSynapseLink: true });
   if (!cleared.ok) {
-    logger.warn('Cleared Synapse link but failed to clear PM Synapse refs', {
+    logger.warn('Cleared Synapse link but failed to clear Synapse refs', {
       noteId: params.noteId,
       markerId,
       pmTaskId,
       message: cleared.data.message,
     });
     throw Object.assign(
-      new Error(cleared.data.message || 'Unlinked locally but failed to clear PM Synapse refs'),
+      new Error(cleared.data.message || 'Unlinked locally but failed to clear Synapse refs'),
       { status: cleared.status || 502 }
     );
   }

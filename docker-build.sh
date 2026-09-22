@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ==============================================================================
-# Docker Build and Push Script - PM Synapse
+# Docker Build and Push Script - Synapse
 # ==============================================================================
 # Builds and pushes the Synapse image to Docker Hub.
 # Usage: ./docker-build.sh [version]
@@ -18,7 +18,7 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-echo -e "${GREEN}PM Synapse — Docker Build and Push${NC}"
+echo -e "${GREEN}Synapse — Docker Build and Push${NC}"
 echo "======================================"
 
 if ! docker info >/dev/null 2>&1; then
@@ -59,7 +59,7 @@ if [ -z "$DOCKER_USERNAME" ]; then
 fi
 
 VERSION=${1:-latest}
-IMAGE_NAME="${DOCKER_USERNAME}/pm-synapse"
+IMAGE_NAME="${DOCKER_USERNAME}/synapse"
 IMAGE_TAG="${IMAGE_NAME}:${VERSION}"
 
 echo ""
@@ -86,7 +86,7 @@ build_with_buildx() {
 
     if ! docker buildx inspect --bootstrap >/dev/null 2>&1; then
         echo -e "${BLUE}Creating buildx builder...${NC}"
-        docker buildx create --name pm-synapse-builder --use --bootstrap >/dev/null
+        docker buildx create --name synapse-builder --use --bootstrap >/dev/null
     fi
 
     docker buildx build \

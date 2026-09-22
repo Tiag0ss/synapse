@@ -1,6 +1,6 @@
-# PM Synapse
+# Synapse
 
-Markdown vaults companion to [Project Management](https://github.com/tiag0ss/project-management). Notes live in MySQL; creating notes never creates PM work — push project/task is always an explicit manual action.
+Markdown vaults companion to [Myelin](https://github.com/tiag0ss/myelin). Notes live in MySQL; creating notes never creates PM work — push project/task is always an explicit manual action.
 
 This project is a work in progress — bugs may still be found; please report them on GitHub.
 
@@ -71,16 +71,16 @@ DB_USER=synapse
 DB_PASSWORD=change-me-synapse-db-password
 DB_NAME=pm_synapse
 PM_BASE_URL=http://localhost:3000
-SSO_CLIENT_ID=pm-synapse
+SSO_CLIENT_ID=synapse
 SSO_CLIENT_SECRET=change-me-synapse-sso-secret
 NEXT_PUBLIC_APP_URL=http://localhost:3010
 ```
 
-3. On **Project Management** (only if using SSO), set:
+3. On **Myelin** (only if using SSO), set:
 
 ```env
 ALLOWED_SSO_REDIRECTS=http://localhost:3010/api/auth/sso/callback
-SSO_CLIENT_ID=pm-synapse
+SSO_CLIENT_ID=synapse
 SSO_CLIENT_SECRET=change-me-synapse-sso-secret
 ```
 
@@ -91,13 +91,13 @@ pnpm install --ignore-workspace
 pnpm run dev
 ```
 
-Open [http://localhost:3010](http://localhost:3010) — register a local account (first user becomes admin) and/or sign in with Project Management. Admins manage registration, SMTP, and users under **Settings**. Each user manages their personal PM API token under **Profile**. Local and SSO accounts with the same email are linked.
+Open [http://localhost:3010](http://localhost:3010) — register a local account (first user becomes admin) and/or sign in with Myelin. Admins manage registration, SMTP, and users under **Settings**. Each user manages their personal Myelin API token under **Profile**. Local and SSO accounts with the same email are linked.
 
 **Note:** TypeScript must stay on 5.x (`typescript@5.9.3`) — Next.js 16 does not support TypeScript 7.
 
 ## Docker
 
-Build and push (same pattern as Project Management):
+Build and push (same pattern as Myelin):
 
 ```bash
 cp .env.docker.example .env.docker
@@ -118,8 +118,8 @@ See [DEPLOYMENT.md](./DEPLOYMENT.md) for compose ports, volumes, and SSO checkli
 | `JWT_SECRET` | **Yes** | — | Session JWT secret |
 | `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD` / `DB_NAME` | **Yes** | — | MySQL connection |
 | `DB_PROVIDER` | No | `mysql` | Database provider |
-| `PM_BASE_URL` | **Yes** | — | Project Management base URL |
-| `SSO_CLIENT_ID` | **Yes** | `pm-synapse` | Must match PM SSO client |
+| `PM_BASE_URL` | **Yes** | — | Myelin base URL |
+| `SSO_CLIENT_ID` | **Yes** | `synapse` | Must match PM SSO client |
 | `SSO_CLIENT_SECRET` | **Yes** | — | Must match PM `SSO_CLIENT_SECRET` |
 | `ENCRYPTION_KEY` | No | — | Token encryption (falls back to `JWT_SECRET`) |
 | `NEXT_PUBLIC_APP_URL` | **Yes** | — | Public Synapse URL (SSO redirect) |
@@ -130,20 +130,20 @@ See [DEPLOYMENT.md](./DEPLOYMENT.md) for compose ports, volumes, and SSO checkli
 | Port | Description |
 |------|-------------|
 | `3010` | Synapse (frontend + API) |
-| `3000` | Project Management (SSO issuer) |
+| `3000` | Myelin (SSO issuer) |
 | `3306` | MySQL |
 
 ## Architecture
 
 ```
 +---------------------------+          +----------------------------+
-|  pm-synapse               |  SSO +   |  project-management        |
+|  synapse               |  SSO +   |  myelin        |
 |  Next.js + Express :3010 |  REST →  |  Next.js + Express :3000   |
 |  MySQL: pm_synapse        |          |  MySQL/MSSQL               |
 +---------------------------+          +----------------------------+
 ```
 
-Notes and vault ACLs live only in Synapse. Task/project create goes through PM’s authenticated APIs with the user’s SSO token.
+Notes and vault ACLs live only in Synapse. Task/project create goes through Myelin’s authenticated APIs with the user’s SSO token.
 
 ### Wiki visibility
 
@@ -176,8 +176,8 @@ Password share links: **Share… → Link** creates `/s/:token` (password + expi
 - [docs/PM_API_CONTRACT.md](./docs/PM_API_CONTRACT.md) — PM HTTP contracts Synapse depends on
 - `.cursor/rules/` + `.github/prompts/` — conventions and task skills
 
-This folder can be moved to its own git repository (`pm-synapse`) when ready. Keep `docs/PM_API_CONTRACT.md` in sync whenever Synapse’s PM client changes.
+This folder can be moved to its own git repository (`synapse`) when ready. Keep `docs/PM_API_CONTRACT.md` in sync whenever Synapse’s PM client changes.
 
 ## Related
 
-- [Project Management](https://github.com/tiag0ss/project-management) — parent app (SSO + task APIs)
+- [Myelin](https://github.com/tiag0ss/myelin) — parent app (SSO + task APIs)

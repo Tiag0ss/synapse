@@ -1,6 +1,6 @@
-# Agent context — PM Synapse
+# Agent context — Synapse
 
-Cursor agents: read **`.cursor/rules/pm-synapse.mdc`** (always on) plus scoped rules when editing matching areas.
+Cursor agents: read **`.cursor/rules/synapse.mdc`** (always on) plus scoped rules when editing matching areas.
 
 ## Language (mandatory)
 
@@ -12,8 +12,8 @@ Cursor agents: read **`.cursor/rules/pm-synapse.mdc`** (always on) plus scoped r
 
 | Need | Read |
 |------|------|
-| Stack & non-negotiables | [`.cursor/rules/pm-synapse.mdc`](.cursor/rules/pm-synapse.mdc) |
-| Project Management API contracts (survive repo split) | [`docs/PM_API_CONTRACT.md`](docs/PM_API_CONTRACT.md) |
+| Stack & non-negotiables | [`.cursor/rules/synapse.mdc`](.cursor/rules/synapse.mdc) |
+| Myelin API contracts (survive repo split) | [`docs/PM_API_CONTRACT.md`](docs/PM_API_CONTRACT.md) |
 | Feature overview | [`README.md`](README.md) |
 | Prompt skills | [`.github/prompts/`](.github/prompts/) |
 
@@ -21,7 +21,7 @@ Cursor agents: read **`.cursor/rules/pm-synapse.mdc`** (always on) plus scoped r
 
 | File | When |
 |------|------|
-| `pm-synapse.mdc` | **Always** |
+| `synapse.mdc` | **Always** |
 | `synapse-backend.mdc` | `server/**` |
 | `synapse-frontend.mdc` | `app/**`, `components/**`, `lib/**` |
 | `synapse-pm-integration.mdc` | `server/services/pmClient.ts`, checkbox sync, SSO |

@@ -46,7 +46,7 @@ async function main() {
 
   const ok = await testConnection();
   if (!ok) {
-    logger.error('Database connection failed — check DB_* in pm-synapse/.env');
+    logger.error('Database connection failed — check DB_* in synapse/.env');
     logger.error('Create database pm_synapse and copy values from .env.example');
     if (process.env.NODE_ENV === 'production') {
       process.exit(1);
@@ -108,7 +108,7 @@ async function main() {
   server.use((req, res) => handle(req, res));
 
   server.listen(port, () => {
-    logger.info(`PM Synapse listening on http://localhost:${port}`);
+    logger.info(`Synapse listening on http://localhost:${port}`);
   });
 }
 
@@ -119,7 +119,7 @@ main().catch((error) => {
       : typeof error === 'string'
         ? error
         : JSON.stringify(error, Object.getOwnPropertyNames(error instanceof Object ? error : {}));
-  logger.error('Failed to start PM Synapse', {
+  logger.error('Failed to start Synapse', {
     message,
     stack: error instanceof Error ? error.stack : undefined,
   });

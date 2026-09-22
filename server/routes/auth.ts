@@ -188,7 +188,7 @@ async function resolveUserFromSso(pm: {
       });
       return {
         ok: false,
-        message: 'This email is already linked to a different Project Management account',
+        message: 'This email is already linked to a different Myelin account',
       };
     }
     await pool.execute(
@@ -392,7 +392,7 @@ router.get('/sso/start', async (_req, res) => {
   }
   const state = cryptoRandom();
   const redirectUri = `${appBaseUrl()}/api/auth/sso/callback`;
-  const clientId = process.env.SSO_CLIENT_ID || 'pm-synapse';
+  const clientId = process.env.SSO_CLIENT_ID || 'synapse';
   const url = new URL(`${PM_BASE_URL}/sso/authorize`);
   url.searchParams.set('redirect_uri', redirectUri);
   url.searchParams.set('state', state);
@@ -431,7 +431,7 @@ router.get('/sso/callback', async (req, res) => {
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({
         code,
-        client_id: process.env.SSO_CLIENT_ID || 'pm-synapse',
+        client_id: process.env.SSO_CLIENT_ID || 'synapse',
         client_secret: process.env.SSO_CLIENT_SECRET || '',
         redirect_uri: redirectUri,
       }),
@@ -561,7 +561,7 @@ router.patch('/me', authenticateSession, async (req: AuthRequest, res: Response)
           return res.status(400).json({
             success: false,
             message:
-              'Email is managed by Project Management SSO and cannot be changed here',
+              'Email is managed by Myelin SSO and cannot be changed here',
           });
         }
         sets.push('Email = ?');
@@ -666,7 +666,7 @@ router.post('/me/pm-test', authenticateSession, async (req: AuthRequest, res: Re
       return res.status(401).json({
         success: false,
         message:
-          'No Project Management credentials — reconnect via SSO or add a personal API token in Profile',
+          'No Myelin credentials — reconnect via SSO or add a personal API token in Profile',
         reauth: true,
       });
     }
@@ -681,7 +681,7 @@ router.post('/me/pm-test', authenticateSession, async (req: AuthRequest, res: Re
     }
     res.json({
       success: true,
-      message: `Connected to Project Management (${resolved.source === 'sso' ? 'SSO' : 'personal API token'})`,
+      message: `Connected to Myelin (${resolved.source === 'sso' ? 'SSO' : 'personal API token'})`,
       data: { source: resolved.source },
     });
   } catch (error) {

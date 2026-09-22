@@ -7,7 +7,7 @@ describe('smoke: health', () => {
     const body = buildHealthPayload(new Date('2026-01-01T00:00:00.000Z'));
     expect(body).toEqual({
       status: 'healthy',
-      service: 'pm-synapse',
+      service: 'synapse',
       timestamp: '2026-01-01T00:00:00.000Z',
     });
   });
@@ -18,7 +18,7 @@ describe('smoke: health', () => {
     const res = await request(app).get('/health');
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('healthy');
-    expect(res.body.service).toBe('pm-synapse');
+    expect(res.body.service).toBe('synapse');
     expect(typeof res.body.timestamp).toBe('string');
   });
 });

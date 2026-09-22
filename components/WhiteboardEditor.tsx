@@ -129,7 +129,7 @@ function serializeBoardPayload(
   return JSON.stringify({
     type: 'excalidraw',
     version: 2,
-    source: 'pm-synapse',
+    source: 'synapse',
     elements,
     appState: {
       viewBackgroundColor: resolveCanvasBg(appState.viewBackgroundColor),

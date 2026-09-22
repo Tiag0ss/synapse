@@ -1,5 +1,5 @@
 ---
-description: Synapse ↔ Project Management integration
+description: Synapse ↔ Myelin integration
 globs: server/services/pmClient.ts,server/services/pmCheckboxSync.ts,server/routes/auth.ts,server/routes/vaults.ts
 alwaysApply: false
 ---

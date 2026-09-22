@@ -141,7 +141,7 @@ export default function PublicWikiPage() {
       const data = await res.json();
       if (!res.ok) {
         if (res.status === 401 || data.requiresAuth) {
-          setError('This note requires sign-in. Sign in with Project Management, then reload.');
+          setError('This note requires sign-in. Sign in with Myelin, then reload.');
         } else {
           setError(data.message || 'Note unavailable');
         }
@@ -399,7 +399,7 @@ export default function PublicWikiPage() {
                     className="text-[var(--accent-soft)] no-underline hover:underline"
                     title="Open this vault in Synapse"
                   >
-                    PM Synapse
+                    Synapse
                   </Link>
                 ) : (
                   'Public wiki'
@@ -481,7 +481,7 @@ export default function PublicWikiPage() {
                 className="text-[11px] font-semibold uppercase tracking-wider text-[var(--accent-soft)] no-underline hover:underline"
                 title="Open this vault in Synapse"
               >
-                PM Synapse
+                Synapse
               </Link>
             ) : (
               <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">

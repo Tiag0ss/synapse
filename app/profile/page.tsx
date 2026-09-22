@@ -251,7 +251,7 @@ export default function ProfilePage() {
             <h1 className="text-2xl font-semibold tracking-tight text-[var(--text)]">My profile</h1>
             <p className="mt-0.5 text-sm text-[var(--muted)]">
               Account details
-              {sso ? ' · linked to Project Management' : ''}
+              {sso ? ' · linked to Myelin' : ''}
             </p>
           </div>
         </div>
@@ -271,7 +271,7 @@ export default function ProfilePage() {
           <div className="mt-6 rounded-xl border border-[color-mix(in_srgb,var(--accent)_30%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] px-4 py-3 text-sm text-[var(--muted)]">
             <p className="font-medium text-[var(--accent-soft)]">SSO account</p>
             <p className="mt-1 text-[13px] leading-relaxed">
-              Your email comes from Project Management and cannot be changed here. Username may be
+              Your email comes from Myelin and cannot be changed here. Username may be
               refreshed on the next SSO sign-in. You can still set a local password to sign in
               without SSO.
             </p>
@@ -306,7 +306,7 @@ export default function ProfilePage() {
             />
             {sso && (
               <span className="mt-1 block text-[11px] text-[var(--muted)]">
-                Managed by Project Management SSO
+                Managed by Myelin SSO
               </span>
             )}
           </label>
@@ -322,7 +322,7 @@ export default function ProfilePage() {
 
         {profile.pmIntegration?.enabled !== false && (
           <section className="mt-6 space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--panel)]/70 p-5">
-            <h2 className="text-sm font-semibold text-[var(--text)]">Project Management API token</h2>
+            <h2 className="text-sm font-semibold text-[var(--text)]">Myelin API token</h2>
             <p className="text-xs leading-relaxed text-[var(--muted)]">
               Personal <code className="text-[var(--accent-soft)]">pt_…</code> token from Project
               Management → Administration → API Tokens. Used for Planner calls when you have no
@@ -353,7 +353,7 @@ export default function ProfilePage() {
                 href="/api/auth/sso/start"
                 className="inline-flex text-sm font-medium text-[var(--accent-soft)] no-underline hover:underline"
               >
-                Reconnect with Project Management SSO →
+                Reconnect with Myelin SSO →
               </a>
             )}
             <label className="block text-sm">

@@ -71,7 +71,7 @@ export default function PublicWikisDirectoryPage() {
       <header className="mb-10 flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent-soft)]">
-            PM Synapse
+            Synapse
           </p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">Public wikis</h1>
           <p className="mt-2 max-w-xl text-sm text-[var(--muted)]">

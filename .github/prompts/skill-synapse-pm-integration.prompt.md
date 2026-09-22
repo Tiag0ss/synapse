@@ -1,4 +1,4 @@
-# Skill: Synapse ↔ Project Management integration
+# Skill: Synapse ↔ Myelin integration
 
 ## Goal
 Change SSO, PM client calls, checkbox push, or status pull-sync.

@@ -1,7 +1,7 @@
 {
-  "name": "PM Synapse",
+  "name": "Synapse",
   "short_name": "Synapse",
-  "description": "Markdown vaults linked to Project Management",
+  "description": "Markdown vaults linked to Myelin",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

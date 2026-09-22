@@ -2,8 +2,8 @@ version: '3.8'
 
 services:
   app:
-    image: ${DOCKER_USERNAME:-myuser}/pm-synapse:latest
-    container_name: pm-synapse-app
+    image: ${DOCKER_USERNAME:-myuser}/synapse:latest
+    container_name: synapse-app
     env_file:
       - .env.docker
     restart: unless-stopped
@@ -21,7 +21,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
       PM_BASE_URL: ${PM_BASE_URL}
-      SSO_CLIENT_ID: ${SSO_CLIENT_ID:-pm-synapse}
+      SSO_CLIENT_ID: ${SSO_CLIENT_ID:-synapse}
       SSO_CLIENT_SECRET: ${SSO_CLIENT_SECRET}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3010}
       NEXT_PUBLIC_PM_BASE_URL: ${NEXT_PUBLIC_PM_BASE_URL:-}
@@ -51,7 +51,7 @@ services:
 
   mysql:
     image: mysql:8.0
-    container_name: pm-synapse-mysql
+    container_name: synapse-mysql
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}

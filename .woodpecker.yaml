@@ -25,7 +25,7 @@ steps:
   build-and-push:
     image: woodpeckerci/plugin-docker-buildx
     settings:
-      repo: tiag0ss/pm-synapse
+      repo: tiag0ss/synapse
       dockerfile: Dockerfile
       username:
         from_secret: DOCKER_USERNAME

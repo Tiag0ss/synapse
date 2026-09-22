@@ -32,7 +32,7 @@ export function applyPlannerButtons(root: HTMLElement, items: PlannerLinkItem[])
     a.href = link.openUrl;
     a.target = '_blank';
     a.rel = 'noreferrer';
-    a.title = link.pmTaskId ? `Open task #${link.pmTaskId} in Project Management` : 'Open in Project Management';
+    a.title = link.pmTaskId ? `Open task #${link.pmTaskId} in Myelin` : 'Open in Myelin';
     a.textContent = link.pmTaskId ? `Planner #${link.pmTaskId}` : 'Open in Planner';
     li.appendChild(document.createTextNode(' '));
     li.appendChild(a);

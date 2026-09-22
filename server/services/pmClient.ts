@@ -92,7 +92,7 @@ export async function refreshPmSsoAccessToken(userId: number): Promise<boolean> 
   const refreshToken = await loadStoredRefreshToken(userId);
   if (!refreshToken) return false;
 
-  const clientId = process.env.SSO_CLIENT_ID || 'pm-synapse';
+  const clientId = process.env.SSO_CLIENT_ID || 'synapse';
   const clientSecret = process.env.SSO_CLIENT_SECRET || '';
   if (!clientSecret) {
     logger.warn('Cannot refresh PM SSO token — SSO_CLIENT_SECRET not set', { userId });
@@ -305,7 +305,7 @@ export async function getPmAccessToken(userId: number): Promise<string | null> {
 }
 
 export const PM_NO_CREDENTIALS_MESSAGE =
-  'No Project Management credentials — reconnect via SSO or add a personal API token in Profile';
+  'No Myelin credentials — reconnect via SSO or add a personal API token in Profile';
 
 
 async function persistRefreshedSsoToken(userId: number, accessToken: string): Promise<void> {
@@ -325,7 +325,7 @@ async function pmFetch<T>(
       ok: false,
       status: 503,
       data: {
-        message: 'Project Management integration is disabled in Settings',
+        message: 'Myelin integration is disabled in Settings',
       } as T & { message?: string },
     };
   }
@@ -392,7 +392,7 @@ async function pmFetch<T>(
       ok: false,
       status: 502,
       data: {
-        message: `Could not reach Project Management at ${PM_BASE_URL}`,
+        message: `Could not reach Myelin at ${PM_BASE_URL}`,
       } as T & { message?: string },
     };
   }

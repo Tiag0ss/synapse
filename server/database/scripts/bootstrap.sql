@@ -1,7 +1,7 @@
--- PM Synapse — MySQL bootstrap (run as root / admin)
+-- Synapse — MySQL bootstrap (run as root / admin)
 -- Usage:
 --   mysql -u root -p < server/database/scripts/bootstrap.sql
--- Then set matching DB_USER / DB_PASSWORD in pm-synapse/.env
+-- Then set matching DB_USER / DB_PASSWORD in synapse/.env
 
 CREATE DATABASE IF NOT EXISTS pm_synapse
   CHARACTER SET utf8mb4

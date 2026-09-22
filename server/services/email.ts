@@ -37,7 +37,7 @@ export async function sendMail(options: {
     return { ok: false, message: 'SMTP is not configured' };
   }
   const fromEmail = (await getSetting(SETTING_KEYS.smtpFrom)) || '';
-  const fromName = (await getSetting(SETTING_KEYS.smtpFromName)) || 'PM Synapse';
+  const fromName = (await getSetting(SETTING_KEYS.smtpFromName)) || 'Synapse';
   try {
     const transport = await buildTransport();
     await transport.sendMail({
@@ -55,7 +55,7 @@ export async function sendMail(options: {
 }
 
 export async function sendPasswordResetEmail(to: string, resetUrl: string): Promise<SendMailResult> {
-  const siteName = (await getSetting(SETTING_KEYS.siteName)) || 'PM Synapse';
+  const siteName = (await getSetting(SETTING_KEYS.siteName)) || 'Synapse';
   return sendMail({
     to,
     subject: `${siteName} — password reset`,

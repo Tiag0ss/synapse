@@ -113,7 +113,7 @@ export const SYNAPSE_BOARD_BG = '#0a0e13';
 const EMPTY_BOARD_JSON = JSON.stringify({
   type: 'excalidraw',
   version: 2,
-  source: 'pm-synapse',
+  source: 'synapse',
   elements: [],
   appState: { viewBackgroundColor: SYNAPSE_BOARD_BG, theme: 'dark' },
   files: {},

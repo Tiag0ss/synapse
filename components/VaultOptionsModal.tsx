@@ -172,7 +172,7 @@ export default function VaultOptionsModal({
     { id: 'links', label: 'Broken links' },
     { id: 'share', label: 'Share', hidden: isPersonalWork },
     { id: 'trash', label: 'Trash', hidden: !canEdit },
-    { id: 'pm', label: 'Project Management', hidden: !canEdit || isPersonalWork },
+    { id: 'pm', label: 'Myelin', hidden: !canEdit || isPersonalWork },
     { id: 'vault', label: 'Vault' },
   ];
 
@@ -378,7 +378,7 @@ export default function VaultOptionsModal({
           <div>
             <h2 className="text-lg font-semibold tracking-tight">Vault options</h2>
             <p className="mt-1 text-sm text-[var(--muted)]">
-              {vaultName} — links, sharing, trash, export, and Project Management.
+              {vaultName} — links, sharing, trash, export, and Myelin.
             </p>
           </div>
           <button type="button" className="btn-ghost" onClick={onClose}>

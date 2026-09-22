@@ -171,7 +171,7 @@ Analysis (do all of these):
 4. Infer hours when the note implies effort; otherwise omit hours.
 5. Use category when clear (e.g. Design, Development, Research, Documentation, Meeting, Other).
 6. Write "content" in the same language as the note body.
-7. Do not invent Project Management project/task IDs.
+7. Do not invent Myelin project/task IDs.
 8. Skip items that duplicate existing todos (same meaning, not only same wording).
 9. Propose a thorough set when the note is rich (typically 5–20); fewer only for short notes. Cap at ${MAX_PROPOSED}.
 10. Each rationale must cite what in the note triggered the todo (section/phrase), one short sentence.`;

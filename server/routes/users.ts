@@ -43,7 +43,7 @@ router.get('/', async (_req: AuthRequest, res: Response) => {
   }
 });
 
-/** Import / link users from Project Management into Synapse. */
+/** Import / link users from Myelin into Synapse. */
 router.post('/sync-from-pm', async (req: AuthRequest, res: Response) => {
   try {
     const data = await syncUsersFromPm(req.user!.userId);
@@ -58,7 +58,7 @@ router.post('/sync-from-pm', async (req: AuthRequest, res: Response) => {
     if (status >= 500) logger.error('POST users/sync-from-pm failed', { error });
     res.status(status).json({
       success: false,
-      message: err.message || 'Failed to sync users from Project Management',
+      message: err.message || 'Failed to sync users from Myelin',
     });
   }
 });

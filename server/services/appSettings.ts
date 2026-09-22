@@ -120,7 +120,7 @@ export async function getPublicAuthProviders(): Promise<{
   ]);
   const bootstrap = userCount === 0;
   return {
-    siteName: siteName || 'PM Synapse',
+    siteName: siteName || 'Synapse',
     allowPublicRegistration: bootstrap || allowReg,
     allowSsoLogin: allowSso && isSsoEnvConfigured(),
     ssoConfigured: isSsoEnvConfigured(),

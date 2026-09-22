@@ -1,4 +1,4 @@
-# Deployment — PM Synapse
+# Deployment — Synapse
 
 ## Docker (recommended)
 
@@ -15,17 +15,17 @@ Generate secrets:
 node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
 ```
 
-On **Project Management**, allow the Synapse SSO callback, e.g.:
+On **Myelin**, allow the Synapse SSO callback, e.g.:
 
 ```env
 ALLOWED_SSO_REDIRECTS=http://localhost:3010/api/auth/sso/callback
-SSO_CLIENT_ID=pm-synapse
+SSO_CLIENT_ID=synapse
 SSO_CLIENT_SECRET=<same as Synapse SSO_CLIENT_SECRET>
 ```
 
 ### 2. Build & push image
 
-From this folder (`pm-synapse/`):
+From this folder (`synapse/`):
 
 ```bash
 # Linux if docker group is not active in this shell:
@@ -35,7 +35,7 @@ sg docker -c "./docker-build.sh"
 sg docker -c "./docker-build.sh 0.1.0"
 ```
 
-Set `DOCKER_USERNAME` or the script will prompt. Image: `$DOCKER_USERNAME/pm-synapse`.
+Set `DOCKER_USERNAME` or the script will prompt. Image: `$DOCKER_USERNAME/synapse`.
 
 The multi-stage `Dockerfile` installs with `--ignore-scripts` (postinstall needs `scripts/` before copy), then runs `node scripts/copy-excalidraw-assets.mjs` in the builder so Excalidraw fonts land under `public/excalidraw`.
 
@@ -73,18 +73,18 @@ DB_PORT=3306
 Then start only the app (and remove/adjust `depends_on` as needed), or:
 
 ```bash
-docker run -d --name pm-synapse \
+docker run -d --name synapse \
   -p 3010:3010 \
   --env-file .env.docker \
   -v synapse-uploads:/app/data/uploads \
-  youruser/pm-synapse:latest
+  youruser/synapse:latest
 ```
 
 ### 5. Local image only (no push)
 
 ```bash
-docker build -t pm-synapse:local .
-docker run -d -p 3010:3010 --env-file .env.docker pm-synapse:local
+docker build -t synapse:local .
+docker run -d -p 3010:3010 --env-file .env.docker synapse:local
 ```
 
 ## Production Node (without Docker)

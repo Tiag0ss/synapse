@@ -137,7 +137,7 @@ export async function syncUsersFromPm(actingUserId: number): Promise<SyncPmUsers
   const res = await fetchPmUsers(actingUserId);
   if (!res.ok) {
     throw Object.assign(
-      new Error(res.data.message || 'Failed to fetch users from Project Management'),
+      new Error(res.data.message || 'Failed to fetch users from Myelin'),
       { status: res.status }
     );
   }

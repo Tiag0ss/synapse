@@ -195,8 +195,8 @@ export default function NoteTasksPanel({
         if (payload.syncedFromPm > 0) {
           onStatus?.(
             payload.syncedFromPm === 1
-              ? 'Synced 1 task from Project Management'
-              : `Synced ${payload.syncedFromPm} tasks from Project Management`
+              ? 'Synced 1 task from Myelin'
+              : `Synced ${payload.syncedFromPm} tasks from Myelin`
           );
         } else if (payload.clearedStale > 0) {
           onStatus?.(
@@ -503,7 +503,7 @@ export default function NoteTasksPanel({
     <div className={compact ? '' : 'rounded-xl border border-[var(--border)] bg-[var(--panel)]/50 p-3'}>
       {needsReauth && (
         <div className="mb-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[12px] text-amber-100">
-          <p>Reconnect Project Management to create or sync tasks.</p>
+          <p>Reconnect Myelin to create or sync tasks.</p>
           <div className="mt-1.5 flex flex-wrap gap-3">
             <a
               href="/api/auth/sso/start"
@@ -622,7 +622,7 @@ export default function NoteTasksPanel({
               target="_blank"
               rel="noreferrer"
               className="btn-ghost py-1 text-[11px] no-underline"
-              title="Open note task in Project Management"
+              title="Open note task in Myelin"
             >
               Planner #{notePmTaskId}
             </a>
@@ -849,7 +849,7 @@ export default function NoteTasksPanel({
                   target="_blank"
                   rel="noreferrer"
                   className="shrink-0 text-[10px] text-[var(--accent-soft)] no-underline"
-                  title="Open in Project Management"
+                  title="Open in Myelin"
                 >
                   Planner #{item.pmTaskId}
                 </a>

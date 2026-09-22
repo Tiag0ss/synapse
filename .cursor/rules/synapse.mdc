@@ -1,9 +1,9 @@
 ---
-description: PM Synapse master context — stack, map, non-negotiables
+description: Synapse master context — stack, map, non-negotiables
 alwaysApply: true
 ---
 
-# PM Synapse — agent master context
+# Synapse — agent master context
 
 Read this first. For depth use scoped rules in `.cursor/rules/` and [AGENTS.md](../../AGENTS.md).
 
@@ -30,7 +30,7 @@ rules:
 | Frontend | Next.js 16 App Router, React 19, Tailwind 4 |
 | Backend | Express 5, TypeScript, `server/index.ts` (serves Next) |
 | Database | MySQL (`server/config/database.ts`), schema in `server/services/schema.ts` |
-| Auth | Cookie session + SSO against Project Management |
+| Auth | Cookie session + SSO against Myelin |
 | Validation | Zod on route bodies |
 | Markdown | `marked` + Synapse preprocess (wikilinks, `![[board]]` embeds, tags, checkboxes) |
 | Whiteboards | Excalidraw (`WhiteboardEditor` / `WhiteboardPeekCanvas`) |

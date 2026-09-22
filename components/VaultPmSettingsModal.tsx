@@ -505,7 +505,7 @@ export default function VaultPmSettingsModal({
         {!embedded && (
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-[var(--border)] px-5 py-4">
           <div>
-            <h2 className="text-lg font-semibold tracking-tight">Vault · Project Management</h2>
+            <h2 className="text-lg font-semibold tracking-tight">Vault · Myelin</h2>
             <p className="mt-1 text-sm text-[var(--muted)]">
               Link one PM project to this vault, then create tasks from note checkboxes.
             </p>

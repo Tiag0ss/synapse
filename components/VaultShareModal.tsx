@@ -261,7 +261,7 @@ export default function VaultShareModal({
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)]/40 p-4">
             <p className="text-sm font-semibold text-[var(--text)]">Add people</p>
             <p className="mt-1 text-xs text-[var(--muted)]">
-              Search signed-in users, or invite by Project Management user id before first Synapse
+              Search signed-in users, or invite by Myelin user id before first Synapse
               login.
             </p>
             <div className="mt-3 flex flex-wrap gap-2">

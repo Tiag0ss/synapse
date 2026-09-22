@@ -21,7 +21,7 @@ Side effects (DB, PM API, files, graph):
 4. Parameterized SQL via `pool`; use `logger` for errors.
 5. For note writes that change graph-relevant content: `rebuildNoteGraph` after save.
 6. For note content revisions (user edits): `snapshotRevision` — skip for passive PM checkbox pull-sync.
-7. If the route calls Project Management, update `docs/PM_API_CONTRACT.md` when introducing new endpoints/fields.
+7. If the route calls Myelin, update `docs/PM_API_CONTRACT.md` when introducing new endpoints/fields.
 8. Minimal diff; English messages.
 
 ## Output Contract

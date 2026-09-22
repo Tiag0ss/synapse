@@ -2,14 +2,14 @@ import type { Express, Request, Response } from 'express';
 
 export type HealthPayload = {
   status: 'healthy';
-  service: 'pm-synapse';
+  service: 'synapse';
   timestamp: string;
 };
 
 export function buildHealthPayload(now: Date = new Date()): HealthPayload {
   return {
     status: 'healthy',
-    service: 'pm-synapse',
+    service: 'synapse',
     timestamp: now.toISOString(),
   };
 }

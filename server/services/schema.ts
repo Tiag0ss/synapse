@@ -404,7 +404,7 @@ async function migrateUserProfilesToUsers(): Promise<void> {
 
 async function seedDefaultAppSettings(): Promise<void> {
   const defaults: Record<string, string> = {
-    siteName: 'PM Synapse',
+    siteName: 'Synapse',
     allowPublicWikiDirectory: 'true',
     allowPublicRegistration: 'true',
     allowSsoLogin: 'true',
@@ -460,5 +460,5 @@ export async function ensureSchema(): Promise<void> {
   await seedDefaultAppSettings();
   await seedSystemNoteTemplates();
 
-  logger.info('PM Synapse schema ready');
+  logger.info('Synapse schema ready');
 }

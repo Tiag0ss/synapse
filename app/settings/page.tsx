@@ -82,7 +82,7 @@ export default function SettingsPage() {
   const [smtpSecure, setSmtpSecure] = useState(false);
   const [smtpUser, setSmtpUser] = useState('');
   const [smtpFrom, setSmtpFrom] = useState('');
-  const [smtpFromName, setSmtpFromName] = useState('PM Synapse');
+  const [smtpFromName, setSmtpFromName] = useState('Synapse');
   const [smtpPassword, setSmtpPassword] = useState('');
   const [clearSmtpPassword, setClearSmtpPassword] = useState(false);
   const [pmEnabled, setPmEnabled] = useState(true);
@@ -491,7 +491,7 @@ export default function SettingsPage() {
     { id: 'general', label: 'General' },
     { id: 'auth', label: 'Authentication' },
     { id: 'email', label: 'Email' },
-    { id: 'pm', label: 'Project Management' },
+    { id: 'pm', label: 'Myelin' },
     { id: 'ai', label: 'AI' },
     { id: 'templates', label: 'Templates' },
     { id: 'export', label: 'Word export' },
@@ -572,7 +572,7 @@ export default function SettingsPage() {
           </p>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={allowSso} onChange={(e) => setAllowSso(e.target.checked)} />
-            Allow Sign in with Project Management
+            Allow Sign in with Myelin
           </label>
           <label className="block text-sm">
             Minimum password length
@@ -666,7 +666,7 @@ export default function SettingsPage() {
         <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--panel)]/70 p-5">
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={pmEnabled} onChange={(e) => setPmEnabled(e.target.checked)} />
-            Enable Project Management integration
+            Enable Myelin integration
           </label>
           <label className="block text-sm">
             PM base URL (from environment)
@@ -961,7 +961,7 @@ export default function SettingsPage() {
         <section className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="max-w-xl text-xs text-[var(--muted)]">
-              Sync pulls accounts from Project Management (admin API). New users are SSO-ready with no
+              Sync pulls accounts from Myelin (admin API). New users are SSO-ready with no
               local password; existing Synapse users are linked by PM id or email.
             </p>
             <div className="flex flex-wrap gap-2">
@@ -969,7 +969,7 @@ export default function SettingsPage() {
                 type="button"
                 className="btn-ghost"
                 disabled={syncBusy}
-                title="Import and link users from Project Management"
+                title="Import and link users from Myelin"
                 onClick={() => setSyncConfirmOpen(true)}
               >
                 {syncBusy ? 'Syncing…' : 'Sync from PM'}
@@ -1249,7 +1249,7 @@ export default function SettingsPage() {
 
       <ConfirmModal
         open={syncConfirmOpen}
-        title="Sync users from Project Management"
+        title="Sync users from Myelin"
         message="Import PM users into Synapse. Matched by PM user id or email. New accounts are SSO-ready (no local password). Existing Synapse-only users are not deleted. Requires your admin SSO session or personal API token in Profile."
         confirmLabel={syncBusy ? 'Syncing…' : 'Sync now'}
         cancelLabel="Cancel"

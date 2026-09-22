@@ -185,7 +185,7 @@ export default function HomePage() {
     );
   }
 
-  const siteName = providers?.siteName || 'PM Synapse';
+  const siteName = providers?.siteName || 'Synapse';
 
   if (!me) {
     return (
@@ -331,10 +331,10 @@ export default function HomePage() {
                   href="/api/auth/sso/start"
                   className="btn-ghost inline-flex w-full justify-center no-underline hover:no-underline"
                 >
-                  Sign in with Project Management
+                  Sign in with Myelin
                 </a>
                 <p className="mt-2 text-center text-[11px] text-[var(--muted)]">
-                  Same email as in Project Management links your accounts.
+                  Same email as in Myelin links your accounts.
                 </p>
               </>
             )}

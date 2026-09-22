@@ -70,7 +70,7 @@ router.get('/general', async (_req: AuthRequest, res: Response) => {
       success: true,
       data: {
         general: {
-          siteName: siteName || 'PM Synapse',
+          siteName: siteName || 'Synapse',
           allowPublicWikiDirectory,
         },
         auth: {
@@ -84,7 +84,7 @@ router.get('/general', async (_req: AuthRequest, res: Response) => {
           smtpSecure,
           smtpUser: smtpUser || '',
           smtpFrom: smtpFrom || '',
-          smtpFromName: smtpFromName || 'PM Synapse',
+          smtpFromName: smtpFromName || 'Synapse',
           hasSmtpPassword: Boolean(smtpPassword),
           smtpConfigured: await isSmtpConfigured(),
         },
@@ -202,9 +202,9 @@ router.post('/email/test', async (req: AuthRequest, res: Response) => {
     }
     const result = await sendMail({
       to,
-      subject: 'PM Synapse — test email',
-      text: 'This is a test email from PM Synapse. SMTP is working.',
-      html: '<p>This is a test email from <strong>PM Synapse</strong>. SMTP is working.</p>',
+      subject: 'Synapse — test email',
+      text: 'This is a test email from Synapse. SMTP is working.',
+      html: '<p>This is a test email from <strong>Synapse</strong>. SMTP is working.</p>',
     });
     if (!result.ok) {
       return res.status(400).json({ success: false, message: result.message });

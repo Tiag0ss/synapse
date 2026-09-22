@@ -343,7 +343,7 @@ export default function VaultWorkspacePage() {
           : JSON.stringify({
               type: 'excalidraw',
               version: 2,
-              source: 'pm-synapse',
+              source: 'synapse',
               elements: [],
               appState: { viewBackgroundColor: '#0a0e13', theme: 'dark' },
               files: {},
