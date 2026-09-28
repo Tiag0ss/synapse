@@ -977,7 +977,7 @@ export default function VaultWorkspacePage() {
   };
 
   return (
-    <div className="flex h-dvh flex-col">
+    <div className="flex h-dvh flex-col overflow-hidden">
       <AppToast message={status} nonce={statusNonce} />
       <header className="relative z-40 shrink-0 border-b border-[var(--border)] bg-[var(--panel)]/95 backdrop-blur-md">
         {/* Mobile: identity row + action strip */}
@@ -1359,7 +1359,7 @@ export default function VaultWorkspacePage() {
       <PmSsoBanner />
 
       <div
-        className={`relative grid min-h-0 flex-1 ${
+        className={`relative grid min-h-0 flex-1 overflow-hidden ${
           isLgUp && !chromeFull ? 'grid-cols-[260px_1fr_300px]' : 'grid-cols-1'
         }`}
       >
@@ -1376,7 +1376,7 @@ export default function VaultWorkspacePage() {
         )}
 
         <aside
-          className={`flex min-h-0 flex-col border-[var(--border)] bg-[var(--panel)] ${
+          className={`flex min-h-0 flex-col overflow-hidden border-[var(--border)] bg-[var(--panel)] ${
             isLgUp && !chromeFull
               ? 'border-r bg-[var(--panel)]/40'
               : chromeFull
@@ -1419,7 +1419,7 @@ export default function VaultWorkspacePage() {
         </aside>
 
         <section
-          className={`flex min-h-0 flex-col ${
+          className={`flex min-h-0 flex-col overflow-hidden ${
             boardFull ? 'gap-0 p-0' : 'gap-3 p-3 sm:p-4'
           }`}
         >
@@ -1473,10 +1473,10 @@ export default function VaultWorkspacePage() {
               emptyHint="No fold cards in this vault. Use :::fold- Question … ::: with the answer in the body."
             />
           ) : selectedId ? (
-            <>
+            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
               {/* Mobile note chrome: title first, then compact actions */}
               {!boardFull && (
-              <div className="space-y-2 lg:hidden">
+              <div className="shrink-0 space-y-2 lg:hidden">
                 <div className="flex items-center gap-2">
                   <NoteIconPicker value={noteIcon} onChange={setNoteIcon} disabled={!canEdit} />
                   <input
@@ -1536,8 +1536,8 @@ export default function VaultWorkspacePage() {
                     type="button"
                     className="btn-ghost shrink-0 px-2.5 py-1.5 text-sm"
                     onClick={() => setExportOpen(true)}
-                    title="Export this note as DOCX"
-                    aria-label="Export"
+                  title="Export note (Markdown or Word)"
+                  aria-label="Export"
                     hidden={isWhiteboard}
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -1598,7 +1598,7 @@ export default function VaultWorkspacePage() {
 
               {/* Desktop note chrome */}
               {!boardFull && (
-              <div className="hidden flex-wrap items-center gap-2 lg:flex">
+              <div className="hidden shrink-0 flex-wrap items-center gap-2 lg:flex">
                 <NoteIconPicker value={noteIcon} onChange={setNoteIcon} disabled={!canEdit} />
                 <input
                   className="input min-w-0 flex-1 py-2 text-base font-semibold tracking-tight"
@@ -1654,7 +1654,7 @@ export default function VaultWorkspacePage() {
                   type="button"
                   className="btn-ghost"
                   onClick={() => setExportOpen(true)}
-                  title="Export this note as DOCX"
+                  title="Export note (Markdown or Word)"
                   hidden={isWhiteboard}
                 >
                   Export
@@ -1693,14 +1693,14 @@ export default function VaultWorkspacePage() {
               </div>
               )}
               {isHubNote && !boardFull && (
-                <p className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)]/50 px-3 py-2 text-xs text-[var(--muted)]">
+                <p className="shrink-0 rounded-lg border border-[var(--border)] bg-[var(--surface-2)]/50 px-3 py-2 text-xs text-[var(--muted)]">
                   Pull-only from Planner. Use <span className="text-[var(--text)]">Refresh tasks</span>{' '}
                   in the tasks panel (right sidebar) to update work assigned to you. Linked notes below
                   the task block are kept.
                 </p>
               )}
               {isWhiteboard ? (
-                <div className="relative flex min-h-0 flex-1 flex-col">
+                <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
                 {boardFull && (
                   <div className="pointer-events-none absolute right-3 top-3 z-20 flex gap-2">
                     <button
@@ -1814,7 +1814,7 @@ export default function VaultWorkspacePage() {
                   attachmentsRefreshToken={attachmentsRefresh}
                 />
               )}
-            </>
+            </div>
           ) : (
             <div className="flex flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-[var(--border)] bg-[var(--panel)]/30 px-6 text-center sm:px-8">
               <p className="text-lg font-semibold tracking-tight">Select a note</p>
@@ -2270,6 +2270,7 @@ export default function VaultWorkspacePage() {
         vaultId={vaultId}
         noteId={selectedId}
         noteTitle={title}
+        bodyMarkdown={body}
         onBeforeExport={ensureNoteSaved}
         onClose={() => setExportOpen(false)}
       />

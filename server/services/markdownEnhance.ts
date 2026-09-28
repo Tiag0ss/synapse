@@ -661,6 +661,14 @@ export function preprocessMarkdownExtras(md: string): string {
   return out;
 }
 
+/** Wrap GFM tables so wide grids scroll inside the preview instead of expanding the page. */
+export function wrapMarkdownTables(html: string): string {
+  return (html || '').replace(/<table\b[\s\S]*?<\/table>/gi, (table) => {
+    if (/class\s*=\s*["'][^"']*synapse-table-wrap/.test(table)) return table;
+    return `<div class="synapse-table-wrap">${table}</div>`;
+  });
+}
+
 /** Full extras pass after marked.parse. */
 export function postprocessMarkdownHtml(html: string): string {
   let out = html || '';
@@ -668,5 +676,6 @@ export function postprocessMarkdownHtml(html: string): string {
   out = markTaskListItems(out);
   out = applyHeadingIds(out);
   out = highlightCodeBlocks(out);
+  out = wrapMarkdownTables(out);
   return out;
 }

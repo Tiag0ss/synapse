@@ -523,7 +523,20 @@ a:hover { text-decoration: underline; }
   border-top: 1px solid var(--border);
   margin: 1.25rem 0;
 }
-.synapse-md-preview table { border-collapse: collapse; width: 100%; margin: 0.85rem 0; }
+.synapse-md-preview table {
+  border-collapse: collapse;
+  width: max-content;
+  min-width: 100%;
+  margin: 0.85rem 0;
+}
+.synapse-md-preview .synapse-table-wrap {
+  overflow-x: auto;
+  max-width: 100%;
+  margin: 0.85rem 0;
+}
+.synapse-md-preview .synapse-table-wrap > table {
+  margin: 0;
+}
 .synapse-md-preview th,
 .synapse-md-preview td {
   border: 1px solid var(--border);

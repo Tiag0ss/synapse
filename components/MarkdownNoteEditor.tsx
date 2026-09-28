@@ -1329,7 +1329,7 @@ export default function MarkdownNoteEditor({
       </div>
 
       <div
-        className={`grid min-h-0 flex-1 ${
+        className={`grid min-h-0 flex-1 overflow-hidden ${
           showLegend
             ? compact
               ? 'grid-cols-1 grid-rows-[1fr_auto]'
@@ -1338,7 +1338,7 @@ export default function MarkdownNoteEditor({
         }`}
       >
         <div
-          className={`grid min-h-0 ${
+          className={`grid min-h-0 min-w-0 overflow-hidden ${
             mode === 'split' && !compact ? 'grid-cols-2' : 'grid-cols-1'
           }`}
         >

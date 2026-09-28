@@ -61,7 +61,10 @@ export default function VaultPmSettingsModal({
 }: VaultPmSettingsModalProps) {
   const [orgs, setOrgs] = useState<Array<{ Id: number; Name: string }>>([]);
   const [orgId, setOrgId] = useState(pmOrganizationId ? String(pmOrganizationId) : '');
+  const [projects, setProjects] = useState<Array<{ Id: number; Name: string }>>([]);
+  const [projectQuery, setProjectQuery] = useState('');
   const [linkProjectId, setLinkProjectId] = useState('');
+  const [loadingProjects, setLoadingProjects] = useState(false);
   const [linkedProjectId, setLinkedProjectId] = useState<number | null>(pmProjectId ?? null);
   const [items, setItems] = useState<VaultCheckboxItem[]>([]);
   const [status, setStatusState] = useState('');
@@ -122,9 +125,64 @@ export default function VaultPmSettingsModal({
     if (!open) return;
     setOrgId(pmOrganizationId ? String(pmOrganizationId) : '');
     setLinkedProjectId(pmProjectId ?? null);
+    setLinkProjectId('');
+    setProjectQuery('');
     void load();
      
   }, [open, vaultId, pmOrganizationId, pmProjectId]);
+
+  useEffect(() => {
+    if (!open || !orgId) {
+      setProjects([]);
+      return;
+    }
+    let cancelled = false;
+    setLoadingProjects(true);
+    void (async () => {
+      try {
+        const res = await fetch(`/api/vaults/pm/projects?organizationId=${encodeURIComponent(orgId)}`, {
+          credentials: 'include',
+        });
+        const json = await res.json();
+        if (cancelled) return;
+        if (!res.ok) {
+          setProjects([]);
+          if (json.reauth || res.status === 401) setNeedsReauth(true);
+          setOrgError(json.message || 'Failed to load projects');
+          return;
+        }
+        const list = Array.isArray(json.data) ? json.data : [];
+        setProjects(
+          list.map((p: { Id?: number; id?: number; Name?: string; name?: string }) => ({
+            Id: Number(p.Id ?? p.id),
+            Name: String(p.Name ?? p.name ?? `Project #${p.Id ?? p.id}`),
+          })).filter((p: { Id: number }) => Number.isFinite(p.Id) && p.Id > 0)
+        );
+        setNeedsReauth(false);
+      } catch {
+        if (!cancelled) setProjects([]);
+      } finally {
+        if (!cancelled) setLoadingProjects(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, orgId]);
+
+  const filteredProjects = useMemo(() => {
+    const q = projectQuery.trim().toLowerCase();
+    if (!q) return projects;
+    return projects.filter(
+      (p) => p.Name.toLowerCase().includes(q) || String(p.Id).includes(q)
+    );
+  }, [projects, projectQuery]);
+
+  const selectedProjectName = useMemo(() => {
+    const id = Number(linkProjectId);
+    if (!Number.isFinite(id) || id <= 0) return '';
+    return projects.find((p) => p.Id === id)?.Name || '';
+  }, [projects, linkProjectId]);
 
   const missingCount = items.filter((i) => !i.pmTaskId).length;
 
@@ -186,7 +244,7 @@ export default function VaultPmSettingsModal({
 
   const linkProject = async () => {
     if (!orgId || !linkProjectId) {
-      setStatus('Organization and project id required');
+      setStatus('Organization and project required');
       return;
     }
     setBusy(true);
@@ -544,7 +602,11 @@ export default function VaultPmSettingsModal({
               <select
                 className="input min-w-[14rem]"
                 value={orgId}
-                onChange={(e) => setOrgId(e.target.value)}
+                onChange={(e) => {
+                  setOrgId(e.target.value);
+                  setLinkProjectId('');
+                  setProjectQuery('');
+                }}
                 disabled={loadingOrgs}
               >
                 <option value="">
@@ -560,30 +622,93 @@ export default function VaultPmSettingsModal({
                 Refresh
               </button>
               {!linkedProjectId && (
-                <>
-                  <button
-                    type="button"
-                    className="btn-primary"
-                    disabled={busy || !orgId}
-                    onClick={() => void createProject()}
-                  >
-                    Create project from vault
-                  </button>
-                  <input
-                    className="input w-40"
-                    placeholder="Existing project id"
-                    value={linkProjectId}
-                    onChange={(e) => setLinkProjectId(e.target.value)}
-                  />
-                  <button
-                    type="button"
-                    className="btn-ghost"
-                    disabled={busy || !orgId || !linkProjectId}
-                    onClick={() => void linkProject()}
-                  >
-                    Link existing
-                  </button>
-                </>
+                <div className="mt-3 w-full space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      disabled={busy || !orgId}
+                      onClick={() => void createProject()}
+                    >
+                      Create project from vault
+                    </button>
+                  </div>
+                  <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)]/40 p-3">
+                    <label className="block text-xs font-medium text-[var(--muted)]" htmlFor="pm-project-search">
+                      Or link an existing project
+                    </label>
+                    <input
+                      id="pm-project-search"
+                      className="input mt-1.5 w-full"
+                      placeholder={
+                        !orgId
+                          ? 'Pick an organization first…'
+                          : loadingProjects
+                            ? 'Loading projects…'
+                            : 'Search projects by name…'
+                      }
+                      value={projectQuery}
+                      onChange={(e) => {
+                        setProjectQuery(e.target.value);
+                        setLinkProjectId('');
+                      }}
+                      disabled={!orgId || loadingProjects || busy}
+                      autoComplete="off"
+                    />
+                    {linkProjectId && selectedProjectName && (
+                      <p className="mt-1.5 text-xs text-[var(--accent-soft)]">
+                        Selected: {selectedProjectName}{' '}
+                        <span className="text-[var(--muted)]">#{linkProjectId}</span>
+                      </p>
+                    )}
+                    <div className="mt-2 max-h-40 overflow-y-auto rounded-md border border-[var(--border)]">
+                      {!orgId ? (
+                        <p className="px-3 py-2 text-xs text-[var(--muted)]">Select an organization to list projects.</p>
+                      ) : loadingProjects ? (
+                        <p className="px-3 py-2 text-xs text-[var(--muted)]">Loading…</p>
+                      ) : filteredProjects.length === 0 ? (
+                        <p className="px-3 py-2 text-xs text-[var(--muted)]">
+                          {projects.length === 0 ? 'No projects in this organization.' : 'No matches.'}
+                        </p>
+                      ) : (
+                        <ul className="divide-y divide-[var(--border)]" role="listbox" aria-label="Projects">
+                          {filteredProjects.map((p) => {
+                            const selected = String(p.Id) === linkProjectId;
+                            return (
+                              <li key={p.Id}>
+                                <button
+                                  type="button"
+                                  role="option"
+                                  aria-selected={selected}
+                                  className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition ${
+                                    selected
+                                      ? 'bg-[var(--accent)]/20 text-[var(--text)]'
+                                      : 'text-[var(--text)] hover:bg-[var(--surface-2)]'
+                                  }`}
+                                  onClick={() => {
+                                    setLinkProjectId(String(p.Id));
+                                    setProjectQuery(p.Name);
+                                  }}
+                                >
+                                  <span className="min-w-0 truncate">{p.Name}</span>
+                                  <span className="shrink-0 text-xs text-[var(--muted)]">#{p.Id}</span>
+                                </button>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      className="btn-ghost mt-2"
+                      disabled={busy || !orgId || !linkProjectId}
+                      onClick={() => void linkProject()}
+                    >
+                      Link selected project
+                    </button>
+                  </div>
+                </div>
               )}
               {linkedProjectId && (
                 <button type="button" className="btn-danger" disabled={busy} onClick={() => void unlink()}>

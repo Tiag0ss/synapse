@@ -8,8 +8,10 @@ import { extractFoldCards } from '../services/extractFoldCards';
 import {
   createPmProject,
   fetchPmOrganizations,
+  fetchPmProjects,
   fetchPmProjectStatuses,
   normalizeOrganizationList,
+  normalizePmProjectList,
   resolveTaskStatusId,
   resolveTaskStatusIdWithName,
   updatePmTask,
@@ -193,6 +195,32 @@ router.get('/pm/organizations', async (req: AuthRequest, res: Response) => {
     });
   }
   res.json({ success: true, data: orgs });
+});
+
+/** List PM projects the user can access (optional organization filter). */
+router.get('/pm/projects', async (req: AuthRequest, res: Response) => {
+  const organizationId =
+    req.query.organizationId != null && String(req.query.organizationId).trim() !== ''
+      ? Number(req.query.organizationId)
+      : null;
+  if (organizationId != null && (!Number.isFinite(organizationId) || organizationId <= 0)) {
+    return res.status(400).json({ success: false, message: 'organizationId must be a positive integer' });
+  }
+
+  const result = await fetchPmProjects(req.user!.userId, organizationId);
+  if (!result.ok) {
+    return res.status(result.status).json({
+      success: false,
+      message: result.data.message || 'Failed to load projects',
+      reauth: result.status === 401,
+    });
+  }
+
+  const projects = normalizePmProjectList(result.data).map((p) => ({
+    Id: p.Id,
+    Name: String(p.ProjectName || p.Name || `Project #${p.Id}`),
+  }));
+  res.json({ success: true, data: projects });
 });
 
 function effectiveVisibility(noteVis: string | null, vaultDefault: string): string {
