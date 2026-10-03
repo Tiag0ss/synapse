@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useI18n } from '@/lib/i18n/provider';
 
 export type LinkablePmTaskOption = {
   id: number;
@@ -51,6 +52,7 @@ export default function LinkOrCreatePmTaskModal({
   onCreate,
   onLink,
 }: LinkOrCreatePmTaskModalProps) {
+  const { t } = useI18n();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [needsReauth, setNeedsReauth] = useState(false);
@@ -166,7 +168,7 @@ export default function LinkOrCreatePmTaskModal({
       >
         <header className="shrink-0 border-b border-[var(--border)] px-5 py-4">
           <h2 id="link-or-create-pm-title" className="text-lg font-semibold text-[var(--text)]">
-            Link or create Myelin task
+            {t('chrome.linkOrCreateTask')}
           </h2>
           <p className="mt-1 text-sm text-[var(--muted)]">
             For{' '}
@@ -204,11 +206,11 @@ export default function LinkOrCreatePmTaskModal({
                   setSelectedId(null);
                 }}
               >
-                <option value="all">All projects</option>
+                <option value="all">{t('chrome.allProjects')}</option>
                 {projects.map((p) => (
                   <option key={p.id} value={String(p.id)}>
                     {p.name}
-                    {defaultProjectId === p.id ? ' (vault)' : ''}
+                    {defaultProjectId === p.id ? t('chrome.vaultProjectSuffix') : ''}
                   </option>
                 ))}
               </select>
@@ -216,7 +218,7 @@ export default function LinkOrCreatePmTaskModal({
           )}
 
           <label className="shrink-0 block text-xs font-medium text-[var(--muted)]" htmlFor="linkable-search">
-            Search existing tasks
+            {t('chrome.searchTasks')}
           </label>
           <input
             ref={inputRef}
@@ -224,7 +226,8 @@ export default function LinkOrCreatePmTaskModal({
             type="text"
             autoComplete="off"
             className="input w-full shrink-0"
-            placeholder="Filter by name, project, or id…"
+            placeholder={t('chrome.filterTasksExtended')}
+            aria-label={t('chrome.filterTasksExtended')}
             value={query}
             disabled={busy}
             onChange={(e) => setQuery(e.target.value)}
@@ -239,19 +242,19 @@ export default function LinkOrCreatePmTaskModal({
 
           <div className="min-h-0 flex-1 overflow-y-auto rounded-xl border border-[var(--border)]">
             {loading ? (
-              <p className="px-3 py-6 text-center text-sm text-[var(--muted)]">Loading…</p>
+              <p className="px-3 py-6 text-center text-sm text-[var(--muted)]">{t('common.loading')}</p>
             ) : filtered.length === 0 ? (
               <p className="px-3 py-6 text-center text-sm text-[var(--muted)]">
                 {tasks.length === 0
-                  ? 'No linkable Myelin tasks in this organization.'
-                  : 'No tasks match this filter.'}
+                  ? t('chrome.noLinkableTasks')
+                  : t('chrome.noTasksMatchFilter')}
               </p>
             ) : (
               <ul className="divide-y divide-[var(--border)]">
-                {filtered.map((t) => {
-                  const selected = selectedId === t.id;
+                {filtered.map((task) => {
+                  const selected = selectedId === task.id;
                   return (
-                    <li key={`${t.projectId}-${t.id}`}>
+                    <li key={`${task.projectId}-${task.id}`}>
                       <button
                         type="button"
                         disabled={busy}
@@ -260,7 +263,7 @@ export default function LinkOrCreatePmTaskModal({
                             ? 'bg-[var(--accent)]/20 text-[var(--text)]'
                             : 'hover:bg-[var(--surface)]/60 text-[var(--text)]'
                         }`}
-                        onClick={() => setSelectedId(t.id)}
+                        onClick={() => setSelectedId(task.id)}
                       >
                         <span
                           className={`mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
@@ -273,11 +276,11 @@ export default function LinkOrCreatePmTaskModal({
                           {selected ? '✓' : ''}
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate font-medium">{t.taskName}</span>
+                          <span className="block truncate font-medium">{task.taskName}</span>
                           <span className="mt-0.5 block text-[11px] text-[var(--muted)]">
-                            #{t.id}
-                            {t.projectName ? ` · ${t.projectName}` : ''}
-                            {t.statusName ? ` · ${t.statusName}` : ''}
+                            #{task.id}
+                            {task.projectName ? ` · ${task.projectName}` : ''}
+                            {task.statusName ? ` · ${task.statusName}` : ''}
                           </span>
                         </span>
                       </button>
@@ -291,7 +294,7 @@ export default function LinkOrCreatePmTaskModal({
 
         <footer className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-[var(--border)] px-5 py-3">
           <button type="button" className="btn-ghost" disabled={busy} onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             type="button"
@@ -299,7 +302,7 @@ export default function LinkOrCreatePmTaskModal({
             disabled={busy || loading}
             onClick={() => void onCreate()}
           >
-            Create new task
+            {t('chrome.createNewTask')}
           </button>
           <button
             type="button"
@@ -309,7 +312,7 @@ export default function LinkOrCreatePmTaskModal({
               if (selectedTask) void onLink(selectedTask.id, selectedTask.projectId);
             }}
           >
-            Link selected
+            {t('chrome.linkSelected')}
           </button>
         </footer>
       </div>

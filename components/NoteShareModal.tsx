@@ -1,14 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useI18n } from '@/lib/i18n/provider';
 
-const DURATIONS = [
-  { label: '1 hour', seconds: 60 * 60 },
-  { label: '24 hours', seconds: 24 * 60 * 60 },
-  { label: '7 days', seconds: 7 * 24 * 60 * 60 },
-  { label: '30 days', seconds: 30 * 24 * 60 * 60 },
-  { label: 'Never', seconds: null },
-] as const;
+const DURATION_SECONDS = [
+  { key: 'duration1h' as const, seconds: 60 * 60 },
+  { key: 'duration24h' as const, seconds: 24 * 60 * 60 },
+  { key: 'duration7d' as const, seconds: 7 * 24 * 60 * 60 },
+  { key: 'duration30d' as const, seconds: 30 * 24 * 60 * 60 },
+  { key: 'never' as const, seconds: null },
+];
 
 type TabId = 'share' | 'send';
 type TransferMode = 'copy' | 'move';
@@ -72,11 +73,14 @@ export default function NoteShareModal({
   onStatus,
   onTransferDone,
 }: NoteShareModalProps) {
+  const { t } = useI18n();
   const isFlashcard = Boolean(foldFront && String(foldFront).trim());
   const [tab, setTab] = useState<TabId>('share');
 
   // Share tab
-  const [expiresInSeconds, setExpiresInSeconds] = useState<number | null>(DURATIONS[1].seconds);
+  const [expiresInSeconds, setExpiresInSeconds] = useState<number | null>(
+    DURATION_SECONDS[1].seconds
+  );
   const [requirePassword, setRequirePassword] = useState(true);
   const [list, setList] = useState<ShareRow[]>([]);
   const [shareLoading, setShareLoading] = useState(false);
@@ -132,7 +136,7 @@ export default function NoteShareModal({
     setCreated(null);
     setCopied(null);
     setShareError('');
-    setExpiresInSeconds(DURATIONS[1].seconds);
+    setExpiresInSeconds(DURATION_SECONDS[1].seconds);
     setRequirePassword(!isOpenVisibility(noteVisibility));
     setMode('copy');
     setQuery('');
@@ -276,25 +280,25 @@ export default function NoteShareModal({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={isFlashcard ? 'Share flashcard' : 'Share or send note'}
+        aria-label={isFlashcard ? t('chrome.shareFlashcard') : t('chrome.shareModalTitle')}
         className="flex max-h-[min(90dvh,40rem)] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-2xl shadow-black/40"
       >
         <div className="flex items-start justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
           <div className="min-w-0">
             <h2 className="text-base font-semibold tracking-tight text-[var(--text)]">
-              {isFlashcard ? 'Share flashcard' : 'Share'}
+              {isFlashcard ? t('chrome.shareFlashcard') : t('chrome.shareModalTitle')}
             </h2>
             <p className="mt-0.5 truncate text-xs text-[var(--muted)]">{subtitle}</p>
           </div>
           <button type="button" className="btn-ghost py-1 text-xs" onClick={onClose}>
-            Close
+            {t('common.close')}
           </button>
         </div>
 
         {!isFlashcard ? (
           <div
             role="tablist"
-            aria-label="Share mode"
+            aria-label={t('chrome.shareModeAria')}
             className="flex shrink-0 gap-1 border-b border-[var(--border)] px-3 pt-2"
           >
             <button
@@ -308,7 +312,7 @@ export default function NoteShareModal({
               aria-selected={tab === 'share'}
               onClick={() => setTab('share')}
             >
-              Link
+              {t('chrome.linkTab')}
             </button>
             <button
               type="button"
@@ -321,7 +325,7 @@ export default function NoteShareModal({
               aria-selected={tab === 'send'}
               onClick={() => setTab('send')}
             >
-              Send
+              {t('chrome.sendTab')}
             </button>
           </div>
         ) : null}
@@ -330,18 +334,14 @@ export default function NoteShareModal({
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4">
             <section>
               <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-                Temporary link
+                {t('chrome.temporaryLink')}
               </p>
               <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">
-                {isFlashcard
-                  ? 'Anyone with the link can study this flashcard until it expires (or indefinitely).'
-                  : 'Anyone with the link can view this note until it expires (or indefinitely).'}
-                {requirePassword
-                  ? ' Password is shown once.'
-                  : ' No password — the link alone is enough.'}
+                {isFlashcard ? t('chrome.shareFlashcardHint') : t('chrome.shareNoteHint')}
+                {requirePassword ? t('chrome.sharePasswordOnce') : t('chrome.shareNoPassword')}
               </p>
               <label className="mt-3 block text-xs text-[var(--muted)]">
-                Expires
+                {t('chrome.expires')}
                 <select
                   className="input mt-1 w-full"
                   value={expiresInSeconds == null ? 'never' : String(expiresInSeconds)}
@@ -351,12 +351,12 @@ export default function NoteShareModal({
                   }}
                   disabled={shareBusy}
                 >
-                  {DURATIONS.map((d) => (
+                  {DURATION_SECONDS.map((d) => (
                     <option
-                      key={d.label}
+                      key={d.key}
                       value={d.seconds == null ? 'never' : String(d.seconds)}
                     >
-                      {d.label}
+                      {t(`chrome.${d.key}`)}
                     </option>
                   ))}
                 </select>
@@ -369,7 +369,7 @@ export default function NoteShareModal({
                   onChange={(e) => setRequirePassword(e.target.checked)}
                   disabled={shareBusy}
                 />
-                Require password
+                {t('chrome.requirePassword')}
               </label>
               <button
                 type="button"
@@ -377,19 +377,17 @@ export default function NoteShareModal({
                 disabled={shareBusy}
                 onClick={() => void onCreateShare()}
               >
-                {shareBusy ? 'Creating…' : 'Create share link'}
+                {shareBusy ? t('home.creating') : t('chrome.createShareLink')}
               </button>
             </section>
 
             {created ? (
               <section className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)]/40 p-3">
                 <p className="text-xs font-medium text-[var(--accent-soft)]">
-                  {created.password
-                    ? 'Copy now — the password will not be shown again.'
-                    : 'Copy the link — no password required.'}
+                  {created.password ? t('chrome.copyPasswordOnce') : t('chrome.copyLinkNoPassword')}
                 </p>
                 <label className="mt-3 block text-[11px] uppercase tracking-wider text-[var(--muted)]">
-                  Link
+                  {t('chrome.linkLabel')}
                   <div className="mt-1 flex gap-2">
                     <input
                       className="input min-w-0 flex-1 font-mono text-xs"
@@ -401,13 +399,13 @@ export default function NoteShareModal({
                       className="btn-ghost shrink-0 text-xs"
                       onClick={() => void copyText(created.url, 'url')}
                     >
-                      {copied === 'url' ? 'Copied' : 'Copy'}
+                      {copied === 'url' ? t('chrome.copied') : t('chrome.copyAction')}
                     </button>
                   </div>
                 </label>
                 {created.password ? (
                   <label className="mt-3 block text-[11px] uppercase tracking-wider text-[var(--muted)]">
-                    Password
+                    {t('chrome.passwordLabel')}
                     <div className="mt-1 flex gap-2">
                       <input
                         className="input min-w-0 flex-1 font-mono text-xs"
@@ -419,27 +417,29 @@ export default function NoteShareModal({
                         className="btn-ghost shrink-0 text-xs"
                         onClick={() => void copyText(created.password!, 'password')}
                       >
-                        {copied === 'password' ? 'Copied' : 'Copy'}
+                        {copied === 'password' ? t('chrome.copied') : t('chrome.copyAction')}
                       </button>
                     </div>
                   </label>
                 ) : null}
                 <p className="mt-2 text-[11px] text-[var(--muted)]">
                   {created.expiresAt
-                    ? `Expires ${new Date(created.expiresAt).toLocaleString()}`
-                    : 'No expiry'}
+                    ? t('chrome.expiresAtLabel', {
+                        date: new Date(created.expiresAt).toLocaleString(),
+                      })
+                    : t('chrome.noExpiry')}
                 </p>
               </section>
             ) : null}
 
             <section>
               <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-                Active shares
+                {t('chrome.activeShares')}
               </p>
               {shareLoading ? (
-                <p className="mt-2 text-xs text-[var(--muted)]">Loading…</p>
+                <p className="mt-2 text-xs text-[var(--muted)]">{t('common.loading')}</p>
               ) : active.length === 0 ? (
-                <p className="mt-2 text-xs text-[var(--muted)]">None yet</p>
+                <p className="mt-2 text-xs text-[var(--muted)]">{t('chrome.noneYet')}</p>
               ) : (
                 <ul className="mt-2 space-y-2">
                   {active.map((s) => (
@@ -450,12 +450,18 @@ export default function NoteShareModal({
                       <div className="min-w-0 text-xs">
                         <p className="text-[var(--text)]">
                           {s.expiresAt
-                            ? `Expires ${new Date(s.expiresAt).toLocaleString()}`
-                            : 'No expiry'}
-                          {s.hasPassword === false ? ' · open link' : ' · password'}
+                            ? t('chrome.expiresAtLabel', {
+                                date: new Date(s.expiresAt).toLocaleString(),
+                              })
+                            : t('chrome.noExpiry')}
+                          {s.hasPassword === false
+                            ? t('chrome.openLinkSuffix')
+                            : t('chrome.passwordSuffix')}
                         </p>
                         <p className="text-[var(--muted)]">
-                          Created {new Date(s.createdAt).toLocaleString()}
+                          {t('chrome.createdAtLabel', {
+                            date: new Date(s.createdAt).toLocaleString(),
+                          })}
                         </p>
                       </div>
                       <button
@@ -464,7 +470,7 @@ export default function NoteShareModal({
                         disabled={shareBusy}
                         onClick={() => void onRevoke(s.id)}
                       >
-                        Revoke
+                        {t('chrome.revoke')}
                       </button>
                     </li>
                   ))}
@@ -475,7 +481,7 @@ export default function NoteShareModal({
             {inactive.length > 0 ? (
               <section>
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-                  Recent ended
+                  {t('chrome.recentEnded')}
                 </p>
                 <ul className="mt-2 space-y-1 text-xs text-[var(--muted)]">
                   {inactive.map((s) => (
@@ -511,7 +517,7 @@ export default function NoteShareModal({
                     }`}
                     onClick={() => setMode('copy')}
                   >
-                    Copy
+                    {t('chrome.transferCopy')}
                   </button>
                   <button
                     type="button"
@@ -522,20 +528,17 @@ export default function NoteShareModal({
                     }`}
                     onClick={() => setMode('move')}
                   >
-                    Move
+                    {t('chrome.transferMove')}
                   </button>
                 </div>
                 {mode === 'move' && (
-                  <p className="mt-2 text-xs text-[var(--muted)]">
-                    The original note will be moved to trash in this vault after a successful
-                    transfer.
-                  </p>
+                  <p className="mt-2 text-xs text-[var(--muted)]">{t('chrome.moveTrashHint')}</p>
                 )}
               </fieldset>
 
               <fieldset>
                 <legend className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
-                  Destination
+                  {t('chrome.destination')}
                 </legend>
                 <div className="mt-2 flex gap-2">
                   <button
@@ -547,7 +550,7 @@ export default function NoteShareModal({
                     }`}
                     onClick={() => setCreateNew(false)}
                   >
-                    Existing vault
+                    {t('chrome.existingVault')}
                   </button>
                   <button
                     type="button"
@@ -558,18 +561,18 @@ export default function NoteShareModal({
                     }`}
                     onClick={() => setCreateNew(true)}
                   >
-                    New vault
+                    {t('home.newVault')}
                   </button>
                 </div>
 
                 {createNew ? (
                   <label className="mt-3 block text-xs font-medium text-[var(--muted)]">
-                    Vault name
+                    {t('home.vaultName')}
                     <input
                       className="input mt-1.5 w-full"
                       value={newVaultName}
                       onChange={(e) => setNewVaultName(e.target.value)}
-                      placeholder="New vault"
+                      placeholder={t('chrome.newVaultPlaceholder')}
                       autoFocus
                     />
                   </label>
@@ -579,13 +582,13 @@ export default function NoteShareModal({
                       className="input w-full"
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
-                      placeholder="Search vaults…"
-                      aria-label="Search vaults"
+                      placeholder={t('chrome.searchVaults')}
+                      aria-label={t('chrome.searchVaults')}
                     />
                     <ul className="max-h-48 space-y-1 overflow-auto rounded-lg border border-[var(--border)] p-1">
                       {filteredVaults.length === 0 && (
                         <li className="px-2 py-3 text-center text-sm text-[var(--muted)]">
-                          No other editable vaults
+                          {t('chrome.noOtherEditableVaults')}
                         </li>
                       )}
                       {filteredVaults.map((v) => (
@@ -615,7 +618,7 @@ export default function NoteShareModal({
             </div>
             <div className="flex flex-wrap justify-end gap-2 border-t border-[var(--border)] px-4 py-3">
               <button type="button" className="btn-ghost" onClick={onClose} disabled={sendBusy}>
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -623,7 +626,11 @@ export default function NoteShareModal({
                 disabled={!canSend || sendBusy}
                 onClick={() => void onSend()}
               >
-                {sendBusy ? 'Working…' : mode === 'move' ? 'Move note' : 'Copy note'}
+                {sendBusy
+                  ? t('chrome.working')
+                  : mode === 'move'
+                    ? t('chrome.moveNote')
+                    : t('chrome.copyNoteAction')}
               </button>
             </div>
           </>

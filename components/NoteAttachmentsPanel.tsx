@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import ConfirmModal from '@/components/ConfirmModal';
+import { useI18n } from '@/lib/i18n/provider';
 
 export type NoteAttachment = {
   id: number;
@@ -50,6 +51,7 @@ export default function NoteAttachmentsPanel({
   refreshToken = 0,
   onUploaded,
 }: NoteAttachmentsPanelProps) {
+  const { t } = useI18n();
   const [items, setItems] = useState<NoteAttachment[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -142,7 +144,7 @@ export default function NoteAttachmentsPanel({
     <section className="border-t border-[var(--border)] pt-3">
       <div className="mb-2 flex items-center justify-between gap-2">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
-          Attachments
+          {t('chrome.attachments')}
         </h3>
         {!readOnly && (
           <button
@@ -151,7 +153,7 @@ export default function NoteAttachmentsPanel({
             disabled={uploading}
             onClick={() => inputRef.current?.click()}
           >
-            {uploading ? 'Uploading…' : 'Upload'}
+            {uploading ? t('chrome.uploading') : t('chrome.upload')}
           </button>
         )}
         <input
@@ -169,10 +171,10 @@ export default function NoteAttachmentsPanel({
       </div>
 
       {loading && !items.length ? (
-        <p className="text-[11px] text-[var(--muted)]">Loading…</p>
+        <p className="text-[11px] text-[var(--muted)]">{t('common.loading')}</p>
       ) : !items.length ? (
         <p className="text-[11px] text-[var(--muted)]">
-          No attachments yet. Upload here or type [[attach in the editor.
+          {t('chrome.noneYet')}
         </p>
       ) : (
         <ul className="max-h-48 space-y-1.5 overflow-auto text-xs">
@@ -202,10 +204,10 @@ export default function NoteAttachmentsPanel({
                     <button
                       type="button"
                       className="text-[10px] text-[var(--text)] hover:text-[var(--accent-soft)]"
-                      title="Insert link into note"
+                      title={t('chrome.insertLink')}
                       onClick={() => onInsertMarkdown(markdownForAttachment(item))}
                     >
-                      Insert
+                      {t('chrome.insert')}
                     </button>
                   ) : null}
                   {!readOnly ? (
@@ -214,7 +216,7 @@ export default function NoteAttachmentsPanel({
                       className="text-[10px] text-[var(--danger)] hover:underline"
                       onClick={() => setDeleteId(item.id)}
                     >
-                      Remove
+                      {t('chrome.remove')}
                     </button>
                   ) : null}
                 </div>
@@ -226,9 +228,9 @@ export default function NoteAttachmentsPanel({
 
       <ConfirmModal
         open={deleteId != null}
-        title="Remove attachment?"
-        message="This deletes the file from the vault. Links in notes will break until updated."
-        confirmLabel="Remove"
+        title={t('chrome.removeAttachmentTitle')}
+        message={t('chrome.removeAttachmentMessage')}
+        confirmLabel={t('chrome.remove')}
         danger
         onCancel={() => setDeleteId(null)}
         onConfirm={() => void confirmDelete()}

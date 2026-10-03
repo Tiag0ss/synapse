@@ -1,5 +1,7 @@
 'use client';
 
+import { useI18n } from '@/lib/i18n/provider';
+
 interface ConfirmModalProps {
   open: boolean;
   title: string;
@@ -17,14 +19,15 @@ export default function ConfirmModal({
   open,
   title,
   message,
-  confirmLabel = 'Confirm',
-  cancelLabel = 'Cancel',
+  confirmLabel,
+  cancelLabel,
   altConfirmLabel,
   danger,
   onConfirm,
   onAltConfirm,
   onCancel,
 }: ConfirmModalProps) {
+  const { t } = useI18n();
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
@@ -37,7 +40,7 @@ export default function ConfirmModal({
         <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">{message}</p>
         <div className="mt-5 flex flex-wrap justify-end gap-2">
           <button type="button" className="btn-ghost" onClick={onCancel}>
-            {cancelLabel}
+            {cancelLabel || t('common.cancel')}
           </button>
           {altConfirmLabel && onAltConfirm && (
             <button type="button" className="btn-ghost" onClick={onAltConfirm}>
@@ -45,7 +48,7 @@ export default function ConfirmModal({
             </button>
           )}
           <button type="button" className={danger ? 'btn-danger' : 'btn-primary'} onClick={onConfirm}>
-            {confirmLabel}
+            {confirmLabel || t('common.confirm')}
           </button>
         </div>
       </div>

@@ -10,6 +10,7 @@ import WhiteboardEditor, {
   type WhiteboardEditorHandle,
 } from '@/components/WhiteboardEditor';
 import QuickSwitcher from '@/components/QuickSwitcher';
+import { pushRecentNoteId } from '@/lib/recentNotes';
 import NoteGraphMindmap, { type GraphNode } from '@/components/NoteGraphMindmap';
 import RevisionDiffModal, {
   type PartialRestorePatch,
@@ -36,6 +37,7 @@ import NotePeekModal, { type NotePeekTarget } from '@/components/NotePeekModal';
 import { invalidateBoardEmbedCache } from '@/components/BoardEmbedPortals';
 import type { FoldCard } from '@/lib/extractFoldCards';
 import { useIsLgUp } from '@/lib/useMediaQuery';
+import { useI18n } from '@/lib/i18n/provider';
 
 interface NoteListItem {
   Id: number;
@@ -116,6 +118,7 @@ export default function VaultWorkspacePage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const vaultId = String(params.id);
+  const { t } = useI18n();
   const deepNoteOpenedRef = useRef(false);
 
   const [notes, setNotes] = useState<NoteListItem[]>([]);
@@ -336,6 +339,7 @@ export default function VaultWorkspacePage() {
     const data = await res.json();
     if (!res.ok) return;
     const n = data.data;
+    pushRecentNoteId(vaultId, Number(n.Id));
     skipNextAutosaveRef.current = true;
     setSelectedId(n.Id);
     setPlannerLinks([]);
@@ -540,7 +544,7 @@ export default function VaultWorkspacePage() {
         body: nextBody,
         visibility: nextVisibility,
       });
-      if (ok) setStatus('Restored selected change');
+      if (ok) setStatus(t('chrome.toastRestoredChange'));
     } finally {
       setDiffApplying(false);
     }
@@ -758,7 +762,7 @@ export default function VaultWorkspacePage() {
         await openNote(selectedId, { force: true });
       }
     } catch {
-      setStatus('Could not refresh Myelin tasks');
+      setStatus(t('chrome.toastRefreshMyelinFailed'));
     } finally {
       setHubRefreshing(false);
     }
@@ -776,13 +780,13 @@ export default function VaultWorkspacePage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setStatus(data.message || 'Could not link to My work');
+        setStatus(data.message || t('chrome.toastLinkMyWorkFailed'));
         return;
       }
-      setStatus('Linked to My work overview');
+      setStatus(t('chrome.toastLinkedMyWork'));
       await loadGraph();
     } catch {
-      setStatus('Could not link to My work');
+      setStatus(t('chrome.toastLinkMyWorkFailed'));
     } finally {
       setHubLinkBusy(false);
     }
@@ -906,13 +910,13 @@ export default function VaultWorkspacePage() {
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
           setVaultFoldCards([]);
-          setStatus(data.message || 'Failed to load flashcards');
+          setStatus(data.message || t('chrome.toastFlashcardsFailed'));
           return;
         }
         setVaultFoldCards(Array.isArray(data.data?.cards) ? data.data.cards : []);
       } catch {
         setVaultFoldCards([]);
-        setStatus('Failed to load flashcards');
+        setStatus(t('chrome.toastFlashcardsFailed'));
       } finally {
         setFlashcardsLoading(false);
       }
@@ -921,7 +925,7 @@ export default function VaultWorkspacePage() {
 
   const openPmTasks = () => {
     if (!vaultMeta.PmProjectId) {
-      setStatus('Link a Myelin project in Vault options first');
+      setStatus(t('chrome.toastLinkMyelinFirst'));
       setVaultOptionsTab('pm');
       setVaultOptionsOpen(true);
       return;
@@ -931,7 +935,7 @@ export default function VaultWorkspacePage() {
 
   const runZipImport = async (dataBase64: string, overwrite: boolean) => {
     setZipImporting(true);
-    setStatus(overwrite ? 'Importing ZIP (overwrite)…' : 'Importing ZIP…');
+    setStatus(overwrite ? t('chrome.toastImportingZipOverwrite') : t('chrome.toastImportingZip'));
     try {
       const res = await fetch(`/api/vaults/${vaultId}/import-zip`, {
         method: 'POST',
@@ -941,18 +945,22 @@ export default function VaultWorkspacePage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setStatus(data.message || 'ZIP import failed');
+        setStatus(data.message || t('chrome.toastZipImportFailed'));
         return;
       }
       const d = data.data || {};
       setStatus(
-        `Import: ${d.created || 0} created, ${d.updated || 0} updated, ${d.skipped || 0} skipped, ${d.images || 0} images` +
-          (d.errors?.length ? ` · ${d.errors.length} errors` : '')
+        t('chrome.toastImportSummary', {
+          created: d.created || 0,
+          updated: d.updated || 0,
+          skipped: d.skipped || 0,
+          images: d.images || 0,
+        }) + (d.errors?.length ? ` · ${d.errors.length}` : '')
       );
       await loadNotes();
       await loadGraph();
     } catch {
-      setStatus('ZIP import failed');
+      setStatus(t('chrome.toastZipImportFailed'));
     } finally {
       setZipImporting(false);
       setPendingZipBase64(null);
@@ -962,11 +970,11 @@ export default function VaultWorkspacePage() {
   const onZipFileChosen = async (file: File | null) => {
     if (!file) return;
     if (!/\.zip$/i.test(file.name)) {
-      setStatus('Please choose a .zip file');
+      setStatus(t('chrome.toastChooseZip'));
       return;
     }
     if (file.size > 20 * 1024 * 1024) {
-      setStatus('ZIP too large (max 20 MB)');
+      setStatus(t('chrome.toastZipTooLarge'));
       return;
     }
     const dataBase64 = await new Promise<string>((resolve, reject) => {
@@ -998,7 +1006,7 @@ export default function VaultWorkspacePage() {
                     ? 'bg-[var(--accent)] text-[var(--accent-fg)]'
                     : 'text-[var(--muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]'
                 }`}
-                aria-label="Notes"
+                aria-label={t('chrome.notes')}
                 aria-pressed={notesOpen}
                 onClick={() => {
                   setNotesOpen((v) => !v);
@@ -1023,10 +1031,10 @@ export default function VaultWorkspacePage() {
               {(accessRole !== 'owner' || saveState === 'dirty' || saveState === 'saving') && (
                 <p className="truncate text-[11px] text-[var(--muted)]">
                   {saveState === 'saving'
-                    ? 'Saving…'
+                    ? t('chrome.saving')
                     : saveState === 'dirty'
-                      ? 'Unsaved'
-                      : `${accessRole} access`}
+                      ? t('chrome.unsaved')
+                      : `${accessRole} ${t('chrome.accessSuffix')}`}
                 </p>
               )}
             </div>
@@ -1038,7 +1046,7 @@ export default function VaultWorkspacePage() {
                     ? 'bg-[var(--accent)] text-[var(--accent-fg)]'
                     : 'text-[var(--muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]'
                 }`}
-                aria-label="Info"
+aria-label={t('chrome.info')}
                 aria-pressed={contextOpen}
                 onClick={() => {
                   setContextOpen((v) => !v);
@@ -1062,9 +1070,9 @@ export default function VaultWorkspacePage() {
                 type="button"
                 className="inline-flex h-10 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-2)] px-3 text-xs font-medium text-[var(--accent-soft)]"
                 onClick={() => toggleBoardMaximize()}
-                title="Exit maximize"
+                title={t('chrome.exitMaximize')}
               >
-                Exit
+                {t('chrome.close')}
               </button>
             )}
             <div className="relative">
@@ -1075,7 +1083,7 @@ export default function VaultWorkspacePage() {
                     ? 'bg-[var(--surface-2)] text-[var(--text)]'
                     : 'text-[var(--muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]'
                 }`}
-                aria-label="More actions"
+                aria-label={t('chrome.moreActions')}
                 aria-expanded={moreOpen}
                 onClick={() => {
                   setMoreOpen((v) => !v);
@@ -1099,7 +1107,7 @@ export default function VaultWorkspacePage() {
                       rel="noreferrer"
                       onClick={() => setMoreOpen(false)}
                     >
-                      Open public wiki
+                      {t('chrome.publicWiki')}
                     </Link>
                   )}
                   {isOwner && (
@@ -1126,8 +1134,8 @@ export default function VaultWorkspacePage() {
                       }}
                     >
                       {Number(vaultMeta.AllowPublicPages) === 1
-                        ? 'Disable public wiki'
-                        : 'Enable public wiki'}
+                        ? t('chrome.disablePublicWiki')
+                        : t('chrome.enablePublicWiki')}
                     </button>
                   )}
                   {canEdit && (
@@ -1140,7 +1148,7 @@ export default function VaultWorkspacePage() {
                         zipInputRef.current?.click();
                       }}
                     >
-                      {zipImporting ? 'Importing…' : 'Import ZIP'}
+                      {zipImporting ? t('common.loading') : t('chrome.importZip')}
                     </button>
                   )}
                   {canEdit && (
@@ -1152,7 +1160,7 @@ export default function VaultWorkspacePage() {
                         openPmTasks();
                       }}
                     >
-                      Myelin tasks
+                      {t('chrome.myelinTasks')}
                     </button>
                   )}
                 </div>
@@ -1168,7 +1176,7 @@ export default function VaultWorkspacePage() {
               className="inline-flex h-9 flex-1 items-center justify-center rounded-lg text-xs font-medium text-[var(--muted)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
               onClick={() => setQuickOpen(true)}
             >
-              Jump
+              {t('chrome.jump')}
             </button>
             {canEdit && (
               <button
@@ -1176,7 +1184,7 @@ export default function VaultWorkspacePage() {
                 className="inline-flex h-9 flex-1 items-center justify-center rounded-lg bg-[var(--accent)] text-xs font-semibold text-[var(--accent-fg)]"
                 onClick={() => setCreateOpen(true)}
               >
-                New…
+                {t('chrome.newNote')}
               </button>
             )}
             <button
@@ -1193,7 +1201,7 @@ export default function VaultWorkspacePage() {
                 void toggleFullMindmap();
               }}
             >
-              {centerMode === 'mindmap' ? 'Editor' : 'Mindmap'}
+              {centerMode === 'mindmap' ? t('chrome.editor') : t('chrome.mindmap')}
             </button>
             <button
               type="button"
@@ -1209,7 +1217,7 @@ export default function VaultWorkspacePage() {
                 toggleFlashcards();
               }}
             >
-              {centerMode === 'flashcards' ? 'Editor' : 'Cards'}
+              {centerMode === 'flashcards' ? t('chrome.editor') : t('chrome.cards')}
             </button>
           </div>
         </div>
@@ -1226,7 +1234,7 @@ export default function VaultWorkspacePage() {
                 <>
                   <span aria-hidden>·</span>
                   <span className="rounded bg-[var(--surface-2)] px-1.5 py-0.5 capitalize text-[var(--accent-soft)]">
-                    {accessRole} access
+                    {accessRole} {t('chrome.accessSuffix')}
                   </span>
                 </>
               )}
@@ -1239,7 +1247,7 @@ export default function VaultWorkspacePage() {
                     target="_blank"
                     rel="noreferrer"
                   >
-                    Public wiki
+                    {t('chrome.publicWiki')}
                   </Link>
                   {isOwner && (
                     <>
@@ -1279,7 +1287,7 @@ export default function VaultWorkspacePage() {
                     await loadVault();
                   }}
                 >
-                  Enable public wiki
+                  {t('chrome.enablePublicWiki')}
                 </button>
               )}
             </div>
@@ -1288,39 +1296,39 @@ export default function VaultWorkspacePage() {
           <div className="ml-auto flex flex-wrap items-center gap-2">
             <input
               className="input w-44 py-1.5"
-              placeholder="Filter notes…"
+              placeholder={t('chrome.filterNotes')}
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              title="Filters by title, path, or body"
+              title={t('chrome.filterNotesTitle')}
             />
             <button
               type="button"
               className="btn-ghost py-1.5"
               onClick={() => setQuickOpen(true)}
-              title="Jump to note (Ctrl/Cmd+O)"
+              title={t('chrome.jumpTitle')}
             >
-              Jump…
+              {`${t('chrome.jump')}…`}
             </button>
             {canEdit && (
               <button type="button" className="btn-primary py-1.5" onClick={() => setCreateOpen(true)}>
-                New…
+                {t('chrome.newNote')}
               </button>
             )}
             <button
               type="button"
               className={`py-1.5 ${centerMode === 'mindmap' ? 'btn-primary' : 'btn-ghost'}`}
               onClick={() => void toggleFullMindmap()}
-              title="Show full vault mindmap in the editor area"
+              title={t('chrome.showMindmap')}
             >
-              {centerMode === 'mindmap' ? 'Back to editor' : 'Full mindmap'}
+              {centerMode === 'mindmap' ? t('chrome.editor') : t('chrome.mindmap')}
             </button>
             <button
               type="button"
               className={`py-1.5 ${centerMode === 'flashcards' ? 'btn-primary' : 'btn-ghost'}`}
               onClick={() => toggleFlashcards()}
-              title="Study :::fold blocks across this vault as flashcards"
+              title={t('chrome.studyFlashcards')}
             >
-              {centerMode === 'flashcards' ? 'Back to editor' : 'Flashcards'}
+              {centerMode === 'flashcards' ? t('chrome.editor') : t('chrome.flashcards')}
             </button>
             {canEdit && (
               <button
@@ -1328,23 +1336,23 @@ export default function VaultWorkspacePage() {
                 className="btn-ghost py-1.5"
                 disabled={zipImporting}
                 onClick={() => zipInputRef.current?.click()}
-                title="Import Markdown notes from a ZIP"
+                title={t('chrome.importZipTitle')}
               >
-                {zipImporting ? 'Importing…' : 'Import ZIP'}
+                {zipImporting ? t('common.loading') : t('chrome.importZip')}
               </button>
             )}
             {canEdit && (
               <button type="button" className="btn-ghost py-1.5" onClick={() => openPmTasks()}>
-                Myelin tasks
+                {t('chrome.myelinTasks')}
               </button>
             )}
             {(status || saveState === 'dirty' || saveState === 'saving' || saveState === 'saved') && (
               <span className="max-w-[220px] truncate rounded-full bg-[var(--surface-2)] px-2.5 py-1 text-[11px] text-[var(--muted)]">
                 {saveState === 'saving'
-                  ? 'Saving…'
+                  ? t('chrome.saving')
                   : saveState === 'dirty'
-                    ? 'Unsaved changes'
-                    : status || (saveState === 'saved' ? 'Saved' : '')}
+                    ? t('chrome.unsavedTitle')
+                    : status || (saveState === 'saved' ? t('common.save') : '')}
               </span>
             )}
             <AppUserMenu dense />
@@ -1374,7 +1382,7 @@ export default function VaultWorkspacePage() {
           <button
             type="button"
             className="fixed inset-0 z-40 bg-black/55 lg:hidden"
-            aria-label="Close panel"
+            aria-label={t('chrome.closePanel')}
             onClick={() => {
               setNotesOpen(false);
               setContextOpen(false);
@@ -1396,19 +1404,19 @@ export default function VaultWorkspacePage() {
           <div className="min-h-0 flex-1 overflow-auto p-3">
             <div className="mb-2 flex items-center justify-between gap-2 px-2 lg:block">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-                Notes · {notes.length}
+                {t('chrome.notes')} · {notes.length}
               </p>
               <button
                 type="button"
                 className="btn-ghost py-1 text-xs lg:hidden"
                 onClick={() => setNotesOpen(false)}
               >
-                Close
+                {t('chrome.close')}
               </button>
             </div>
             <input
               className="input mb-3 w-full py-1.5 lg:hidden"
-              placeholder="Filter notes…"
+              placeholder={t('chrome.filterNotes')}
               value={q}
               onChange={(e) => setQ(e.target.value)}
             />
@@ -1491,7 +1499,7 @@ export default function VaultWorkspacePage() {
                     }
                   : undefined
               }
-              emptyHint="No fold cards in this vault. Use :::fold- Question … ::: with the answer in the body."
+              emptyHint={t('chrome.emptyFoldCardsVault')}
             />
           ) : selectedId ? (
             <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
@@ -1504,15 +1512,15 @@ export default function VaultWorkspacePage() {
                     className="input min-w-0 flex-1 py-2 text-base font-semibold tracking-tight"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    aria-label="Note title"
-                    placeholder="meta/risks"
-                    title="Use folder/name for nesting (e.g. meta/risks)"
+                    aria-label={t('chrome.noteTitle')}
+                    placeholder={t('chrome.titlePlaceholder')}
+                    title={t('chrome.titleHint')}
                     disabled={!canEdit || isHubNote}
                   />
                 </div>
                 {title.includes('/') && (
                   <p className="truncate pl-12 text-[11px] text-[var(--muted)]">
-                    → {noteLeafName(title)} in folder
+                    → {noteLeafName(title)} {t('chrome.inFolder')}
                   </p>
                 )}
                 <div className="flex items-center gap-1.5">
@@ -1520,16 +1528,18 @@ export default function VaultWorkspacePage() {
                     className="input min-w-0 flex-1 py-1.5 text-xs"
                     value={visibility}
                     onChange={(e) => setVisibility(e.target.value)}
-                    aria-label="Visibility"
+                    aria-label={t('chrome.visibility')}
                     disabled={!canEdit || isHubNote}
                   >
                     <option value="">
-                      Default ({(vaultMeta.DefaultVisibility || 'private').toLowerCase()})
+                      {t('chrome.visibilityDefault', {
+                        value: (vaultMeta.DefaultVisibility || 'private').toLowerCase(),
+                      })}
                     </option>
-                    <option value="private">Private</option>
-                    <option value="authenticated">Authenticated</option>
-                    <option value="unlisted">Unlisted</option>
-                    <option value="public">Public</option>
+                    <option value="private">{t('chrome.visPrivate')}</option>
+                    <option value="authenticated">{t('chrome.visAuthenticated')}</option>
+                    <option value="unlisted">{t('chrome.visUnlisted')}</option>
+                    <option value="public">{t('chrome.visPublic')}</option>
                   </select>
                   {canEdit && (
                     <button
@@ -1537,9 +1547,13 @@ export default function VaultWorkspacePage() {
                       className="btn-primary shrink-0 px-3 py-1.5 text-sm"
                       disabled={saveState === 'saving'}
                       onClick={() => void saveNote({ reason: 'manual' })}
-                      title="Save (Ctrl/Cmd+S)"
+                      title={t('chrome.saveTitle')}
                     >
-                      {saveState === 'saving' ? '…' : dirty ? 'Save*' : 'Save'}
+                      {saveState === 'saving'
+                        ? '…'
+                        : dirty
+                          ? `${t('common.save')}*`
+                          : t('common.save')}
                     </button>
                   )}
                   {isWhiteboard && (
@@ -1547,8 +1561,8 @@ export default function VaultWorkspacePage() {
                       type="button"
                       className="btn-ghost shrink-0 px-2.5 py-1.5 text-sm"
                       onClick={() => toggleBoardMaximize()}
-                      title="Maximize whiteboard"
-                      aria-label="Maximize whiteboard"
+                      title={t('chrome.maximizeWhiteboard')}
+                      aria-label={t('chrome.maximizeWhiteboard')}
                     >
                       Max
                     </button>
@@ -1557,8 +1571,8 @@ export default function VaultWorkspacePage() {
                     type="button"
                     className="btn-ghost shrink-0 px-2.5 py-1.5 text-sm"
                     onClick={() => setExportOpen(true)}
-                  title="Export note (Markdown, PDF/print, or Word)"
-                  aria-label="Export"
+                  title={t('chrome.exportNote')}
+                  aria-label={t('chrome.export')}
                     hidden={isWhiteboard}
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -1576,10 +1590,10 @@ export default function VaultWorkspacePage() {
                       type="button"
                       className="btn-ghost shrink-0 px-2.5 py-1.5 text-sm"
                       onClick={() => setShareOpen(true)}
-                      title="Share link or send to another vault"
-                      aria-label="Share"
+                      title={t('chrome.shareTitle')}
+                      aria-label={t('chrome.share')}
                     >
-                      Share
+                      {t('chrome.share')}
                     </button>
                   )}
                   {canEdit && isPersonalWork && selectedId && !isHubNote && !isWhiteboard && (
@@ -1588,10 +1602,10 @@ export default function VaultWorkspacePage() {
                       className="btn-ghost shrink-0 px-2.5 py-1.5 text-sm"
                       disabled={hubLinkBusy}
                       onClick={() => void linkSelectedToHub()}
-                      title="Link to My work"
-                      aria-label="Link to My work"
+                      title={t('chrome.linkMyWork')}
+                      aria-label={t('chrome.linkMyWork')}
                     >
-                      {hubLinkBusy ? '…' : 'Link'}
+                      {hubLinkBusy ? t('chrome.linking') : t('chrome.linkMyWork')}
                     </button>
                   )}
                   {canEdit && !isHubNote && (
@@ -1599,8 +1613,8 @@ export default function VaultWorkspacePage() {
                       type="button"
                       className="btn-danger shrink-0 px-2.5 py-1.5 text-sm"
                       onClick={() => setDeleteOpen(true)}
-                      title="Move this note to trash"
-                      aria-label="Delete"
+                      title={t('chrome.deleteTitle')}
+                      aria-label={t('chrome.delete')}
                     >
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
                         <path
@@ -1625,30 +1639,30 @@ export default function VaultWorkspacePage() {
                   className="input min-w-0 flex-1 py-2 text-base font-semibold tracking-tight"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  aria-label="Note title"
-                  placeholder="meta/risks"
-                  title="Use folder/name for nesting (e.g. meta/risks)"
+                  aria-label={t('chrome.noteTitle')}
+                  placeholder={t('chrome.titlePlaceholder')}
+                  title={t('chrome.titleHint')}
                   disabled={!canEdit}
                 />
                 {title.includes('/') && (
                   <span className="text-[11px] text-[var(--muted)]">
-                    → {noteLeafName(title)} in folder
+                    → {noteLeafName(title)} {t('chrome.inFolder')}
                   </span>
                 )}
                 <select
                   className="input max-w-full"
                   value={visibility}
                   onChange={(e) => setVisibility(e.target.value)}
-                  aria-label="Visibility"
+                  aria-label={t('chrome.visibility')}
                   disabled={!canEdit}
                 >
                   <option value="">
                     Vault default ({(vaultMeta.DefaultVisibility || 'private').toLowerCase()})
                   </option>
-                  <option value="private">Private (vault editors only on wiki)</option>
-                  <option value="authenticated">Authenticated users</option>
-                  <option value="unlisted">Unlisted (link only)</option>
-                  <option value="public">Public</option>
+                  <option value="private">{t('chrome.visPrivate')}</option>
+                  <option value="authenticated">{t('chrome.visAuthenticated')}</option>
+                  <option value="unlisted">{t('chrome.visUnlisted')}</option>
+                  <option value="public">{t('chrome.visPublic')}</option>
                 </select>
                 {canEdit && (
                   <button
@@ -1656,9 +1670,13 @@ export default function VaultWorkspacePage() {
                     className="btn-primary"
                     disabled={saveState === 'saving'}
                     onClick={() => void saveNote({ reason: 'manual' })}
-                    title="Save (Ctrl/Cmd+S)"
+                    title={t('chrome.saveTitle')}
                   >
-                    {saveState === 'saving' ? 'Saving…' : dirty ? 'Save*' : 'Save'}
+                    {saveState === 'saving'
+                      ? t('chrome.saving')
+                      : dirty
+                        ? `${t('common.save')}*`
+                        : t('common.save')}
                   </button>
                 )}
                 {isWhiteboard && (
@@ -1666,28 +1684,28 @@ export default function VaultWorkspacePage() {
                     type="button"
                     className="btn-ghost"
                     onClick={() => toggleBoardMaximize()}
-                    title="Maximize whiteboard"
+                    title={t('chrome.maximizeWhiteboard')}
                   >
-                    Maximize
+                    {t('chrome.maximizeWhiteboard')}
                   </button>
                 )}
                 <button
                   type="button"
                   className="btn-ghost"
                   onClick={() => setExportOpen(true)}
-                  title="Export note (Markdown, PDF/print, or Word)"
+                  title={t('chrome.exportNote')}
                   hidden={isWhiteboard}
                 >
-                  Export
+                  {t('chrome.export')}
                 </button>
                 {canEdit && !isHubNote && (
                   <button
                     type="button"
                     className="btn-ghost"
                     onClick={() => setShareOpen(true)}
-                    title="Share link or send to another vault"
+                    title={t('chrome.shareTitle')}
                   >
-                    Share…
+                    {`${t('chrome.share')}…`}
                   </button>
                 )}
                 {canEdit && isPersonalWork && selectedId && !isHubNote && !isWhiteboard && (
@@ -1696,9 +1714,9 @@ export default function VaultWorkspacePage() {
                     className="btn-ghost"
                     disabled={hubLinkBusy}
                     onClick={() => void linkSelectedToHub()}
-                    title="Add a wikilink to this note on the My work overview"
+                    title={t('chrome.linkMyWorkTitle')}
                   >
-                    {hubLinkBusy ? 'Linking…' : 'Link to My work'}
+                    {hubLinkBusy ? t('chrome.linking') : t('chrome.linkMyWork')}
                   </button>
                 )}
                 {canEdit && !isHubNote && (
@@ -1706,18 +1724,16 @@ export default function VaultWorkspacePage() {
                     type="button"
                     className="btn-danger"
                     onClick={() => setDeleteOpen(true)}
-                    title="Move this note to trash"
+                    title={t('chrome.deleteTitle')}
                   >
-                    Delete
+                    {t('chrome.delete')}
                   </button>
                 )}
               </div>
               )}
               {isHubNote && !boardFull && (
                 <p className="shrink-0 rounded-lg border border-[var(--border)] bg-[var(--surface-2)]/50 px-3 py-2 text-xs text-[var(--muted)]">
-                  Pull-only from Myelin. Use <span className="text-[var(--text)]">Refresh tasks</span>{' '}
-                  in the tasks panel (right sidebar) to update work assigned to you. Linked notes below
-                  the task block are kept.
+                  {t('chrome.hubPullOnlyBanner')}
                 </p>
               )}
               {isWhiteboard ? (
@@ -1728,9 +1744,9 @@ export default function VaultWorkspacePage() {
                       type="button"
                       className="pointer-events-auto btn-ghost bg-[var(--panel)]/90 text-xs shadow-lg backdrop-blur"
                       onClick={() => toggleBoardMaximize()}
-                      title="Exit maximize (Esc)"
+                      title={t('chrome.exitMaximize')}
                     >
-                      Exit maximize
+                      {t('chrome.exitMaximize')}
                     </button>
                   </div>
                 )}
@@ -1838,7 +1854,7 @@ export default function VaultWorkspacePage() {
             </div>
           ) : (
             <div className="flex flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-[var(--border)] bg-[var(--panel)]/30 px-6 text-center sm:px-8">
-              <p className="text-lg font-semibold tracking-tight">Select a note</p>
+              <p className="text-lg font-semibold tracking-tight">{t('chrome.selectNote')}</p>
               <p className="mt-2 max-w-md text-sm text-[var(--muted)]">
                 Or create one. Wikilinks like{' '}
                 <code className="rounded bg-[var(--surface-2)] px-1.5 py-0.5 font-mono text-[var(--accent-soft)]">
@@ -1856,7 +1872,7 @@ export default function VaultWorkspacePage() {
                 </button>
                 {canEdit && (
                   <button type="button" className="btn-primary" onClick={() => setCreateOpen(true)}>
-                    New…
+                    {t('chrome.newNote')}
                   </button>
                 )}
               </div>
@@ -1876,14 +1892,16 @@ export default function VaultWorkspacePage() {
           }`}
         >
           <div className="flex items-center justify-between gap-2 border-b border-[var(--border)] px-3 py-2 lg:hidden">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">Info</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+              {t('chrome.info')}
+            </p>
             <button type="button" className="btn-ghost py-1 text-xs" onClick={() => setContextOpen(false)}>
-              Close
+              {t('chrome.close')}
             </button>
           </div>
           <div className="shrink-0 border-b border-[var(--border)] p-3">
             <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-              Focused mindmap
+              {t('chrome.focusedMindmap')}
             </h2>
             <p className="mt-0.5 text-[11px] text-[var(--muted)]">Current note + direct links</p>
             <div className="mt-2">
@@ -1908,7 +1926,7 @@ export default function VaultWorkspacePage() {
                 />
               ) : (
                 <div className="flex h-[220px] items-center justify-center rounded-xl border border-dashed border-[var(--border)] text-xs text-[var(--muted)]">
-                  Loading mindmap…
+                  {t('chrome.loadingMindmap')}
                 </div>
               )}
             </div>
@@ -1967,20 +1985,20 @@ export default function VaultWorkspacePage() {
             )}
 
             <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-              References
+              {t('chrome.references')}
             </h2>
             <p className="mt-0.5 text-[11px] text-[var(--muted)]">
-              {isWhiteboard ? 'Notes linked from this board' : 'Links from this note'}
+              {isWhiteboard ? t('chrome.referencesFromBoard') : t('chrome.referencesFromNote')}
             </p>
             <div className="mt-2 space-y-1">
-              {references.length === 0 && <p className="text-[var(--muted)]">None yet</p>}
+              {references.length === 0 && <p className="text-[var(--muted)]">{t('chrome.noneYet')}</p>}
               {references.map((b) => (
                 <button
                   key={`ref-${b.Id}-${b.Kind}-${b.VaultId || vaultId}`}
                   type="button"
                   className="block w-full rounded-lg px-2 py-1.5 text-left text-[var(--accent-soft)] transition hover:bg-[var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-60"
                   disabled={Boolean(b.Restricted)}
-                  title={b.Restricted ? "You don't have access to this note" : undefined}
+                  title={b.Restricted ? t('chrome.noAccessThisNote') : undefined}
                   onClick={() => {
                     if (b.Restricted) return;
                     const targetVault = b.VaultId != null ? Number(b.VaultId) : Number(vaultId);
@@ -1994,32 +2012,32 @@ export default function VaultWorkspacePage() {
                   → {b.Title}
                   {b.Restricted ? (
                     <span className="ml-1 rounded border border-[var(--border)] px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[var(--muted)]">
-                      No access
+                      {t('chrome.noAccess')}
                     </span>
                   ) : null}
                   {b.VaultName && Number(b.VaultId) !== Number(vaultId) ? (
                     <span className="text-[11px] text-[var(--muted)]"> · {b.VaultName}</span>
                   ) : null}{' '}
                   <span className="text-[11px] text-[var(--muted)]">
-                    ({b.Kind === 'boardlink' ? 'board' : b.Kind})
+                    ({b.Kind === 'boardlink' ? t('chrome.linkKindBoard') : b.Kind})
                   </span>
                 </button>
               ))}
             </div>
 
             <h2 className="mt-6 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-              Backlinks
+              {t('chrome.backlinks')}
             </h2>
-            <p className="mt-0.5 text-[11px] text-[var(--muted)]">Notes that link here</p>
+            <p className="mt-0.5 text-[11px] text-[var(--muted)]">{t('chrome.backlinksHint')}</p>
             <div className="mt-2 space-y-1">
-              {backlinks.length === 0 && <p className="text-[var(--muted)]">None yet</p>}
+              {backlinks.length === 0 && <p className="text-[var(--muted)]">{t('chrome.noneYet')}</p>}
               {backlinks.map((b) => (
                 <button
                   key={`bl-${b.Id}-${b.Kind}-${b.VaultId || vaultId}`}
                   type="button"
                   className="block w-full rounded-lg px-2 py-1.5 text-left text-[var(--accent-soft)] transition hover:bg-[var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-60"
                   disabled={Boolean(b.Restricted)}
-                  title={b.Restricted ? "You don't have access to this note" : undefined}
+                  title={b.Restricted ? t('chrome.noAccessThisNote') : undefined}
                   onClick={() => {
                     if (b.Restricted) return;
                     const targetVault = b.VaultId != null ? Number(b.VaultId) : Number(vaultId);
@@ -2033,14 +2051,14 @@ export default function VaultWorkspacePage() {
                   → {b.Title}
                   {b.Restricted ? (
                     <span className="ml-1 rounded border border-[var(--border)] px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[var(--muted)]">
-                      No access
+                      {t('chrome.noAccess')}
                     </span>
                   ) : null}
                   {b.VaultName && Number(b.VaultId) !== Number(vaultId) ? (
                     <span className="text-[11px] text-[var(--muted)]"> · {b.VaultName}</span>
                   ) : null}{' '}
                   <span className="text-[11px] text-[var(--muted)]">
-                    ({b.Kind === 'boardlink' ? 'board' : b.Kind})
+                    ({b.Kind === 'boardlink' ? t('chrome.linkKindBoard') : b.Kind})
                   </span>
                 </button>
               ))}
@@ -2049,17 +2067,17 @@ export default function VaultWorkspacePage() {
             {revisions.length > 0 && (
               <>
                 <h2 className="mb-2 mt-6 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-                  History
+                  {t('chrome.history')}
                 </h2>
                 {visibleRevisions.map((r) => (
                   <div key={r.RevisionNumber} className="mb-2 flex items-center justify-between gap-2">
                     <span className="text-[11px] text-[var(--muted)]">
                       #{r.RevisionNumber} ·{' '}
                       {r.Source === 'auto'
-                        ? 'Autosave'
+                        ? t('chrome.revisionAutosave')
                         : r.Source === 'refresh'
-                          ? 'Refresh'
-                          : 'Manual'}{' '}
+                          ? t('chrome.revisionRefresh')
+                          : t('chrome.revisionManual')}{' '}
                       · {new Date(r.CreatedAt).toLocaleString()}
                     </span>
                     <button
@@ -2067,7 +2085,7 @@ export default function VaultWorkspacePage() {
                       className="text-[11px] font-medium text-[var(--accent-soft)]"
                       onClick={() => void openRevisionDiff(r.RevisionNumber)}
                     >
-                      Compare
+                      {t('chrome.compare')}
                     </button>
                   </div>
                 ))}
@@ -2078,8 +2096,10 @@ export default function VaultWorkspacePage() {
                     onClick={() => setHistoryExpanded((v) => !v)}
                   >
                     {historyExpanded
-                      ? 'Show less'
-                      : `Show ${revisions.length - HISTORY_PREVIEW} older…`}
+                      ? t('chrome.showLess')
+                      : t('chrome.showOlder', {
+                          count: revisions.length - HISTORY_PREVIEW,
+                        })}
                   </button>
                 )}
               </>
@@ -2088,7 +2108,7 @@ export default function VaultWorkspacePage() {
             {selectedId && (
               <div className="mt-6 border-t border-[var(--border)] pt-4">
                 <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-                  Public page
+                  {t('chrome.publicPage')}
                 </h2>
                 {notePublicUrl ? (
                   <Link
@@ -2097,13 +2117,13 @@ export default function VaultWorkspacePage() {
                     target="_blank"
                     rel="noreferrer"
                   >
-                    Open this note on the wiki →
+                    {t('chrome.openNoteOnWiki')}
                   </Link>
                 ) : (
                   <p className="mt-2 text-[11px] leading-relaxed text-[var(--muted)]">
                     {Number(vaultMeta.AllowPublicPages) !== 1
-                      ? 'Enable the public wiki in the vault header first.'
-                      : 'Wiki audience is set by vault default visibility. Override this note to public, unlisted, or authenticated to publish it; private notes stay hidden from Share Read viewers.'}
+                      ? t('chrome.enablePublicWikiFirst')
+                      : t('chrome.wikiAudienceNoteHint')}
                   </p>
                 )}
               </div>
@@ -2159,10 +2179,10 @@ export default function VaultWorkspacePage() {
 
       <ConfirmModal
         open={pendingSwitchId != null}
-        title="Unsaved changes"
-        message="You have unsaved edits on this note. Discard them and open the other note, or cancel and save first."
-        confirmLabel="Discard & open"
-        cancelLabel="Stay"
+        title={t('chrome.unsavedTitle')}
+        message={t('chrome.unsavedMessage')}
+        confirmLabel={t('chrome.discardOpen')}
+        cancelLabel={t('chrome.stay')}
         danger
         onConfirm={() => {
           const id = pendingSwitchId;
@@ -2174,10 +2194,9 @@ export default function VaultWorkspacePage() {
 
       <ConfirmModal
         open={deleteOpen}
-        title="Move to trash"
-        message={`Move “${title || (isWhiteboard ? 'this whiteboard' : 'this note')}” to trash? You can restore it from Vault options → Trash.`}
-        confirmLabel={deleting ? 'Deleting…' : 'Move to trash'}
-        cancelLabel="Cancel"
+        title={t('chrome.trashTitle')}
+        message={t('chrome.trashMessage')}
+        confirmLabel={deleting ? t('common.loading') : t('chrome.trashTitle')}
         danger
         onConfirm={() => {
           if (!deleting) void deleteNote();
@@ -2189,11 +2208,10 @@ export default function VaultWorkspacePage() {
 
       <ConfirmModal
         open={zipOverwriteOpen}
-        title="Import ZIP"
-        message="Markdown files become notes; folders become paths (e.g. meta/risks.md). Images in the ZIP are uploaded and relative image links are rewritten when possible."
-        confirmLabel="Import (skip existing)"
-        altConfirmLabel="Import & overwrite"
-        cancelLabel="Cancel"
+        title={t('chrome.importZipModalTitle')}
+        message={t('chrome.importZipMessage')}
+        confirmLabel={t('chrome.importSkipExisting')}
+        altConfirmLabel={t('chrome.importOverwrite')}
         onConfirm={() => {
           setZipOverwriteOpen(false);
           if (pendingZipBase64) void runZipImport(pendingZipBase64, false);

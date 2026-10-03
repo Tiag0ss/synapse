@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useI18n } from '@/lib/i18n/provider';
 
 interface MermaidLightboxProps {
   svgHtml: string | null;
@@ -40,6 +41,7 @@ function measureNaturalSize(body: HTMLElement, svg: SVGSVGElement): Size | null 
 }
 
 export default function MermaidLightbox({ svgHtml, onClose }: MermaidLightboxProps) {
+  const { t } = useI18n();
   const stageRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const naturalRef = useRef<Size | null>(null);
@@ -216,7 +218,7 @@ export default function MermaidLightbox({ svgHtml, onClose }: MermaidLightboxPro
       className="synapse-mermaid-lightbox fixed inset-0 z-[80] flex flex-col bg-black/85 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
-      aria-label="Diagram fullscreen"
+      aria-label={t('chrome.diagramFullscreen')}
       onClick={onClose}
     >
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-white/10 px-4 py-2.5">
@@ -232,7 +234,7 @@ export default function MermaidLightbox({ svgHtml, onClose }: MermaidLightboxPro
               zoomEnabled ? 'bg-white/20 text-white' : 'bg-white/10 text-white/70 hover:bg-white/15'
             }`}
             aria-pressed={zoomEnabled}
-            title={zoomEnabled ? 'Disable zoom' : 'Enable zoom'}
+            title={zoomEnabled ? t('chrome.disableZoom') : t('chrome.enableZoom')}
             onClick={() => setZoomEnabled((v) => !v)}
           >
             Zoom {zoomEnabled ? 'on' : 'off'}
@@ -241,7 +243,7 @@ export default function MermaidLightbox({ svgHtml, onClose }: MermaidLightboxPro
             type="button"
             className="rounded-lg bg-white/10 px-2.5 py-1.5 text-sm text-white transition hover:bg-white/20 disabled:opacity-40"
             disabled={!zoomEnabled || zoom <= MIN_ZOOM}
-            aria-label="Zoom out"
+            aria-label={t('chrome.zoomOut')}
             onClick={() => setZoom((z) => clampZoom(z / ZOOM_STEP))}
           >
             −
@@ -253,7 +255,7 @@ export default function MermaidLightbox({ svgHtml, onClose }: MermaidLightboxPro
             type="button"
             className="rounded-lg bg-white/10 px-2.5 py-1.5 text-sm text-white transition hover:bg-white/20 disabled:opacity-40"
             disabled={!zoomEnabled || zoom >= MAX_ZOOM}
-            aria-label="Zoom in"
+            aria-label={t('chrome.zoomIn')}
             onClick={() => setZoom((z) => clampZoom(z * ZOOM_STEP))}
           >
             +
@@ -261,7 +263,7 @@ export default function MermaidLightbox({ svgHtml, onClose }: MermaidLightboxPro
           <button
             type="button"
             className="rounded-lg bg-white/10 px-3 py-1.5 text-sm text-white transition hover:bg-white/20"
-            title="Fit diagram to screen"
+            title={t('chrome.fitDiagram')}
             onClick={() => fitToStage()}
           >
             Fit
@@ -270,9 +272,9 @@ export default function MermaidLightbox({ svgHtml, onClose }: MermaidLightboxPro
             type="button"
             className="rounded-lg bg-white/10 px-3 py-1.5 text-sm text-white transition hover:bg-white/20"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t('chrome.close')}
           >
-            Close
+            {t('chrome.close')}
           </button>
         </div>
       </div>

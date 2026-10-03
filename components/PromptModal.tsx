@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useI18n } from '@/lib/i18n/provider';
 
 interface PromptModalProps {
   open: boolean;
@@ -21,11 +22,12 @@ export default function PromptModal({
   label,
   placeholder,
   initialValue = '',
-  confirmLabel = 'Create',
+  confirmLabel,
   inputType = 'text',
   onConfirm,
   onCancel,
 }: PromptModalProps) {
+  const { t } = useI18n();
   const [value, setValue] = useState(initialValue);
 
   useEffect(() => {
@@ -62,14 +64,14 @@ export default function PromptModal({
         </label>
         <div className="mt-5 flex justify-end gap-2">
           <button type="button" className="btn-ghost" onClick={onCancel}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             type="submit"
             className="btn-primary"
             disabled={!(inputType === 'password' ? value : value.trim())}
           >
-            {confirmLabel}
+            {confirmLabel || t('common.create')}
           </button>
         </div>
       </form>

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import AppUserMenu from '@/components/AppUserMenu';
 import InstallAppPrompt from '@/components/InstallAppPrompt';
 import PmSsoBanner from '@/components/PmSsoBanner';
+import { useI18n } from '@/lib/i18n/provider';
 
 interface Me {
   userId: number;
@@ -42,27 +43,29 @@ interface Providers {
   hasUsers: boolean;
 }
 
-function roleLabel(role?: string) {
-  if (!role || role === 'owner') return null;
-  if (role === 'edit') return 'Can edit';
-  if (role === 'read') return 'Read only';
-  return role;
-}
-
-function wikiHintLabel(hint: HomeWikiItem['visibilityHint']): string {
-  switch (hint) {
-    case 'access':
-      return 'Shared with you';
-    case 'authenticated':
-      return 'Signed-in users';
-    case 'private':
-      return 'Private';
-    default:
-      return 'Public';
-  }
-}
-
 export default function HomePage() {
+  const { t } = useI18n();
+
+  const roleLabel = (role?: string) => {
+    if (!role || role === 'owner') return null;
+    if (role === 'edit') return t('home.canEdit');
+    if (role === 'read') return t('home.readOnly');
+    return role;
+  };
+
+  const wikiHintLabel = (hint: HomeWikiItem['visibilityHint']): string => {
+    switch (hint) {
+      case 'access':
+        return t('home.roleShared');
+      case 'authenticated':
+        return 'Signed-in users';
+      case 'private':
+        return 'Private';
+      default:
+        return 'Public';
+    }
+  };
+
   const [me, setMe] = useState<Me | null>(null);
   const [vaults, setVaults] = useState<Vault[]>([]);
   const [providers, setProviders] = useState<Providers | null>(null);
@@ -227,7 +230,7 @@ export default function HomePage() {
       <main className="flex min-h-screen items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="h-8 w-8 animate-pulse rounded-full border-2 border-[var(--accent)]/40 border-t-[var(--accent)]" />
-          <p className="text-sm text-[var(--muted)]">Loading workspace…</p>
+          <p className="text-sm text-[var(--muted)]">{t('home.loadingWorkspace')}</p>
         </div>
       </main>
     );
@@ -251,17 +254,16 @@ export default function HomePage() {
               className="mt-5 text-4xl leading-tight tracking-tight text-[var(--text)] sm:text-5xl"
               style={{ fontFamily: 'var(--font-serif)' }}
             >
-              Knowledge that stays connected
+              {t('home.headline')}
             </h1>
             <p className="mt-5 max-w-md text-[15px] leading-relaxed text-[var(--muted)]">
-              Markdown vaults with wikilinks, tasks, and optional Myelin sync — built for teams that
-              think in notes.
+              {t('home.tagline')}
             </p>
             <Link
               href="/w"
               className="mt-8 inline-flex text-sm text-[var(--accent-soft)] no-underline hover:underline"
             >
-              Browse public wikis
+              {t('home.browseWikis')}
             </Link>
           </div>
         </section>
@@ -269,12 +271,10 @@ export default function HomePage() {
         <section className="relative flex w-full items-center justify-center border-t border-[var(--border)] bg-[var(--panel)]/40 px-6 py-12 backdrop-blur-sm lg:w-[26rem] lg:border-t-0 lg:border-l xl:w-[28rem]">
           <div className="w-full max-w-sm">
             <h2 className="text-xl font-semibold tracking-tight text-[var(--text)]">
-              {mode === 'login' ? 'Sign in' : 'Create account'}
+              {mode === 'login' ? t('nav.signIn') : t('home.createAccount')}
             </h2>
             <p className="mt-1 text-sm text-[var(--muted)]">
-              {mode === 'login'
-                ? 'Continue to your vaults.'
-                : 'Start with a Synapse account.'}
+              {mode === 'login' ? t('home.continueVaults') : t('home.startAccount')}
             </p>
 
             {error && (
@@ -293,7 +293,7 @@ export default function HomePage() {
               >
                 <input
                   className="input w-full"
-                  placeholder="Username or email"
+                  placeholder={t('home.usernameOrEmail')}
                   autoComplete="username"
                   value={login}
                   onChange={(e) => setLogin(e.target.value)}
@@ -301,20 +301,20 @@ export default function HomePage() {
                 <input
                   className="input w-full"
                   type="password"
-                  placeholder="Password"
+                  placeholder={t('home.password')}
                   autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
                 <button type="submit" className="btn-primary w-full" disabled={authBusy}>
-                  {authBusy ? 'Signing in…' : 'Sign in'}
+                  {authBusy ? t('home.signingIn') : t('nav.signIn')}
                 </button>
                 {providers?.passwordResetAvailable && (
                   <Link
                     href="/forgot-password"
                     className="block text-center text-sm text-[var(--accent-soft)] no-underline hover:underline"
                   >
-                    Forgot password?
+                    {t('home.forgotPassword')}
                   </Link>
                 )}
               </form>
@@ -328,7 +328,7 @@ export default function HomePage() {
               >
                 <input
                   className="input w-full"
-                  placeholder="Username"
+                  placeholder={t('home.username')}
                   autoComplete="username"
                   value={regUsername}
                   onChange={(e) => setRegUsername(e.target.value)}
@@ -336,7 +336,7 @@ export default function HomePage() {
                 <input
                   className="input w-full"
                   type="email"
-                  placeholder="Email"
+                  placeholder={t('home.email')}
                   autoComplete="email"
                   value={regEmail}
                   onChange={(e) => setRegEmail(e.target.value)}
@@ -344,13 +344,13 @@ export default function HomePage() {
                 <input
                   className="input w-full"
                   type="password"
-                  placeholder="Password"
+                  placeholder={t('home.password')}
                   autoComplete="new-password"
                   value={regPassword}
                   onChange={(e) => setRegPassword(e.target.value)}
                 />
                 <button type="submit" className="btn-primary w-full" disabled={authBusy}>
-                  {authBusy ? 'Creating…' : 'Create account'}
+                  {authBusy ? t('home.creating') : t('home.createAccount')}
                 </button>
               </form>
             )}
@@ -364,7 +364,7 @@ export default function HomePage() {
                   setMode(mode === 'login' ? 'register' : 'login');
                 }}
               >
-                {mode === 'login' ? 'Need an account? Register' : 'Already have an account? Sign in'}
+                {mode === 'login' ? t('home.needAccount') : t('home.haveAccount')}
               </button>
             )}
 
@@ -372,17 +372,17 @@ export default function HomePage() {
               <>
                 <div className="my-5 flex items-center gap-3 text-xs text-[var(--muted)]">
                   <div className="h-px flex-1 bg-[var(--border)]" />
-                  or
+                  {t('home.or')}
                   <div className="h-px flex-1 bg-[var(--border)]" />
                 </div>
                 <a
                   href="/api/auth/sso/start"
                   className="btn-ghost inline-flex w-full justify-center no-underline hover:no-underline"
                 >
-                  Sign in with Myelin
+                  {t('home.signInMyelin')}
                 </a>
                 <p className="mt-2 text-center text-[11px] text-[var(--muted)]">
-                  Same email as in Myelin links your accounts.
+                  {t('home.myelinLinkHint')}
                 </p>
               </>
             )}
@@ -400,7 +400,7 @@ export default function HomePage() {
             <p className="truncate text-sm font-semibold tracking-tight text-[var(--text)]">
               {siteName}
             </p>
-            <p className="truncate text-[11px] text-[var(--muted)]">Knowledge vaults</p>
+            <p className="truncate text-[11px] text-[var(--muted)]">{t('home.knowledgeVaults')}</p>
           </div>
           <div className="flex items-center gap-3">
             <AppUserMenu user={me} />
@@ -420,12 +420,18 @@ export default function HomePage() {
         <div
           className="mb-5 flex rounded-lg border border-[var(--border)] bg-[var(--surface)] p-0.5"
           role="tablist"
-          aria-label="Home sections"
+          aria-label={t('home.homeSectionsAria')}
         >
           {(
             [
-              { id: 'vaults' as const, label: `Vaults${vaults.length ? ` (${vaults.length})` : ''}` },
-              { id: 'wikis' as const, label: `Wikis${wikis.length ? ` (${wikis.length})` : ''}` },
+              {
+                id: 'vaults' as const,
+                label: `${t('home.vaults')}${vaults.length ? ` (${vaults.length})` : ''}`,
+              },
+              {
+                id: 'wikis' as const,
+                label: `${t('home.wikis')}${wikis.length ? ` (${wikis.length})` : ''}`,
+              },
             ] as const
           ).map((tab) => (
             <button
@@ -453,16 +459,14 @@ export default function HomePage() {
             {createOpen && (
               <section className="mb-6 rounded-2xl border border-[var(--border)] bg-[var(--panel)]/80 p-5 shadow-lg shadow-black/20">
                 <h2 className="text-sm font-semibold tracking-tight text-[var(--text)]">
-                  Create vault
+                  {t('home.createVault')}
                 </h2>
-                <p className="mt-1 text-xs text-[var(--muted)]">
-                  A vault is a collection of Markdown notes. Wiki visibility can be changed later.
-                </p>
+                <p className="mt-1 text-xs text-[var(--muted)]">{t('home.createVaultHint')}</p>
                 <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
                   <input
                     autoFocus
                     className="input min-w-[12rem] flex-1"
-                    placeholder="Vault name"
+                    placeholder={t('home.vaultName')}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     onKeyDown={(e) => {
@@ -473,13 +477,13 @@ export default function HomePage() {
                     className="input w-full sm:w-auto"
                     value={defaultVisibility}
                     onChange={(e) => setDefaultVisibility(e.target.value)}
-                    title="Wiki audience when public pages are enabled; also default for notes"
-                    aria-label="Default wiki visibility"
+                    title={t('home.wikiAudienceTitle')}
+                    aria-label={t('home.defaultWikiVisibility')}
                   >
-                    <option value="private">Wiki: Private (Share only)</option>
-                    <option value="authenticated">Wiki: Authenticated</option>
-                    <option value="unlisted">Wiki: Unlisted</option>
-                    <option value="public">Wiki: Public</option>
+                    <option value="private">{t('chrome.wikiOptionPrivate')}</option>
+                    <option value="authenticated">{t('chrome.wikiOptionAuthenticated')}</option>
+                    <option value="unlisted">{t('chrome.wikiOptionUnlisted')}</option>
+                    <option value="public">{t('chrome.wikiOptionPublic')}</option>
                   </select>
                   <button
                     type="button"
@@ -487,14 +491,14 @@ export default function HomePage() {
                     className="btn-primary"
                     disabled={createBusy || !name.trim()}
                   >
-                    {createBusy ? 'Creating…' : 'Create'}
+                    {createBusy ? t('home.creating') : t('home.create')}
                   </button>
                   <button
                     type="button"
                     className="btn-ghost"
                     onClick={() => setCreateOpen(false)}
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                 </div>
               </section>
@@ -506,10 +510,10 @@ export default function HomePage() {
                   className="text-xl text-[var(--text)]"
                   style={{ fontFamily: 'var(--font-serif)' }}
                 >
-                  No vaults yet
+                  {t('home.emptyVaults')}
                 </p>
                 <p className="mx-auto mt-2 max-w-sm text-sm text-[var(--muted)]">
-                  Create your first vault to start taking notes with wikilinks, tasks, and templates.
+                  {t('home.createVaultHint')}
                 </p>
                 {!createOpen && (
                   <button
@@ -517,7 +521,7 @@ export default function HomePage() {
                     className="btn-primary mt-6"
                     onClick={() => setCreateOpen(true)}
                   >
-                    New vault
+                    {t('home.newVault')}
                   </button>
                 )}
               </div>
@@ -539,16 +543,16 @@ export default function HomePage() {
                           setError('');
                         }}
                       >
-                        New vault
+                        {t('home.newVault')}
                       </button>
                     )}
                     <input
                       type="search"
                       className="input w-full sm:max-w-xs"
-                      placeholder="Search vaults…"
+                      placeholder={t('home.searchVaults')}
                       value={vaultQuery}
                       onChange={(e) => setVaultQuery(e.target.value)}
-                      aria-label="Search vaults"
+                      aria-label={t('home.searchVaults')}
                     />
                   </div>
                 </div>
@@ -562,7 +566,7 @@ export default function HomePage() {
                       className="mt-3 text-sm text-[var(--accent-soft)] hover:underline"
                       onClick={() => setVaultQuery('')}
                     >
-                      Clear search
+                      {t('home.clearSearch')}
                     </button>
                   </div>
                 ) : (
@@ -601,7 +605,7 @@ export default function HomePage() {
                               </span>
                               {Number(v.IsPersonalWork) === 1 ? (
                                 <span className="rounded border border-[color-mix(in_srgb,var(--accent)_35%,var(--border))] px-1.5 py-0.5 text-[10px] font-medium text-[var(--accent-soft)]">
-                                  My work
+                                  {t('home.myWork')}
                                 </span>
                               ) : v.PmProjectId ? (
                                 <span
@@ -623,7 +627,7 @@ export default function HomePage() {
                                 </span>
                               ) : (
                                 <span className="rounded border border-[var(--border)] px-1.5 py-0.5 text-[10px] text-[var(--muted)]">
-                                  Owner
+                                  {t('home.owner')}
                                 </span>
                               )}
                             </div>
@@ -664,10 +668,10 @@ export default function HomePage() {
                 <input
                   type="search"
                   className="input w-full sm:max-w-xs"
-                  placeholder="Search wikis…"
+                  placeholder={t('home.searchWikis')}
                   value={wikiQuery}
                   onChange={(e) => setWikiQuery(e.target.value)}
-                  aria-label="Search wikis"
+                  aria-label={t('home.searchWikis')}
                 />
               </div>
             </div>

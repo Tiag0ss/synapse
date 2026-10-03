@@ -25,6 +25,7 @@ import {
   SYNAPSE_BOARD_BG,
 } from '@/lib/whiteboardLinks';
 import { noteFolderPath } from '@/lib/notePaths';
+import { useI18n } from '@/lib/i18n/provider';
 
 import '@excalidraw/excalidraw/index.css';
 
@@ -154,6 +155,7 @@ const WhiteboardEditor = forwardRef<WhiteboardEditorHandle, WhiteboardEditorProp
     },
     ref
   ) {
+    const { t } = useI18n();
     const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
     const onBoardChangeRef = useRef(onBoardChange);
     onBoardChangeRef.current = onBoardChange;
@@ -442,7 +444,7 @@ const WhiteboardEditor = forwardRef<WhiteboardEditorHandle, WhiteboardEditorProp
             <div
               role="dialog"
               aria-modal="true"
-              aria-label="Link to note"
+              aria-label={t('chrome.linkToNote')}
               className="flex max-h-[min(70vh,420px)] w-full max-w-md flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-2xl"
             >
               <div className="border-b border-[var(--border)] px-4 py-3">
@@ -450,7 +452,8 @@ const WhiteboardEditor = forwardRef<WhiteboardEditorHandle, WhiteboardEditorProp
                 <input
                   autoFocus
                   className="input mt-2 w-full text-sm"
-                  placeholder="Filter notes…"
+                  placeholder={t('chrome.filterNotes')}
+                  aria-label={t('chrome.filterNotes')}
                   value={linkFilter}
                   onChange={(e) => setLinkFilter(e.target.value)}
                 />

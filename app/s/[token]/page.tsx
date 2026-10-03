@@ -14,10 +14,12 @@ import { renderMermaidInRoot } from '@/lib/mermaidRender';
 import { useBoardEmbedPreview } from '@/lib/useBoardEmbedPreview';
 import { noteLeafName } from '@/lib/notePaths';
 import NotePeekModal, { type NotePeekTarget } from '@/components/NotePeekModal';
+import { useI18n } from '@/lib/i18n/provider';
 
 type ShareKind = 'note' | 'whiteboard' | 'flashcard';
 
 export default function SharedNotePage() {
+  const { t } = useI18n();
   const params = useParams();
   const token = String(params.token || '');
   const articleRef = useRef<HTMLDivElement>(null);
@@ -231,9 +233,6 @@ export default function SharedNotePage() {
     }
   };
 
-  const kindLabel =
-    kind === 'whiteboard' ? 'whiteboard' : kind === 'flashcard' ? 'flashcard' : 'note';
-
   return (
     <main className="flex h-dvh flex-col overflow-hidden bg-[var(--bg)] text-[var(--text)]">
       <header className="shrink-0 border-b border-[var(--border)] bg-[var(--panel)]/95 px-4 py-2.5 backdrop-blur-md sm:px-5">
@@ -253,27 +252,27 @@ export default function SharedNotePage() {
           </div>
           {expiresAt ? (
             <p className="shrink-0 truncate text-[11px] text-[var(--muted)]">
-              Expires {new Date(expiresAt).toLocaleString()}
+              {t('chrome.expires')} {new Date(expiresAt).toLocaleString()}
             </p>
           ) : phase === 'content' || phase === 'password' ? (
-            <p className="shrink-0 truncate text-[11px] text-[var(--muted)]">No expiry</p>
+            <p className="shrink-0 truncate text-[11px] text-[var(--muted)]">{t('chrome.noExpiry')}</p>
           ) : null}
         </div>
       </header>
 
       {phase === 'loading' && (
         <div className="flex flex-1 items-center justify-center p-6">
-          <p className="text-sm text-[var(--muted)]">Loading…</p>
+          <p className="text-sm text-[var(--muted)]">{t('common.loading')}</p>
         </div>
       )}
 
       {phase === 'error' && (
         <div className="flex flex-1 items-center justify-center p-6">
           <div className="w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--panel)] p-6">
-            <h1 className="text-lg font-semibold">Share unavailable</h1>
+            <h1 className="text-lg font-semibold">{t('chrome.shareUnavailable')}</h1>
             <p className="mt-2 text-sm text-[var(--muted)]">{error}</p>
             <Link href="/" className="mt-4 inline-block text-sm text-[var(--accent-soft)]">
-              Back to Synapse
+              {t('chrome.backSynapse')}
             </Link>
           </div>
         </div>
@@ -288,11 +287,9 @@ export default function SharedNotePage() {
             <h1 className="text-lg font-semibold tracking-tight">
               {kind === 'flashcard' ? title || 'Shared flashcard' : noteLeafName(title) || 'Shared note'}
             </h1>
-            <p className="mt-1 text-sm text-[var(--muted)]">
-              Enter the password to view this {kindLabel}.
-            </p>
+            <p className="mt-1 text-sm text-[var(--muted)]">{t('chrome.enterPassword')}</p>
             <label className="mt-4 block text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-              Password
+              {t('home.password')}
               <input
                 type="password"
                 className="input mt-1.5 w-full"
@@ -309,7 +306,7 @@ export default function SharedNotePage() {
               className="btn-primary mt-4 w-full"
               disabled={unlockBusy || !password.trim()}
             >
-              {unlockBusy ? 'Unlocking…' : 'Unlock'}
+              {unlockBusy ? t('chrome.unlocking') : t('chrome.unlock')}
             </button>
           </form>
         </div>

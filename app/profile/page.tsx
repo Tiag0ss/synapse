@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import UserAvatar from '@/components/UserAvatar';
 import AppUserMenu from '@/components/AppUserMenu';
+import { useI18n } from '@/lib/i18n/provider';
+import { LOCALES, LOCALE_LABELS, type Locale } from '@/lib/i18n/config';
 
 type Profile = {
   userId: number;
@@ -24,6 +26,7 @@ type Profile = {
 
 export default function ProfilePage() {
   const router = useRouter();
+  const { t, locale, setLocale } = useI18n();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -226,7 +229,7 @@ export default function ProfilePage() {
   if (loading || !profile) {
     return (
       <main className="flex min-h-screen items-center justify-center text-sm text-[var(--muted)]">
-        Loading profile…
+        {t('profile.loading')}
       </main>
     );
   }
@@ -238,7 +241,7 @@ export default function ProfilePage() {
       <header className="sticky top-0 z-20 border-b border-[var(--border)]/80 bg-[color-mix(in_srgb,var(--bg)_82%,transparent)] backdrop-blur-md">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-6 py-3.5">
           <Link href="/" className="text-sm font-semibold text-[var(--text)] no-underline hover:no-underline">
-            ← Vaults
+            {t('profile.backVaults')}
           </Link>
           <AppUserMenu user={profile} dense />
         </div>
@@ -248,13 +251,33 @@ export default function ProfilePage() {
         <div className="flex items-center gap-4">
           <UserAvatar userId={profile.userId} name={profile.username} size="lg" />
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-[var(--text)]">My profile</h1>
+            <h1 className="text-2xl font-semibold tracking-tight text-[var(--text)]">{t('profile.title')}</h1>
             <p className="mt-0.5 text-sm text-[var(--muted)]">
-              Account details
+              {t('profile.accountDetails')}
               {sso ? ' · linked to Myelin' : ''}
             </p>
           </div>
         </div>
+
+        <section className="mt-8 space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--panel)]/70 p-5">
+          <h2 className="text-sm font-semibold text-[var(--text)]">{t('profile.preferences')}</h2>
+          <label className="block text-sm">
+            {t('nav.language')}
+            <select
+              className="input mt-1 w-full"
+              value={locale}
+              onChange={(e) => setLocale(e.target.value as Locale)}
+              aria-label={t('nav.language')}
+            >
+              {LOCALES.map((l) => (
+                <option key={l} value={l}>
+                  {LOCALE_LABELS[l]}
+                </option>
+              ))}
+            </select>
+            <span className="mt-1 block text-[11px] text-[var(--muted)]">{t('profile.languageHint')}</span>
+          </label>
+        </section>
 
         {error && (
           <p className="mt-6 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
@@ -284,9 +307,9 @@ export default function ProfilePage() {
         )}
 
         <section className="mt-8 space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--panel)]/70 p-5">
-          <h2 className="text-sm font-semibold text-[var(--text)]">Profile</h2>
+          <h2 className="text-sm font-semibold text-[var(--text)]">{t('profile.profileFields')}</h2>
           <label className="block text-sm">
-            Username
+            {t('home.username')}
             <input
               className="input mt-1 w-full"
               value={username}
@@ -295,7 +318,7 @@ export default function ProfilePage() {
             />
           </label>
           <label className="block text-sm">
-            Email
+            {t('home.email')}
             <input
               className="input mt-1 w-full"
               type="email"
@@ -316,13 +339,13 @@ export default function ProfilePage() {
             disabled={busy}
             onClick={() => void saveProfile()}
           >
-            Save profile
+            {t('profile.saveProfile')}
           </button>
         </section>
 
         {profile.pmIntegration?.enabled !== false && (
           <section className="mt-6 space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--panel)]/70 p-5">
-            <h2 className="text-sm font-semibold text-[var(--text)]">Myelin API token</h2>
+            <h2 className="text-sm font-semibold text-[var(--text)]">{t('profile.myelinApiToken')}</h2>
             <p className="text-xs leading-relaxed text-[var(--muted)]">
               Personal <code className="text-[var(--accent-soft)]">pt_…</code> token from Project
               Management → Administration → API Tokens. Used for Myelin calls when you have no
@@ -412,7 +435,7 @@ export default function ProfilePage() {
                 disabled={busy}
                 onClick={() => void savePmApiKey()}
               >
-                Save token
+                {t('profile.saveToken')}
               </button>
               <button
                 type="button"
@@ -420,7 +443,7 @@ export default function ProfilePage() {
                 disabled={busy}
                 onClick={() => void testPmConnection()}
               >
-                Test connection
+                {t('profile.testConnection')}
               </button>
             </div>
           </section>
@@ -428,7 +451,7 @@ export default function ProfilePage() {
 
         <section className="mt-6 space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--panel)]/70 p-5">
           <h2 className="text-sm font-semibold text-[var(--text)]">
-            {profile.hasPassword ? 'Change password' : 'Set local password'}
+            {profile.hasPassword ? t('profile.changePassword') : t('profile.setLocalPassword')}
           </h2>
           <p className="text-xs text-[var(--muted)]">
             {profile.hasPassword
@@ -437,7 +460,7 @@ export default function ProfilePage() {
           </p>
           {profile.hasPassword && (
             <label className="block text-sm">
-              Current password
+              {t('profile.currentPassword')}
               <input
                 className="input mt-1 w-full"
                 type="password"
@@ -448,7 +471,7 @@ export default function ProfilePage() {
             </label>
           )}
           <label className="block text-sm">
-            New password
+            {t('authPages.newPassword')}
             <input
               className="input mt-1 w-full"
               type="password"
@@ -458,7 +481,7 @@ export default function ProfilePage() {
             />
           </label>
           <label className="block text-sm">
-            Confirm new password
+            {t('authPages.confirmPassword')}
             <input
               className="input mt-1 w-full"
               type="password"
@@ -473,20 +496,18 @@ export default function ProfilePage() {
             disabled={busy}
             onClick={() => void savePassword()}
           >
-            {profile.hasPassword ? 'Update password' : 'Set password'}
+            {profile.hasPassword ? t('authPages.updatePassword') : t('profile.setPassword')}
           </button>
         </section>
 
         <section className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--panel)]/70 p-5">
-          <h2 className="text-sm font-semibold text-[var(--text)]">Note templates</h2>
-          <p className="mt-1 text-sm text-[var(--muted)]">
-            Create personal templates and request admin approval to share them with everyone.
-          </p>
+          <h2 className="text-sm font-semibold text-[var(--text)]">{t('nav.templates')}</h2>
+          <p className="mt-1 text-sm text-[var(--muted)]">{t('profile.templatesHint')}</p>
           <Link
             href="/templates"
             className="btn-ghost mt-4 inline-flex no-underline hover:no-underline"
           >
-            Manage templates
+            {t('chrome.manageTemplates')}
           </Link>
         </section>
 

@@ -1,6 +1,7 @@
 'use client';
 
 import type { LinkSuggestItem } from '@/lib/noteLinkSuggest';
+import { useI18n } from '@/lib/i18n/provider';
 
 type NoteLinkSuggestProps = {
   items: LinkSuggestItem[];
@@ -19,6 +20,7 @@ export default function NoteLinkSuggest({
   onHover,
   onSelect,
 }: NoteLinkSuggestProps) {
+  const { t } = useI18n();
   if (!items.length) return null;
 
   return (
@@ -26,7 +28,7 @@ export default function NoteLinkSuggest({
       role="listbox"
       className="synapse-link-suggest absolute z-30 max-h-56 min-w-[14rem] max-w-[22rem] overflow-auto rounded-md border border-[var(--border)] bg-[var(--panel)] py-1 text-xs shadow-lg"
       style={{ top, left }}
-      aria-label="Note link suggestions"
+      aria-label={t('chrome.noteLinkSuggestions')}
     >
       {items.map((item, i) => (
         <li key={item.id} role="option" aria-selected={i === activeIndex}>

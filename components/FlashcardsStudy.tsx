@@ -11,6 +11,7 @@ import { renderMermaidInRoot } from '@/lib/mermaidRender';
 import { handleMarkdownCodeCopyClick } from '@/lib/codeCopy';
 import type { NotePeekTarget } from '@/components/NotePeekModal';
 import MermaidLightbox from '@/components/MermaidLightbox';
+import { useI18n } from '@/lib/i18n/provider';
 
 type FlashcardsStudyProps = {
   cards: FoldCard[];
@@ -188,9 +189,12 @@ export default function FlashcardsStudy({
   onCreateNoteFromWikilink,
   onCreateCrossVaultNote,
   onShareCard,
-  emptyHint = 'No fold cards in this vault. Use :::fold- Question … ::: with the answer in the body.',
+  emptyHint,
 }: FlashcardsStudyProps) {
+  const { t } = useI18n();
   const searchRef = useRef<HTMLInputElement>(null);
+  const resolvedEmptyHint =
+    emptyHint || t('chrome.noneYet');
   const [query, setQuery] = useState('');
   const [openKeys, setOpenKeys] = useState<Set<string>>(() => new Set());
   const [mermaidLightbox, setMermaidLightbox] = useState<string | null>(null);
@@ -249,14 +253,14 @@ export default function FlashcardsStudy({
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="shrink-0 text-base font-semibold tracking-tight">Flashcards</h2>
+        <h2 className="shrink-0 text-base font-semibold tracking-tight">{t('chrome.flashcards')}</h2>
         <input
           ref={searchRef}
           type="search"
           className="input min-w-[8rem] flex-1 py-1.5 text-sm sm:max-w-xs"
-          placeholder="Search cards…"
+          placeholder={t('chrome.searchCards')}
           value={query}
-          aria-label="Search cards"
+          aria-label={t('chrome.searchCards')}
           onChange={(e) => setQuery(e.target.value)}
         />
         <span className="shrink-0 tabular-nums text-xs text-[var(--muted)]">
@@ -266,19 +270,19 @@ export default function FlashcardsStudy({
 
       {!loading && !cards.length && (
         <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-[var(--border)] bg-[var(--panel)]/50 p-8 text-center text-sm text-[var(--muted)]">
-          {emptyHint}
+          {resolvedEmptyHint}
         </div>
       )}
 
       {loading && (
         <div className="flex flex-1 items-center justify-center text-sm text-[var(--muted)]">
-          Loading cards…
+          {t('common.loading')}
         </div>
       )}
 
       {!loading && cards.length > 0 && !filtered.length && (
         <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-[var(--border)] bg-[var(--panel)]/50 p-8 text-center text-sm text-[var(--muted)]">
-          No cards match “{query.trim()}”.
+          {t('common.noMatches')}
         </div>
       )}
 
@@ -320,26 +324,26 @@ export default function FlashcardsStudy({
                         <button
                           type="button"
                           className="btn-ghost py-1 text-xs"
-                          title="Share this flashcard"
+                          title={t('chrome.shareFlashcard')}
                           onClick={(e) => {
                             e.stopPropagation();
                             onShareCard(card);
                           }}
                         >
-                          Share
+                          {t('chrome.share')}
                         </button>
                       ) : null}
                       {card.sourceNoteId && onOpenNote ? (
                         <button
                           type="button"
                           className="btn-ghost py-1 text-xs"
-                          title="Open source note"
+                          title={t('chrome.openSourceNote')}
                           onClick={(e) => {
                             e.stopPropagation();
                             onOpenNote(card.sourceNoteId!);
                           }}
                         >
-                          Open note
+                          {t('chrome.openSourceNote')}
                         </button>
                       ) : null}
                     </div>

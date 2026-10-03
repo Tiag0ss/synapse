@@ -344,7 +344,7 @@ export function frontmatterTags(data: FrontmatterData): string[] {
     .filter(Boolean);
 }
 
-/** Prefix for YAML todo markers stored in NoteCheckboxTasks / PM synapseMarkerId. */
+/** Prefix for YAML todo markers stored in NoteCheckboxTasks / synapseMarkerId. */
 export const FRONTMATTER_TODO_MARKER_PREFIX = 'fm:';
 
 export type FrontmatterTodo = {

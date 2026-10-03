@@ -11,7 +11,7 @@ const pool = mysql.createPool({
   port: Number(String(process.env.DB_PORT || 3306).trim()),
   user: String(process.env.DB_USER || 'root').trim(),
   password: String(process.env.DB_PASSWORD || '').trim(),
-  database: String(process.env.DB_NAME || 'pm_synapse').trim(),
+  database: String(process.env.DB_NAME || 'synapse').trim(),
   waitForConnections: true,
   connectionLimit: Number(process.env.DB_CONNECTION_LIMIT || 10),
   namedPlaceholders: false,

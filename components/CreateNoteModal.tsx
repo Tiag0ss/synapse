@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { applyNoteTemplateBody } from '@/lib/noteTemplates';
 import { renderSynapseMarkdown } from '@/lib/renderMarkdown';
+import { useI18n } from '@/lib/i18n/provider';
 
 export type CatalogTemplate = {
   id: number;
@@ -38,17 +39,23 @@ interface CreateNoteModalProps {
   lockKind?: boolean;
 }
 
-function badgeFor(t: CatalogTemplate): { text: string; className: string } {
-  if (t.kind === 'system') {
-    return { text: 'System', className: 'border-[var(--border)] text-[var(--muted)]' };
+function badgeFor(
+  tpl: CatalogTemplate,
+  tr: (path: string) => string
+): { text: string; className: string } {
+  if (tpl.kind === 'system') {
+    return { text: tr('chrome.system'), className: 'border-[var(--border)] text-[var(--muted)]' };
   }
-  if (t.kind === 'global') {
-    return { text: 'Global', className: 'border-[var(--accent)]/40 text-[var(--accent-soft)]' };
+  if (tpl.kind === 'global') {
+    return {
+      text: tr('chrome.global'),
+      className: 'border-[var(--accent)]/40 text-[var(--accent-soft)]',
+    };
   }
-  if (t.shareStatus === 'published') {
-    return { text: 'Shared', className: 'border-emerald-500/40 text-emerald-300/90' };
+  if (tpl.shareStatus === 'published') {
+    return { text: tr('chrome.shared'), className: 'border-emerald-500/40 text-emerald-300/90' };
   }
-  if (t.shareStatus === 'pending') {
+  if (tpl.shareStatus === 'pending') {
     return { text: 'Pending', className: 'border-amber-500/40 text-amber-300/90' };
   }
   return { text: 'Mine', className: 'border-[var(--border-strong)] text-[var(--text)]' };
@@ -62,6 +69,7 @@ export default function CreateNoteModal({
   initialKind = 'note',
   lockKind = false,
 }: CreateNoteModalProps) {
+  const { t } = useI18n();
   const [itemKind, setItemKind] = useState<CreateItemKind>(initialKind);
   const [title, setTitle] = useState('');
   const [filter, setFilter] = useState('');
@@ -143,13 +151,13 @@ export default function CreateNoteModal({
 
   const previewHtml = useMemo(() => {
     if (itemKind === 'whiteboard') {
-      return '<p class="text-[var(--muted)]">A blank drawing canvas will be created.</p>';
+      return `<p class="text-[var(--muted)]">${t('chrome.blankCanvasPreview')}</p>`;
     }
-    if (!selected) return '<p class="text-[var(--muted)]">Select a template</p>';
+    if (!selected) return `<p class="text-[var(--muted)]">${t('chrome.selectTemplatePreview')}</p>`;
     const leaf = title.trim() || 'Note title';
     const md = applyNoteTemplateBody(selected.bodyMarkdown, leaf);
     return renderSynapseMarkdown(md, []);
-  }, [selected, title, itemKind]);
+  }, [selected, title, itemKind, t]);
 
   if (!open) return null;
 
@@ -161,7 +169,9 @@ export default function CreateNoteModal({
       <form
         role="dialog"
         aria-modal="true"
-        aria-label={itemKind === 'whiteboard' ? 'New whiteboard' : 'New note'}
+        aria-label={
+          itemKind === 'whiteboard' ? t('chrome.createWhiteboardTitle') : t('chrome.createNoteTitle')
+        }
         className="flex max-h-[min(90vh,720px)] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-2xl shadow-black/40"
         onSubmit={(e) => {
           e.preventDefault();
@@ -181,7 +191,9 @@ export default function CreateNoteModal({
           <div className="flex items-start justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold tracking-tight text-[var(--text)]">
-                {itemKind === 'whiteboard' ? 'New whiteboard' : 'New note'}
+                {itemKind === 'whiteboard'
+                  ? t('chrome.createWhiteboardTitle')
+                  : t('chrome.createNoteTitle')}
               </h2>
               <p className="mt-0.5 text-xs text-[var(--muted)]">
                 {itemKind === 'whiteboard'
@@ -200,7 +212,7 @@ export default function CreateNoteModal({
                 className="text-[11px] text-[var(--muted)] no-underline hover:text-[var(--accent-soft)] hover:underline"
                 onClick={onCancel}
               >
-                Manage templates
+                {t('chrome.manageTemplates')}
               </Link>
             ) : null}
           </div>
@@ -209,7 +221,7 @@ export default function CreateNoteModal({
             <div
               className="mt-3 inline-flex rounded-lg border border-[var(--border)] p-0.5"
               role="group"
-              aria-label="Item type"
+              aria-label={t('chrome.itemTypeAria')}
             >
               <button
                 type="button"
@@ -220,7 +232,7 @@ export default function CreateNoteModal({
                 }`}
                 onClick={() => setItemKind('note')}
               >
-                Note
+                {t('chrome.note')}
               </button>
               <button
                 type="button"
@@ -231,21 +243,17 @@ export default function CreateNoteModal({
                 }`}
                 onClick={() => setItemKind('whiteboard')}
               >
-                Whiteboard
+                {t('chrome.whiteboard')}
               </button>
             </div>
           ) : null}
 
           <label className="mt-3 block text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
-            Title
+            {t('chrome.title')}
             <input
               autoFocus
               className="input mt-1.5 w-full"
-              placeholder={
-                itemKind === 'whiteboard'
-                  ? 'meta/board or Workshop canvas'
-                  : 'meta/risks or Meeting notes'
-              }
+              placeholder={t('chrome.titlePlaceholder')}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
@@ -258,26 +266,28 @@ export default function CreateNoteModal({
               <div className="border-b border-[var(--border)] p-3">
                 <input
                   className="input w-full text-sm"
-                  placeholder="Filter templates…"
+                  placeholder={t('chrome.filterTemplates')}
                   value={filter}
                   onChange={(e) => setFilter(e.target.value)}
-                  aria-label="Filter templates"
+                  aria-label={t('chrome.filterTemplates')}
                 />
               </div>
               <div className="min-h-0 flex-1 overflow-y-auto p-2">
                 {loading ? (
-                  <p className="px-2 py-3 text-xs text-[var(--muted)]">Loading…</p>
+                  <p className="px-2 py-3 text-xs text-[var(--muted)]">{t('common.loading')}</p>
                 ) : error ? (
                   <p className="px-2 py-3 text-xs text-red-300">{error}</p>
                 ) : filtered.length === 0 ? (
-                  <p className="px-2 py-3 text-xs text-[var(--muted)]">No matching templates</p>
+                  <p className="px-2 py-3 text-xs text-[var(--muted)]">
+                    {t('chrome.noMatchingTemplates')}
+                  </p>
                 ) : (
                   <ul className="space-y-1">
-                    {filtered.map((t) => {
-                      const badge = badgeFor(t);
-                      const active = t.id === selectedId;
+                    {filtered.map((tpl) => {
+                      const badge = badgeFor(tpl, t);
+                      const active = tpl.id === selectedId;
                       return (
-                        <li key={t.id}>
+                        <li key={tpl.id}>
                           <button
                             type="button"
                             className={`w-full rounded-lg border px-2.5 py-2 text-left transition ${
@@ -285,11 +295,11 @@ export default function CreateNoteModal({
                                 ? 'border-[var(--accent)] bg-[var(--surface-2)]'
                                 : 'border-transparent hover:bg-[var(--surface)]/70'
                             }`}
-                            onClick={() => setSelectedId(t.id)}
+                            onClick={() => setSelectedId(tpl.id)}
                           >
                             <span className="flex items-center justify-between gap-2">
                               <span className="truncate text-sm font-medium text-[var(--text)]">
-                                {t.label}
+                                {tpl.label}
                               </span>
                               <span
                                 className={`shrink-0 rounded border px-1 py-0.5 text-[9px] font-medium uppercase tracking-wide ${badge.className}`}
@@ -297,9 +307,9 @@ export default function CreateNoteModal({
                                 {badge.text}
                               </span>
                             </span>
-                            {t.description ? (
+                            {tpl.description ? (
                               <span className="mt-0.5 line-clamp-2 block text-[11px] text-[var(--muted)]">
-                                {t.description}
+                                {tpl.description}
                               </span>
                             ) : null}
                           </button>
@@ -330,10 +340,10 @@ export default function CreateNoteModal({
 
         <div className="flex justify-end gap-2 border-t border-[var(--border)] px-5 py-3">
           <button type="button" className="btn-ghost" onClick={onCancel}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button type="submit" className="btn-primary" disabled={!canSubmit}>
-            Create
+            {t('common.create')}
           </button>
         </div>
       </form>

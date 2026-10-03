@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AppUserMenu from '@/components/AppUserMenu';
+import { useI18n } from '@/lib/i18n/provider';
 
 interface PublicWikiItem {
   id: number;
@@ -30,6 +31,7 @@ function hintLabel(hint: PublicWikiItem['visibilityHint']): string {
 }
 
 export default function PublicWikisDirectoryPage() {
+  const { t } = useI18n();
   const [wikis, setWikis] = useState<PublicWikiItem[]>([]);
   const [authenticated, setAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -73,7 +75,7 @@ export default function PublicWikisDirectoryPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent-soft)]">
             Synapse
           </p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight">Public wikis</h1>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight">{t('chrome.publicWikis')}</h1>
           <p className="mt-2 max-w-xl text-sm text-[var(--muted)]">
             Vaults with the public wiki enabled. What you see depends on note visibility: public for
             everyone, authenticated for signed-in users, and full contents if you have vault access.
@@ -82,7 +84,7 @@ export default function PublicWikisDirectoryPage() {
         <div className="flex flex-wrap items-center gap-2">
           {authenticated && (
             <Link href="/" className="btn-ghost no-underline hover:no-underline">
-              Your vaults
+              {t('home.vaults')}
             </Link>
           )}
           <AppUserMenu dense showSignInWhenGuest />
@@ -92,13 +94,13 @@ export default function PublicWikisDirectoryPage() {
       <div className="mb-6">
         <input
           className="input w-full max-w-md"
-          placeholder="Filter wikis…"
+          placeholder={t('chrome.filterWikis')}
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
       </div>
 
-      {loading && <p className="text-sm text-[var(--muted)]">Loading…</p>}
+      {loading && <p className="text-sm text-[var(--muted)]">{t('common.loading')}</p>}
       {error && (
         <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
           {error}

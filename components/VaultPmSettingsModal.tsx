@@ -5,6 +5,7 @@ import { resolveNoteId, type NoteResolveEntry } from '@/lib/notePaths';
 import { renderInlineMarkdown } from '@/lib/renderMarkdown';
 import ConfirmModal from '@/components/ConfirmModal';
 import LinkOrCreatePmTaskModal from '@/components/LinkOrCreatePmTaskModal';
+import { useI18n } from '@/lib/i18n/provider';
 
 export interface VaultCheckboxItem {
   noteId: number;
@@ -61,6 +62,7 @@ export default function VaultPmSettingsModal({
   notes = [],
   embedded = false,
 }: VaultPmSettingsModalProps) {
+  const { t } = useI18n();
   const [orgs, setOrgs] = useState<Array<{ Id: number; Name: string }>>([]);
   const [orgId, setOrgId] = useState(pmOrganizationId ? String(pmOrganizationId) : '');
   const [projects, setProjects] = useState<Array<{ Id: number; Name: string }>>([]);
@@ -71,6 +73,7 @@ export default function VaultPmSettingsModal({
   const [linkedProjectName, setLinkedProjectName] = useState<string | null>(
     pmProjectName?.trim() || null
   );
+  const [projectStale, setProjectStale] = useState(false);
   const [items, setItems] = useState<VaultCheckboxItem[]>([]);
   const [status, setStatusState] = useState('');
   const setStatus = (msg: string) => {
@@ -166,7 +169,14 @@ export default function VaultPmSettingsModal({
         setProjects(mapped);
         if (linkedProjectId) {
           const match = mapped.find((p: { Id: number }) => p.Id === linkedProjectId);
-          if (match?.Name) setLinkedProjectName(match.Name);
+          if (match?.Name) {
+            setLinkedProjectName(match.Name);
+            setProjectStale(false);
+          } else if (mapped.length > 0) {
+            setProjectStale(true);
+          }
+        } else {
+          setProjectStale(false);
         }
         setNeedsReauth(false);
       } catch {
@@ -195,6 +205,8 @@ export default function VaultPmSettingsModal({
   }, [projects, linkProjectId]);
 
   const missingCount = items.filter((i) => !i.pmTaskId).length;
+  const linkedCount = items.filter((i) => i.pmTaskId).length;
+  const openLinkedCount = items.filter((i) => i.pmTaskId && !i.checked).length;
 
   const notesWithUnlinked = useMemo(() => {
     const map = new Map<number, string>();
@@ -581,13 +593,13 @@ export default function VaultPmSettingsModal({
         {!embedded && (
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-[var(--border)] px-5 py-4">
           <div>
-            <h2 className="text-lg font-semibold tracking-tight">Vault · Myelin</h2>
+            <h2 className="text-lg font-semibold tracking-tight">{t('chrome.vaultMyelin')}</h2>
             <p className="mt-1 text-sm text-[var(--muted)]">
               Link one Myelin project to this vault, then create tasks from note checkboxes.
             </p>
           </div>
           <button type="button" className="btn-ghost" onClick={onClose}>
-            Close
+            {t('common.close')}
           </button>
         </header>
         )}
@@ -599,25 +611,49 @@ export default function VaultPmSettingsModal({
             </p>
           )}
           <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)]/50 p-4">
-            <h3 className="text-sm font-semibold">Myelin project</h3>
+            <h3 className="text-sm font-semibold">{t('chrome.myelinProject')}</h3>
             {linkedProjectId ? (
-              <p className="mt-2 text-sm text-[var(--muted)]">
-                Linked to{' '}
-                <a
-                  className="text-[var(--accent-soft)]"
-                  href={`${process.env.NEXT_PUBLIC_PM_BASE_URL || 'http://localhost:3000'}/projects/${linkedProjectId}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  title={`Myelin project #${linkedProjectId}`}
-                >
-                  {linkedProjectName?.trim() || `Project #${linkedProjectId}`}
-                </a>
-                {linkedProjectName?.trim() ? (
-                  <span className="text-[var(--muted)]"> #{linkedProjectId}</span>
-                ) : null}
-              </p>
+              <>
+                <p className="mt-2 text-sm text-[var(--muted)]">
+                  Linked to{' '}
+                  <a
+                    className="text-[var(--accent-soft)]"
+                    href={`${process.env.NEXT_PUBLIC_PM_BASE_URL || 'http://localhost:3000'}/projects/${linkedProjectId}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    title={`Myelin project #${linkedProjectId}`}
+                  >
+                    {linkedProjectName?.trim() || `Project #${linkedProjectId}`}
+                  </a>
+                  {linkedProjectName?.trim() ? (
+                    <span className="text-[var(--muted)]"> #{linkedProjectId}</span>
+                  ) : null}
+                </p>
+                {projectStale && (
+                  <div className="mt-2 rounded-lg border border-[color-mix(in_srgb,var(--warn)_45%,var(--border))] bg-[color-mix(in_srgb,var(--warn)_10%,transparent)] px-3 py-2 text-xs text-[var(--text)]">
+                    <p className="font-medium">{t('chrome.projectNotFoundOrg')}</p>
+                    <p className="mt-0.5 text-[var(--muted)]">{t('chrome.projectNotFoundHint')}</p>
+                    <button
+                      type="button"
+                      className="btn-ghost mt-2 py-1 text-xs"
+                      disabled={busy}
+                      onClick={() => void unlink()}
+                    >
+                      {t('chrome.unlinkProject')}
+                    </button>
+                  </div>
+                )}
+              </>
             ) : (
-              <p className="mt-2 text-sm text-[var(--muted)]">No project linked yet.</p>
+              <p className="mt-2 text-sm text-[var(--muted)]">{t('chrome.noProjectLinked')}</p>
+            )}
+            {items.length > 0 && (
+              <p className="mt-3 text-[11px] text-[var(--muted)]">
+                {t('chrome.tasksLinkedSummary', { linked: linkedCount, missing: missingCount })}
+                {openLinkedCount > 0
+                  ? t('chrome.openLinkedSuffix', { count: openLinkedCount })
+                  : ''}
+              </p>
             )}
 
             <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -632,7 +668,11 @@ export default function VaultPmSettingsModal({
                 disabled={loadingOrgs}
               >
                 <option value="">
-                  {loadingOrgs ? 'Loading organizations…' : orgs.length ? 'Organization…' : 'No organizations'}
+                  {loadingOrgs
+                    ? t('chrome.loadingOrganizations')
+                    : orgs.length
+                      ? t('chrome.organizationEllipsis')
+                      : t('chrome.noOrganizations')}
                 </option>
                 {orgs.map((o) => (
                   <option key={o.Id} value={o.Id}>
@@ -641,7 +681,7 @@ export default function VaultPmSettingsModal({
                 ))}
               </select>
               <button type="button" className="btn-ghost" disabled={loadingOrgs} onClick={() => void load()}>
-                Refresh
+                {t('chrome.refresh')}
               </button>
               {!linkedProjectId && (
                 <div className="mt-3 w-full space-y-2">
@@ -652,22 +692,22 @@ export default function VaultPmSettingsModal({
                       disabled={busy || !orgId}
                       onClick={() => void createProject()}
                     >
-                      Create project from vault
+                      {t('chrome.createProjectFromVault')}
                     </button>
                   </div>
                   <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)]/40 p-3">
                     <label className="block text-xs font-medium text-[var(--muted)]" htmlFor="pm-project-search">
-                      Or link an existing project
+                      {t('chrome.orLinkExisting')}
                     </label>
                     <input
                       id="pm-project-search"
                       className="input mt-1.5 w-full"
                       placeholder={
                         !orgId
-                          ? 'Pick an organization first…'
+                          ? t('chrome.pickOrgFirst')
                           : loadingProjects
-                            ? 'Loading projects…'
-                            : 'Search projects by name…'
+                            ? t('chrome.loadingProjects')
+                            : t('chrome.searchProjects')
                       }
                       value={projectQuery}
                       onChange={(e) => {
@@ -679,21 +719,21 @@ export default function VaultPmSettingsModal({
                     />
                     {linkProjectId && selectedProjectName && (
                       <p className="mt-1.5 text-xs text-[var(--accent-soft)]">
-                        Selected: {selectedProjectName}{' '}
+                        {t('chrome.selectedLabel', { name: selectedProjectName })}{' '}
                         <span className="text-[var(--muted)]">#{linkProjectId}</span>
                       </p>
                     )}
                     <div className="mt-2 max-h-40 overflow-y-auto rounded-md border border-[var(--border)]">
                       {!orgId ? (
-                        <p className="px-3 py-2 text-xs text-[var(--muted)]">Select an organization to list projects.</p>
+                        <p className="px-3 py-2 text-xs text-[var(--muted)]">{t('chrome.selectOrgToList')}</p>
                       ) : loadingProjects ? (
-                        <p className="px-3 py-2 text-xs text-[var(--muted)]">Loading…</p>
+                        <p className="px-3 py-2 text-xs text-[var(--muted)]">{t('common.loading')}</p>
                       ) : filteredProjects.length === 0 ? (
                         <p className="px-3 py-2 text-xs text-[var(--muted)]">
-                          {projects.length === 0 ? 'No projects in this organization.' : 'No matches.'}
+                          {projects.length === 0 ? t('chrome.noProjectsInOrg') : t('chrome.noMatches')}
                         </p>
                       ) : (
-                        <ul className="divide-y divide-[var(--border)]" role="listbox" aria-label="Projects">
+                        <ul className="divide-y divide-[var(--border)]" role="listbox" aria-label={t('chrome.projectsAria')}>
                           {filteredProjects.map((p) => {
                             const selected = String(p.Id) === linkProjectId;
                             return (
@@ -727,14 +767,14 @@ export default function VaultPmSettingsModal({
                       disabled={busy || !orgId || !linkProjectId}
                       onClick={() => void linkProject()}
                     >
-                      Link selected project
+                      {t('chrome.linkSelectedProject')}
                     </button>
                   </div>
                 </div>
               )}
               {linkedProjectId && (
                 <button type="button" className="btn-danger" disabled={busy} onClick={() => void unlink()}>
-                  Unlink project
+                  {t('chrome.unlinkProject')}
                 </button>
               )}
             </div>
@@ -753,13 +793,13 @@ export default function VaultPmSettingsModal({
                       href="/api/auth/sso/start"
                       className="font-medium text-[var(--accent-soft)] no-underline hover:underline"
                     >
-                      Reconnect SSO →
+                      {t('chrome.reconnectSsoArrow')}
                     </a>
                     <a
                       href="/profile"
                       className="font-medium text-[var(--accent-soft)] no-underline hover:underline"
                     >
-                      Add personal token in Profile →
+                      {t('chrome.addPersonalTokenArrow')}
                     </a>
                   </div>
                 )}
@@ -769,18 +809,24 @@ export default function VaultPmSettingsModal({
 
           <section>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold">Checkbox tasks</h3>
+              <h3 className="text-sm font-semibold">{t('chrome.checkboxTasks')}</h3>
               <div className="flex flex-wrap items-center gap-1">
-                {(['unlinked', 'open', 'all'] as const).map((f) => (
+                {(
+                  [
+                    ['unlinked', 'chrome.filterUnlinked'],
+                    ['open', 'chrome.filterOpen'],
+                    ['all', 'chrome.filterAll'],
+                  ] as const
+                ).map(([f, key]) => (
                   <button
                     key={f}
                     type="button"
-                    className={`rounded-md px-2.5 py-1 text-xs capitalize ${
+                    className={`rounded-md px-2.5 py-1 text-xs ${
                       filter === f ? 'bg-[var(--accent)] text-[var(--accent-fg)]' : 'btn-ghost py-1'
                     }`}
                     onClick={() => setFilter(f)}
                   >
-                    {f}
+                    {t(key)}
                   </button>
                 ))}
                 <button
@@ -789,26 +835,24 @@ export default function VaultPmSettingsModal({
                   disabled={busy || !linkedProjectId || missingCount === 0}
                   title={
                     !linkedProjectId
-                      ? 'Link a project first'
+                      ? t('chrome.linkProjectFirst')
                       : missingCount === 0
-                        ? 'All checkboxes already have Myelin tasks'
-                        : `Create ${missingCount} missing Myelin task${missingCount === 1 ? '' : 's'}`
+                        ? t('chrome.allCheckboxesHaveTasks')
+                        : t('chrome.createMissingTitle', { count: missingCount })
                   }
                   onClick={() => void pushAllMissing()}
                 >
-                  Create all missing{missingCount > 0 ? ` (${missingCount})` : ''}
+                  {missingCount > 0
+                    ? t('chrome.createAllMissingCount', { count: missingCount })
+                    : t('chrome.createAllMissing')}
                 </button>
               </div>
             </div>
-            <p className="mb-3 text-xs text-[var(--muted)]">
-              From notes with <code className="text-[var(--accent-soft)]">- [ ]</code> lines. Create a
-              new Myelin task or link an existing one (no Synapse reference). Unlink keeps the
-              Myelin task. Indented checkboxes become Myelin subtasks when created.
-            </p>
+            <p className="mb-3 text-xs text-[var(--muted)]">{t('chrome.checkboxTasksHint')}</p>
             {notesWithUnlinked.length > 0 && (
               <div className="mb-3 flex flex-wrap items-end gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)]/40 p-3">
                 <label className="min-w-[12rem] flex-1 text-xs">
-                  <span className="mb-1 block font-medium text-[var(--text)]">Auto-link by description</span>
+                  <span className="mb-1 block font-medium text-[var(--text)]">{t('chrome.autoLinkByDescription')}</span>
                   <select
                     className="input w-full py-1.5 text-xs"
                     value={autoLinkNoteId === '' ? '' : String(autoLinkNoteId)}
@@ -816,7 +860,7 @@ export default function VaultPmSettingsModal({
                       setAutoLinkNoteId(e.target.value ? Number(e.target.value) : '')
                     }
                   >
-                    <option value="">Select note…</option>
+                    <option value="">{t('chrome.selectNoteEllipsis')}</option>
                     {notesWithUnlinked.map((n) => (
                       <option key={n.id} value={n.id}>
                         {n.title}
@@ -830,14 +874,14 @@ export default function VaultPmSettingsModal({
                   disabled={busy || !linkedProjectId || !autoLinkNoteId || autoLinkCandidates === 0}
                   title={
                     !autoLinkNoteId
-                      ? 'Select a note with unlinked checkboxes'
+                      ? t('chrome.selectNoteUnlinked')
                       : autoLinkCandidates === 0
-                        ? 'No unlinked checkboxes in this note'
-                        : `Match ${autoLinkCandidates} checkbox${autoLinkCandidates === 1 ? '' : 'es'} to Myelin tasks by name / description`
+                        ? t('chrome.noUnlinkedInNote')
+                        : t('chrome.matchCheckboxesTitle', { count: autoLinkCandidates })
                   }
                   onClick={() => void autoLinkByDescription()}
                 >
-                  Auto-link note
+                  {t('chrome.autoLinkNote')}
                 </button>
               </div>
             )}
@@ -849,7 +893,7 @@ export default function VaultPmSettingsModal({
               >
                 <div className="mb-1.5 flex items-center justify-between gap-2 text-xs">
                   <span className="font-medium text-[var(--text)]">
-                    {bulkProgress.phase === 'prepare' ? 'Preparing…' : 'Creating tasks…'}
+                    {bulkProgress.phase === 'prepare' ? t('chrome.preparing') : t('chrome.creatingTasks')}
                   </span>
                   <span className="tabular-nums text-[var(--muted)]">
                     {bulkProgress.total > 0
@@ -872,19 +916,23 @@ export default function VaultPmSettingsModal({
                 </div>
                 <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[11px] text-[var(--muted)]">
                   <span className="min-w-0 truncate" title={bulkProgress.label}>
-                    {bulkProgress.label || 'Working…'}
+                    {bulkProgress.label || t('chrome.working')}
                   </span>
                   <span className="shrink-0 tabular-nums">
-                    created {bulkProgress.created}
-                    {bulkProgress.failed > 0 ? ` · failed ${bulkProgress.failed}` : ''}
-                    {bulkProgress.skipped > 0 ? ` · skipped ${bulkProgress.skipped}` : ''}
+                    {t('chrome.bulkCreated', { count: bulkProgress.created })}
+                    {bulkProgress.failed > 0
+                      ? t('chrome.bulkFailed', { count: bulkProgress.failed })
+                      : ''}
+                    {bulkProgress.skipped > 0
+                      ? t('chrome.bulkSkipped', { count: bulkProgress.skipped })
+                      : ''}
                   </span>
                 </div>
               </div>
             )}
             {visible.length === 0 ? (
               <p className="rounded-xl border border-dashed border-[var(--border)] px-4 py-8 text-center text-sm text-[var(--muted)]">
-                No matching checkboxes for this filter.
+                {t('chrome.noMatchingCheckboxes')}
               </p>
             ) : (
               <ul className="space-y-2">
@@ -902,7 +950,7 @@ export default function VaultPmSettingsModal({
                           ? 'border-emerald-400/50 bg-emerald-500/20 text-emerald-300'
                           : 'border-[var(--border)] text-transparent'
                       }`}
-                      title={item.checked ? 'Done' : 'Open'}
+                      title={item.checked ? t('chrome.taskDone') : t('chrome.taskOpen')}
                     >
                       ✓
                     </span>
@@ -913,7 +961,7 @@ export default function VaultPmSettingsModal({
                             item.markerId.startsWith('fm:'))) && (
                           <span
                             className="shrink-0 rounded border border-[var(--border)] px-1 py-0.5 text-[9px] font-medium uppercase tracking-wide text-[var(--muted)]"
-                            title="From YAML frontmatter todos"
+                            title={t('chrome.fromYamlTodos')}
                           >
                             YAML
                           </span>
@@ -925,7 +973,7 @@ export default function VaultPmSettingsModal({
                               : 'text-[var(--text)]'
                           }`}
                           dangerouslySetInnerHTML={{
-                            __html: renderInlineMarkdown(item.text || '(empty checkbox)'),
+                            __html: renderInlineMarkdown(item.text || t('chrome.emptyCheckbox')),
                           }}
                         />
                         {item.linkedNote &&
@@ -937,7 +985,7 @@ export default function VaultPmSettingsModal({
                                 <button
                                   type="button"
                                   className="synapse-wikilink shrink-0 max-w-[9rem] truncate rounded border border-[var(--border)] px-1.5 py-0.5 text-[10px] font-medium no-underline"
-                                  title={`Open note ${target}`}
+                                  title={t('chrome.openNoteTitle', { name: target })}
                                   onClick={() => onOpenNote(linkedId)}
                                 >
                                   {target}
@@ -949,8 +997,8 @@ export default function VaultPmSettingsModal({
                                 className="synapse-wikilink is-missing shrink-0 max-w-[9rem] truncate rounded border border-[var(--border)] px-1.5 py-0.5 text-[10px] font-medium"
                                 title={
                                   linkedId
-                                    ? `Linked note: ${target}`
-                                    : `Missing note: ${target}`
+                                    ? t('chrome.openNoteTitle', { name: target })
+                                    : t('chrome.missingNoteTitle', { name: target })
                                 }
                               >
                                 {target}
@@ -980,10 +1028,10 @@ export default function VaultPmSettingsModal({
                           type="button"
                           className="btn-ghost py-1 text-xs text-red-300"
                           disabled={busy || !linkedProjectId}
-                          title="Remove Synapse link; keep the Myelin task"
+                          title={t('chrome.removeSynapseLinkTitle')}
                           onClick={() => setUnlinkItem(item)}
                         >
-                          Unlink
+                          {t('chrome.unlink')}
                         </button>
                       </div>
                     ) : (
@@ -993,12 +1041,12 @@ export default function VaultPmSettingsModal({
                         disabled={busy || !linkedProjectId}
                         title={
                           linkedProjectId
-                            ? 'Create a new Myelin task or link an existing one'
-                            : 'Link a project first'
+                            ? t('chrome.linkOrCreateMyelinTaskTitle')
+                            : t('chrome.linkProjectFirst')
                         }
                         onClick={() => setChooserItem(item)}
                       >
-                        Link / create
+                        {t('chrome.linkCreate')}
                       </button>
                     )}
                   </li>
@@ -1032,9 +1080,9 @@ export default function VaultPmSettingsModal({
 
       <ConfirmModal
         open={unlinkItem != null}
-        title="Unlink from Myelin?"
-        message="This removes the Synapse association. The Myelin task is kept and can be linked again later."
-        confirmLabel={busy ? 'Unlinking…' : 'Unlink'}
+        title={t('chrome.unlinkMyelinTitle')}
+        message={t('chrome.unlinkConfirmMessage')}
+        confirmLabel={busy ? t('chrome.unlinking') : t('chrome.unlink')}
         danger
         onCancel={() => {
           if (!busy) setUnlinkItem(null);

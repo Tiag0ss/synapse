@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useI18n } from '@/lib/i18n/provider';
 
 interface ImageLightboxProps {
   src: string | null;
@@ -9,6 +10,7 @@ interface ImageLightboxProps {
 }
 
 export default function ImageLightbox({ src, alt, onClose }: ImageLightboxProps) {
+  const { t } = useI18n();
   useEffect(() => {
     if (!src) return;
     const onKey = (e: KeyboardEvent) => {
@@ -30,16 +32,16 @@ export default function ImageLightbox({ src, alt, onClose }: ImageLightboxProps)
       className="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
-      aria-label={alt || 'Image preview'}
+      aria-label={alt || t('chrome.imagePreview')}
       onClick={onClose}
     >
       <button
         type="button"
         className="absolute right-4 top-4 rounded-lg bg-black/50 px-3 py-1.5 text-sm text-white transition hover:bg-black/70"
         onClick={onClose}
-        aria-label="Close"
+        aria-label={t('chrome.close')}
       >
-        Close · Esc
+        {t('chrome.close')} · Esc
       </button>
       { }
       <img

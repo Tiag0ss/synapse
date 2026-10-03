@@ -7,6 +7,7 @@ import ConfirmModal from '@/components/ConfirmModal';
 import PromptModal from '@/components/PromptModal';
 import VaultShareModal from '@/components/VaultShareModal';
 import WordExportHelpModal from '@/components/WordExportHelpModal';
+import { useI18n } from '@/lib/i18n/provider';
 
 type Tab = 'general' | 'auth' | 'email' | 'pm' | 'ai' | 'templates' | 'export' | 'users' | 'vaults';
 
@@ -29,8 +30,11 @@ interface SettingsData {
   };
   ai: {
     aiEnabled: boolean;
+    aiProvider?: 'ollama' | 'openai';
     ollamaBaseUrl: string;
     ollamaModel: string;
+    hasOpenaiApiKey?: boolean;
+    openaiModel?: string;
   };
 }
 
@@ -59,6 +63,7 @@ interface AdminVaultRow {
 }
 
 export default function SettingsPage() {
+  const { t } = useI18n();
   const [tab, setTab] = useState<Tab>('general');
   const [loading, setLoading] = useState(true);
   const [forbidden, setForbidden] = useState(false);
@@ -87,11 +92,21 @@ export default function SettingsPage() {
   const [clearSmtpPassword, setClearSmtpPassword] = useState(false);
   const [pmEnabled, setPmEnabled] = useState(true);
   const [aiEnabled, setAiEnabled] = useState(false);
+  const [aiProvider, setAiProvider] = useState<'ollama' | 'openai'>('ollama');
   const [ollamaBaseUrl, setOllamaBaseUrl] = useState('http://127.0.0.1:11434');
   const [ollamaModel, setOllamaModel] = useState('llama3.2');
   const [ollamaModels, setOllamaModels] = useState<string[]>([]);
   const [ollamaModelsBusy, setOllamaModelsBusy] = useState(false);
   const [ollamaModelsError, setOllamaModelsError] = useState('');
+  const [hasOpenaiApiKey, setHasOpenaiApiKey] = useState(false);
+  const [openaiApiKey, setOpenaiApiKey] = useState('');
+  const [clearOpenaiApiKey, setClearOpenaiApiKey] = useState(false);
+  const [openaiModel, setOpenaiModel] = useState('gpt-4o-mini');
+  const [openaiModels, setOpenaiModels] = useState<string[]>([]);
+  const [openaiModelsBusy, setOpenaiModelsBusy] = useState(false);
+  const [openaiModelsError, setOpenaiModelsError] = useState('');
+  const [openaiPingBusy, setOpenaiPingBusy] = useState(false);
+  const [openaiPingMsg, setOpenaiPingMsg] = useState('');
 
   const [createOpen, setCreateOpen] = useState(false);
   const [newUsername, setNewUsername] = useState('');
@@ -163,8 +178,13 @@ export default function SettingsPage() {
     setSmtpFromName(d.email.smtpFromName);
     setPmEnabled(d.projectManagement.pmIntegrationEnabled);
     setAiEnabled(d.ai?.aiEnabled ?? false);
+    setAiProvider(d.ai?.aiProvider === 'openai' ? 'openai' : 'ollama');
     setOllamaBaseUrl(d.ai?.ollamaBaseUrl || 'http://127.0.0.1:11434');
     setOllamaModel(d.ai?.ollamaModel || 'llama3.2');
+    setHasOpenaiApiKey(Boolean(d.ai?.hasOpenaiApiKey));
+    setOpenaiModel(d.ai?.openaiModel || 'gpt-4o-mini');
+    setOpenaiApiKey('');
+    setClearOpenaiApiKey(false);
     setLoading(false);
   }, []);
 
@@ -225,13 +245,48 @@ export default function SettingsPage() {
     }
   }, []);
 
+  const loadOpenaiModels = useCallback(async (currentModel: string, apiKeyDraft: string) => {
+    setOpenaiModelsBusy(true);
+    setOpenaiModelsError('');
+    try {
+      const res = await fetch('/api/settings/ai/openai/models', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(apiKeyDraft.trim() ? { apiKey: apiKeyDraft.trim() } : {}),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setOpenaiModels([]);
+        setOpenaiModelsError(json.message || 'Failed to list models');
+        return;
+      }
+      const list = (json.data?.models || []) as string[];
+      setOpenaiModels(list);
+      if (list.length > 0 && (!currentModel || !list.includes(currentModel))) {
+        const preferred =
+          list.find((m) => m === 'gpt-4o-mini') ||
+          list.find((m) => m.startsWith('gpt-4o')) ||
+          list[0];
+        if (preferred && preferred !== currentModel) setOpenaiModel(preferred);
+      }
+    } catch {
+      setOpenaiModels([]);
+      setOpenaiModelsError('Network error listing OpenAI models');
+    } finally {
+      setOpenaiModelsBusy(false);
+    }
+  }, []);
+
   useEffect(() => {
-    if (tab === 'ai' && !forbidden && !loading) {
+    if (tab === 'ai' && !forbidden && !loading && aiProvider === 'ollama') {
       void loadOllamaModels(ollamaBaseUrl, ollamaModel);
     }
-    // Load once when opening the AI tab (refresh button for URL changes).
-     
-  }, [tab, forbidden, loading]);
+    if (tab === 'ai' && !forbidden && !loading && aiProvider === 'openai' && (hasOpenaiApiKey || openaiApiKey.trim())) {
+      void loadOpenaiModels(openaiModel, openaiApiKey);
+    }
+    // Load once when opening the AI tab / switching provider.
+  }, [tab, forbidden, loading, aiProvider]);
 
   const transferOwner = async () => {
     if (!ownerVault || ownerUserId === '') return;
@@ -250,7 +305,7 @@ export default function SettingsPage() {
         setError(json.message || 'Ownership transfer failed');
         return;
       }
-      setStatus(`Ownership of “${ownerVault.name}” transferred`);
+      setStatus(t('settings.ownershipTransferred', { name: ownerVault.name }));
       setOwnerVault(null);
       setOwnerUserId('');
       await loadAdminVaults();
@@ -306,7 +361,7 @@ export default function SettingsPage() {
         setError(json.message || 'Upload failed');
         return;
       }
-      setStatus('Word export template uploaded');
+      setStatus(t('settings.wordTemplateUploaded'));
       setExportLabel('');
       setExportDescription('');
       setExportFileBase64(null);
@@ -331,7 +386,7 @@ export default function SettingsPage() {
         setError(json.message || 'Delete failed');
         return;
       }
-      setStatus('Template deleted');
+      setStatus(t('settings.templateDeleted'));
       setExportDeleteId(null);
       await loadExportTemplates();
     } finally {
@@ -356,12 +411,16 @@ export default function SettingsPage() {
       smtpFromName,
       pmIntegrationEnabled: pmEnabled,
       aiEnabled,
+      aiProvider,
       ollamaBaseUrl,
       ollamaModel,
+      openaiModel,
       ...extra,
     };
     if (clearSmtpPassword) body.smtpPassword = '';
     else if (smtpPassword) body.smtpPassword = smtpPassword;
+    if (clearOpenaiApiKey) body.openaiApiKey = '';
+    else if (openaiApiKey) body.openaiApiKey = openaiApiKey;
 
     const res = await fetch('/api/settings/general', {
       method: 'PUT',
@@ -374,9 +433,14 @@ export default function SettingsPage() {
       setError(json.message || 'Save failed');
       return;
     }
-    setStatus(json.message || 'Saved');
+    setStatus(json.message || t('settings.saved'));
     setSmtpPassword('');
     setClearSmtpPassword(false);
+    if (openaiApiKey || clearOpenaiApiKey) {
+      setHasOpenaiApiKey(Boolean(openaiApiKey) && !clearOpenaiApiKey);
+    }
+    setOpenaiApiKey('');
+    setClearOpenaiApiKey(false);
     await loadSettings();
   };
 
@@ -421,7 +485,7 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center text-sm text-[var(--muted)]">
-        Loading settings…
+        {t('settings.loading')}
       </main>
     );
   }
@@ -429,9 +493,9 @@ export default function SettingsPage() {
   if (forbidden) {
     return (
       <main className="mx-auto max-w-lg px-6 py-16 text-center">
-        <h1 className="text-xl font-semibold">Admin access required</h1>
+        <h1 className="text-xl font-semibold">{t('settings.forbidden')}</h1>
         <Link href="/" className="mt-4 inline-block text-[var(--accent-soft)]">
-          ← Back home
+          {t('settings.backVaults')}
         </Link>
       </main>
     );
@@ -450,7 +514,7 @@ export default function SettingsPage() {
         setError(json.message || 'Action failed');
         return;
       }
-      setStatus(approve ? 'Template published' : 'Share request rejected');
+      setStatus(approve ? t('settings.templatePublished') : t('settings.shareRejected'));
       await loadPendingTemplates();
     } finally {
       setTemplatesBusy(false);
@@ -481,22 +545,22 @@ export default function SettingsPage() {
       setGlobalLabel('');
       setGlobalDescription('');
       setGlobalBody('# {{title}}\n\n');
-      setStatus('Global template created');
+      setStatus(t('settings.globalTemplateCreated'));
     } finally {
       setTemplatesBusy(false);
     }
   };
 
   const tabs: { id: Tab; label: string }[] = [
-    { id: 'general', label: 'General' },
-    { id: 'auth', label: 'Authentication' },
-    { id: 'email', label: 'Email' },
-    { id: 'pm', label: 'Myelin' },
-    { id: 'ai', label: 'AI' },
-    { id: 'templates', label: 'Templates' },
-    { id: 'export', label: 'Word export' },
-    { id: 'users', label: 'Users' },
-    { id: 'vaults', label: 'Vaults' },
+    { id: 'general', label: t('settings.tabGeneral') },
+    { id: 'auth', label: t('settings.tabAuth') },
+    { id: 'email', label: t('settings.tabEmail') },
+    { id: 'pm', label: t('settings.tabPm') },
+    { id: 'ai', label: t('settings.tabAi') },
+    { id: 'templates', label: t('settings.tabTemplates') },
+    { id: 'export', label: t('settings.tabExport') },
+    { id: 'users', label: t('settings.tabUsers') },
+    { id: 'vaults', label: t('settings.tabVaults') },
   ];
 
   return (
@@ -504,31 +568,31 @@ export default function SettingsPage() {
       <header className="mb-8 flex items-start justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent-soft)]">
-            Administration
+            {t('settings.administration')}
           </p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight">Settings</h1>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight">{t('settings.title')}</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Link href="/" className="btn-ghost no-underline hover:no-underline">
-            ← Vaults
+            {t('settings.backVaults')}
           </Link>
           <AppUserMenu dense />
         </div>
       </header>
 
       <nav className="mb-6 flex flex-wrap gap-1 border-b border-[var(--border)] pb-2">
-        {tabs.map((t) => (
+        {tabs.map((tabItem) => (
           <button
-            key={t.id}
+            key={tabItem.id}
             type="button"
             className={`rounded-lg px-3 py-1.5 text-sm ${
-              tab === t.id
+              tab === tabItem.id
                 ? 'bg-[var(--surface-2)] text-[var(--text)]'
                 : 'text-[var(--muted)] hover:text-[var(--text)]'
             }`}
-            onClick={() => setTab(t.id)}
+            onClick={() => setTab(tabItem.id)}
           >
-            {t.label}
+            {tabItem.label}
           </button>
         ))}
       </nav>
@@ -547,15 +611,15 @@ export default function SettingsPage() {
       {tab === 'general' && (
         <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--panel)]/70 p-5">
           <label className="block text-sm">
-            Site name
+            {t('settings.siteName')}
             <input className="input mt-1 w-full" value={siteName} onChange={(e) => setSiteName(e.target.value)} />
           </label>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={allowWikiDir} onChange={(e) => setAllowWikiDir(e.target.checked)} />
-            Show public wiki directory (/w)
+            {t('settings.showWikiDir')}
           </label>
           <button type="button" className="btn-primary" onClick={() => void save()}>
-            Save
+            {t('common.save')}
           </button>
         </section>
       )}
@@ -564,18 +628,15 @@ export default function SettingsPage() {
         <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--panel)]/70 p-5">
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={allowReg} onChange={(e) => setAllowReg(e.target.checked)} />
-            Allow public registration
+            {t('settings.allowRegistration')}
           </label>
-          <p className="text-xs text-[var(--muted)]">
-            When disabled, only admins can create users (first user on a fresh install can always
-            register).
-          </p>
+          <p className="text-xs text-[var(--muted)]">{t('settings.allowRegistrationHint')}</p>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={allowSso} onChange={(e) => setAllowSso(e.target.checked)} />
-            Allow Sign in with Myelin
+            {t('settings.allowSso')}
           </label>
           <label className="block text-sm">
-            Minimum password length
+            {t('settings.minPasswordLength')}
             <input
               className="input mt-1 w-24"
               type="number"
@@ -586,7 +647,7 @@ export default function SettingsPage() {
             />
           </label>
           <button type="button" className="btn-primary" onClick={() => void save()}>
-            Save
+            {t('common.save')}
           </button>
         </section>
       )}
@@ -594,28 +655,29 @@ export default function SettingsPage() {
       {tab === 'email' && (
         <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--panel)]/70 p-5">
           <p className="text-xs text-[var(--muted)]">
-            SMTP is required for password reset emails.
-            {data?.email.smtpConfigured ? ' Status: configured.' : ' Status: incomplete.'}
+            {t('settings.smtpHint')}{' '}
+            {data?.email.smtpConfigured ? t('settings.smtpConfigured') : t('settings.smtpIncomplete')}
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block text-sm sm:col-span-2">
-              Host
+              {t('settings.host')}
               <input className="input mt-1 w-full" value={smtpHost} onChange={(e) => setSmtpHost(e.target.value)} />
             </label>
             <label className="block text-sm">
-              Port
+              {t('settings.port')}
               <input className="input mt-1 w-full" value={smtpPort} onChange={(e) => setSmtpPort(e.target.value)} />
             </label>
             <label className="flex items-center gap-2 self-end text-sm pb-2">
               <input type="checkbox" checked={smtpSecure} onChange={(e) => setSmtpSecure(e.target.checked)} />
-              Use TLS/SSL
+              {t('settings.useTls')}
             </label>
             <label className="block text-sm">
-              Username
+              {t('settings.username')}
               <input className="input mt-1 w-full" value={smtpUser} onChange={(e) => setSmtpUser(e.target.value)} />
             </label>
             <label className="block text-sm">
-              Password {data?.email.hasSmtpPassword ? '(saved)' : ''}
+              {t('settings.password')}{' '}
+              {data?.email.hasSmtpPassword ? t('settings.passwordSaved') : ''}
               <input
                 className="input mt-1 w-full"
                 type="password"
@@ -636,14 +698,14 @@ export default function SettingsPage() {
                   if (e.target.checked) setSmtpPassword('');
                 }}
               />
-              Clear stored SMTP password
+              {t('settings.clearSmtpPassword')}
             </label>
             <label className="block text-sm">
-              From email
+              {t('settings.fromEmail')}
               <input className="input mt-1 w-full" value={smtpFrom} onChange={(e) => setSmtpFrom(e.target.value)} />
             </label>
             <label className="block text-sm">
-              From name
+              {t('settings.fromName')}
               <input
                 className="input mt-1 w-full"
                 value={smtpFromName}
@@ -653,10 +715,10 @@ export default function SettingsPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <button type="button" className="btn-primary" onClick={() => void save()}>
-              Save
+              {t('common.save')}
             </button>
             <button type="button" className="btn-ghost" onClick={() => void testEmail()}>
-              Send test email
+              {t('settings.sendTestEmail')}
             </button>
           </div>
         </section>
@@ -666,98 +728,205 @@ export default function SettingsPage() {
         <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--panel)]/70 p-5">
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={pmEnabled} onChange={(e) => setPmEnabled(e.target.checked)} />
-            Enable Myelin integration
+            {t('settings.enableMyelin')}
           </label>
           <label className="block text-sm">
-            PM base URL (from environment)
+            {t('settings.pmBaseUrl')}
             <input className="input mt-1 w-full opacity-70" readOnly value={data?.projectManagement.pmBaseUrl || ''} />
           </label>
-          <p className="text-xs leading-relaxed text-[var(--muted)]">
-            Myelin calls use each user&apos;s SSO token, or their personal{' '}
-            <code className="text-[var(--accent-soft)]">pt_…</code> token from{' '}
-            <Link href="/profile" className="text-[var(--accent-soft)]">
-              Profile
-            </Link>
-            . There is no instance-wide API key.
-          </p>
+          <p className="text-xs leading-relaxed text-[var(--muted)]">{t('settings.myelinCallsHint')}</p>
           <button type="button" className="btn-primary" onClick={() => void save()}>
-            Save
+            {t('common.save')}
           </button>
         </section>
       )}
 
       {tab === 'ai' && (
         <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--panel)]/70 p-5">
-          <p className="text-xs leading-relaxed text-[var(--muted)]">
-            Synapse calls an external{' '}
-            <a
-              href="https://ollama.com/"
-              target="_blank"
-              rel="noreferrer"
-              className="text-[var(--accent-soft)]"
-            >
-              Ollama
-            </a>{' '}
-            instance to suggest YAML <code className="text-[var(--accent-soft)]">todos:</code> from a
-            note. Ollama install, model pull, and GPU are managed outside Synapse. Suggestions never
-            auto-save — the editor always reviews them first.
-          </p>
+          <p className="text-xs leading-relaxed text-[var(--muted)]">{t('settings.aiHint')}</p>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={aiEnabled} onChange={(e) => setAiEnabled(e.target.checked)} />
-            Enable AI todo suggestions
+            {t('settings.enableAi')}
           </label>
           <label className="block text-sm">
-            Ollama base URL
-            <input
-              className="input mt-1 w-full"
-              value={ollamaBaseUrl}
-              onChange={(e) => setOllamaBaseUrl(e.target.value)}
-              placeholder="http://127.0.0.1:11434"
-            />
-          </label>
-          <div>
-            <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-              <label className="block text-sm" htmlFor="ollama-model-select">
-                Model
-              </label>
-              <button
-                type="button"
-                className="btn-ghost py-1 text-xs"
-                disabled={ollamaModelsBusy || !ollamaBaseUrl.trim()}
-                onClick={() => void loadOllamaModels(ollamaBaseUrl, ollamaModel)}
-              >
-                {ollamaModelsBusy ? 'Loading…' : 'Refresh models'}
-              </button>
-            </div>
+            {t('settings.provider')}
             <select
-              id="ollama-model-select"
-              className="input w-full"
-              value={ollamaModel}
-              disabled={ollamaModelsBusy && ollamaModels.length === 0}
-              onChange={(e) => setOllamaModel(e.target.value)}
+              className="input mt-1 w-full"
+              value={aiProvider}
+              onChange={(e) => setAiProvider(e.target.value === 'openai' ? 'openai' : 'ollama')}
             >
-              {ollamaModel && !ollamaModels.includes(ollamaModel) && (
-                <option value={ollamaModel}>{ollamaModel} (saved)</option>
-              )}
-              {ollamaModels.length === 0 && !ollamaModel && (
-                <option value="">No models found</option>
-              )}
-              {ollamaModels.map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))}
+              <option value="ollama">{t('settings.providerOllama')}</option>
+              <option value="openai">{t('settings.providerOpenai')}</option>
             </select>
-            {ollamaModelsError ? (
-              <p className="mt-1 text-xs text-red-300">{ollamaModelsError}</p>
-            ) : (
-              <p className="mt-1 text-xs text-[var(--muted)]">
-                Loaded from Ollama <code>/api/tags</code>. Pull models on the host, then refresh.
-              </p>
-            )}
-          </div>
+          </label>
+          {aiProvider === 'ollama' ? (
+            <>
+              <label className="block text-sm">
+                {t('settings.ollamaBaseUrl')}
+                <input
+                  className="input mt-1 w-full"
+                  value={ollamaBaseUrl}
+                  onChange={(e) => setOllamaBaseUrl(e.target.value)}
+                  placeholder="http://127.0.0.1:11434"
+                />
+              </label>
+              <div>
+                <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                  <label className="block text-sm" htmlFor="ollama-model-select">
+                    {t('settings.model')}
+                  </label>
+                  <button
+                    type="button"
+                    className="btn-ghost py-1 text-xs"
+                    disabled={ollamaModelsBusy || !ollamaBaseUrl.trim()}
+                    onClick={() => void loadOllamaModels(ollamaBaseUrl, ollamaModel)}
+                  >
+                    {ollamaModelsBusy ? t('common.loading') : t('settings.refreshModels')}
+                  </button>
+                </div>
+                <select
+                  id="ollama-model-select"
+                  className="input w-full"
+                  value={ollamaModel}
+                  disabled={ollamaModelsBusy && ollamaModels.length === 0}
+                  onChange={(e) => setOllamaModel(e.target.value)}
+                >
+                  {ollamaModel && !ollamaModels.includes(ollamaModel) && (
+                    <option value={ollamaModel}>
+                      {ollamaModel} {t('settings.modelSaved')}
+                    </option>
+                  )}
+                  {ollamaModels.length === 0 && !ollamaModel && (
+                    <option value="">{t('settings.noModels')}</option>
+                  )}
+                  {ollamaModels.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+                {ollamaModelsError ? (
+                  <p className="mt-1 text-xs text-red-300">{ollamaModelsError}</p>
+                ) : (
+                  <p className="mt-1 text-xs text-[var(--muted)]">{t('settings.ollamaModelsHint')}</p>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <label className="block text-sm">
+                {t('settings.openaiApiKey')}
+                <input
+                  className="input mt-1 w-full"
+                  type="password"
+                  autoComplete="off"
+                  value={openaiApiKey}
+                  onChange={(e) => {
+                    setOpenaiApiKey(e.target.value);
+                    setClearOpenaiApiKey(false);
+                  }}
+                  placeholder={hasOpenaiApiKey ? t('settings.openaiKeyKeep') : 'sk-…'}
+                />
+              </label>
+              {hasOpenaiApiKey && (
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={clearOpenaiApiKey}
+                    onChange={(e) => setClearOpenaiApiKey(e.target.checked)}
+                  />
+                  {t('settings.clearApiKey')}
+                </label>
+              )}
+              <div>
+                <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                  <label className="block text-sm" htmlFor="openai-model-select">
+                    {t('settings.openaiModel')}
+                  </label>
+                  <button
+                    type="button"
+                    className="btn-ghost py-1 text-xs"
+                    disabled={
+                      openaiModelsBusy || (!openaiApiKey.trim() && !hasOpenaiApiKey) || clearOpenaiApiKey
+                    }
+                    onClick={() => void loadOpenaiModels(openaiModel, openaiApiKey)}
+                  >
+                    {openaiModelsBusy ? t('common.loading') : t('settings.refreshModels')}
+                  </button>
+                </div>
+                <select
+                  id="openai-model-select"
+                  className="input w-full"
+                  value={openaiModel}
+                  disabled={openaiModelsBusy && openaiModels.length === 0}
+                  onChange={(e) => setOpenaiModel(e.target.value)}
+                >
+                  {openaiModel && !openaiModels.includes(openaiModel) && (
+                    <option value={openaiModel}>
+                      {openaiModel} {t('settings.modelSaved')}
+                    </option>
+                  )}
+                  {openaiModels.length === 0 && !openaiModel && (
+                    <option value="">{t('settings.noModels')}</option>
+                  )}
+                  {openaiModels.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+                {openaiModelsError ? (
+                  <p className="mt-1 text-xs text-red-300">{openaiModelsError}</p>
+                ) : (
+                  <p className="mt-1 text-xs text-[var(--muted)]">{t('settings.openaiModelsHint')}</p>
+                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  className="btn-ghost py-1 text-xs"
+                  disabled={
+                    openaiPingBusy ||
+                    openaiModelsBusy ||
+                    (!openaiApiKey.trim() && !hasOpenaiApiKey) ||
+                    clearOpenaiApiKey
+                  }
+                  onClick={() => {
+                    void (async () => {
+                      setOpenaiPingBusy(true);
+                      setOpenaiPingMsg('');
+                      try {
+                        const res = await fetch('/api/settings/ai/openai/ping', {
+                          method: 'POST',
+                          credentials: 'include',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify(
+                            openaiApiKey.trim() ? { apiKey: openaiApiKey.trim() } : {}
+                          ),
+                        });
+                        const json = await res.json();
+                        setOpenaiPingMsg(json.message || (res.ok ? 'OK' : 'Failed'));
+                        if (res.ok) {
+                          void loadOpenaiModels(openaiModel, openaiApiKey);
+                        }
+                      } catch {
+                        setOpenaiPingMsg('Network error');
+                      } finally {
+                        setOpenaiPingBusy(false);
+                      }
+                    })();
+                  }}
+                >
+                  {openaiPingBusy ? t('settings.checking') : t('settings.testApiKey')}
+                </button>
+                {openaiPingMsg ? (
+                  <span className="text-xs text-[var(--muted)]">{openaiPingMsg}</span>
+                ) : null}
+              </div>
+            </>
+          )}
           <button type="button" className="btn-primary" onClick={() => void save()}>
-            Save
+            {t('common.save')}
           </button>
         </section>
       )}
@@ -766,43 +935,43 @@ export default function SettingsPage() {
         <section className="space-y-6">
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--panel)]/70 p-5">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold">Pending share requests</h2>
+              <h2 className="text-sm font-semibold">{t('settings.pendingShareRequests')}</h2>
               <Link href="/templates" className="text-xs text-[var(--accent-soft)] no-underline hover:underline">
-                Open templates page
+                {t('settings.openTemplatesPage')}
               </Link>
             </div>
             {pendingTemplates.length === 0 ? (
-              <p className="text-sm text-[var(--muted)]">No pending requests.</p>
+              <p className="text-sm text-[var(--muted)]">{t('settings.noPendingRequests')}</p>
             ) : (
               <ul className="space-y-3">
-                {pendingTemplates.map((t) => (
+                {pendingTemplates.map((tmpl) => (
                   <li
-                    key={t.id}
+                    key={tmpl.id}
                     className="rounded-xl border border-[var(--border)] bg-[var(--surface)]/40 px-3 py-3"
                   >
                     <div className="flex flex-wrap items-start gap-2">
                       <div className="min-w-0 flex-1">
-                        <p className="font-medium text-[var(--text)]">{t.label}</p>
+                        <p className="font-medium text-[var(--text)]">{tmpl.label}</p>
                         <p className="text-[11px] text-[var(--muted)]">
-                          by {t.ownerUsername || 'user'}
-                          {t.description ? ` · ${t.description}` : ''}
+                          {t('settings.byUser', { name: tmpl.ownerUsername || 'user' })}
+                          {tmpl.description ? ` · ${tmpl.description}` : ''}
                         </p>
                       </div>
                       <button
                         type="button"
                         className="btn-primary py-1 text-xs"
                         disabled={templatesBusy}
-                        onClick={() => void approveTemplate(t.id, true)}
+                        onClick={() => void approveTemplate(tmpl.id, true)}
                       >
-                        Approve
+                        {t('settings.approve')}
                       </button>
                       <button
                         type="button"
                         className="btn-ghost py-1 text-xs"
                         disabled={templatesBusy}
-                        onClick={() => void approveTemplate(t.id, false)}
+                        onClick={() => void approveTemplate(tmpl.id, false)}
                       >
-                        Reject
+                        {t('settings.reject')}
                       </button>
                     </div>
                   </li>
@@ -812,13 +981,10 @@ export default function SettingsPage() {
           </div>
 
           <div className="space-y-3 rounded-2xl border border-[var(--border)] bg-[var(--panel)]/70 p-5">
-            <h2 className="text-sm font-semibold">Create global template</h2>
-            <p className="text-xs text-[var(--muted)]">
-              Available to all users when creating notes. Use {'{{title}}'} in the body for the note
-              title.
-            </p>
+            <h2 className="text-sm font-semibold">{t('settings.createGlobalTemplate')}</h2>
+            <p className="text-xs text-[var(--muted)]">{t('settings.createGlobalHint')}</p>
             <label className="block text-sm">
-              Label
+              {t('settings.label')}
               <input
                 className="input mt-1 w-full"
                 value={globalLabel}
@@ -826,7 +992,7 @@ export default function SettingsPage() {
               />
             </label>
             <label className="block text-sm">
-              Description
+              {t('settings.description')}
               <input
                 className="input mt-1 w-full"
                 value={globalDescription}
@@ -834,7 +1000,7 @@ export default function SettingsPage() {
               />
             </label>
             <label className="block text-sm">
-              Body
+              {t('settings.body')}
               <textarea
                 className="input mt-1 min-h-[10rem] w-full font-mono text-sm"
                 value={globalBody}
@@ -847,7 +1013,7 @@ export default function SettingsPage() {
               disabled={templatesBusy || !globalLabel.trim()}
               onClick={() => void createGlobalTemplate()}
             >
-              Create global
+              {t('settings.createGlobal')}
             </button>
           </div>
         </section>
@@ -858,42 +1024,40 @@ export default function SettingsPage() {
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--panel)]/70 p-5">
             <div className="mb-1 flex flex-wrap items-start justify-between gap-2">
               <div>
-                <h2 className="text-sm font-semibold">Uploaded templates</h2>
-                <p className="mt-1 text-xs text-[var(--muted)]">
-                  App-level .docx templates for note export (Carbone markers).
-                </p>
+                <h2 className="text-sm font-semibold">{t('settings.uploadedTemplates')}</h2>
+                <p className="mt-1 text-xs text-[var(--muted)]">{t('settings.uploadedTemplatesHint')}</p>
               </div>
               <button
                 type="button"
                 className="btn-ghost py-1.5 text-xs"
                 onClick={() => setExportHelpOpen(true)}
               >
-                How to create templates
+                {t('settings.howToCreateTemplates')}
               </button>
             </div>
             {exportTemplates.length === 0 ? (
-              <p className="mt-4 text-sm text-[var(--muted)]">No templates uploaded.</p>
+              <p className="mt-4 text-sm text-[var(--muted)]">{t('settings.noTemplatesUploaded')}</p>
             ) : (
               <ul className="mt-4 space-y-2">
-                {exportTemplates.map((t) => (
+                {exportTemplates.map((tmpl) => (
                   <li
-                    key={t.id}
+                    key={tmpl.id}
                     className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)]/40 px-3 py-2.5"
                   >
                     <div className="min-w-0">
-                      <p className="font-medium text-[var(--text)]">{t.label}</p>
+                      <p className="font-medium text-[var(--text)]">{tmpl.label}</p>
                       <p className="text-[11px] text-[var(--muted)]">
-                        {t.originalName} · {(t.sizeBytes / 1024).toFixed(1)} KB
-                        {t.description ? ` · ${t.description}` : ''}
+                        {tmpl.originalName} · {(tmpl.sizeBytes / 1024).toFixed(1)} KB
+                        {tmpl.description ? ` · ${tmpl.description}` : ''}
                       </p>
                     </div>
                     <button
                       type="button"
                       className="btn-ghost py-1 text-xs text-red-300"
                       disabled={exportBusy}
-                      onClick={() => setExportDeleteId(t.id)}
+                      onClick={() => setExportDeleteId(tmpl.id)}
                     >
-                      Delete
+                      {t('settings.delete')}
                     </button>
                   </li>
                 ))}
@@ -902,9 +1066,9 @@ export default function SettingsPage() {
           </div>
 
           <div className="space-y-3 rounded-2xl border border-[var(--border)] bg-[var(--panel)]/70 p-5">
-            <h2 className="text-sm font-semibold">Upload .docx template</h2>
+            <h2 className="text-sm font-semibold">{t('settings.uploadDocx')}</h2>
             <label className="block text-sm">
-              Label
+              {t('settings.label')}
               <input
                 className="input mt-1 w-full"
                 value={exportLabel}
@@ -913,16 +1077,16 @@ export default function SettingsPage() {
               />
             </label>
             <label className="block text-sm">
-              Description
+              {t('settings.description')}
               <input
                 className="input mt-1 w-full"
                 value={exportDescription}
                 onChange={(e) => setExportDescription(e.target.value)}
-                placeholder="Optional"
+                placeholder={t('common.optional')}
               />
             </label>
             <label className="block text-sm">
-              Word file (.docx)
+              {t('settings.wordFile')}
               <input
                 className="mt-1 block w-full text-sm text-[var(--muted)]"
                 type="file"
@@ -951,7 +1115,7 @@ export default function SettingsPage() {
               disabled={exportBusy || !exportLabel.trim() || !exportFileBase64}
               onClick={() => void uploadExportTemplate()}
             >
-              {exportBusy ? 'Uploading…' : 'Upload template'}
+              {exportBusy ? t('settings.uploading') : t('settings.uploadTemplate')}
             </button>
           </div>
         </section>
@@ -960,22 +1124,19 @@ export default function SettingsPage() {
       {tab === 'users' && (
         <section className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="max-w-xl text-xs text-[var(--muted)]">
-              Sync pulls accounts from Myelin (admin API). New users are SSO-ready with no
-              local password; existing Synapse users are linked by PM id or email.
-            </p>
+            <p className="max-w-xl text-xs text-[var(--muted)]">{t('settings.usersSyncHint')}</p>
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 className="btn-ghost"
                 disabled={syncBusy}
-                title="Import and link users from Myelin"
+                title={t('settings.syncFromMyelin')}
                 onClick={() => setSyncConfirmOpen(true)}
               >
-                {syncBusy ? 'Syncing…' : 'Sync from PM'}
+                {syncBusy ? t('settings.syncing') : t('settings.syncFromMyelin')}
               </button>
               <button type="button" className="btn-primary" onClick={() => setCreateOpen(true)}>
-                Create user
+                {t('settings.createUser')}
               </button>
             </div>
           </div>
@@ -983,9 +1144,9 @@ export default function SettingsPage() {
             <table className="w-full min-w-[36rem] text-left text-sm">
               <thead className="border-b border-[var(--border)] bg-[var(--panel)]/80 text-[var(--muted)]">
                 <tr>
-                  <th className="px-3 py-2 font-medium">User</th>
-                  <th className="px-3 py-2 font-medium">Flags</th>
-                  <th className="px-3 py-2 font-medium">Actions</th>
+                  <th className="px-3 py-2 font-medium">{t('settings.colUser')}</th>
+                  <th className="px-3 py-2 font-medium">{t('settings.colFlags')}</th>
+                  <th className="px-3 py-2 font-medium">{t('settings.colActions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -996,9 +1157,9 @@ export default function SettingsPage() {
                       <div className="text-xs text-[var(--muted)]">{u.email}</div>
                     </td>
                     <td className="px-3 py-2 text-xs text-[var(--muted)]">
-                      {u.isAdmin ? 'admin · ' : ''}
-                      {u.isActive ? 'active' : 'disabled'}
-                      {u.hasPassword ? '' : ' · SSO-only'}
+                      {u.isAdmin ? `${t('settings.flagAdmin')} · ` : ''}
+                      {u.isActive ? t('settings.flagActive') : t('settings.flagDisabled')}
+                      {u.hasPassword ? '' : ` · ${t('settings.flagSsoOnly')}`}
                       {u.pmUserId != null ? ` · Myelin #${u.pmUserId}` : ''}
                     </td>
                     <td className="px-3 py-2">
@@ -1008,28 +1169,28 @@ export default function SettingsPage() {
                           className="btn-ghost text-xs"
                           onClick={() => void toggleAdmin(u)}
                         >
-                          {u.isAdmin ? 'Revoke admin' : 'Make admin'}
+                          {u.isAdmin ? t('settings.revokeAdmin') : t('settings.makeAdmin')}
                         </button>
                         <button
                           type="button"
                           className="btn-ghost text-xs"
                           onClick={() => void toggleActive(u)}
                         >
-                          {u.isActive ? 'Disable' : 'Enable'}
+                          {u.isActive ? t('settings.disable') : t('settings.enable')}
                         </button>
                         <button
                           type="button"
                           className="btn-ghost text-xs"
                           onClick={() => setPasswordUserId(u.id)}
                         >
-                          Set password
+                          {t('settings.setPassword')}
                         </button>
                         <button
                           type="button"
                           className="btn-ghost text-xs text-red-300"
                           onClick={() => setDeleteUserId(u.id)}
                         >
-                          Delete
+                          {t('settings.delete')}
                         </button>
                       </div>
                     </td>
@@ -1043,24 +1204,20 @@ export default function SettingsPage() {
 
       {tab === 'vaults' && (
         <section className="space-y-4">
-          <p className="max-w-xl text-xs text-[var(--muted)]">
-            All vaults on this Synapse instance. Admins can transfer ownership or manage share
-            memberships without being the vault owner. Transfer keeps the previous owner as Edit
-            access.
-          </p>
+          <p className="max-w-xl text-xs text-[var(--muted)]">{t('settings.vaultsAdminHint')}</p>
           {adminVaults.length === 0 ? (
             <p className="rounded-2xl border border-dashed border-[var(--border)] px-4 py-10 text-center text-sm text-[var(--muted)]">
-              No vaults yet.
+              {t('settings.noVaults')}
             </p>
           ) : (
             <div className="overflow-x-auto rounded-2xl border border-[var(--border)]">
               <table className="w-full min-w-[40rem] text-left text-sm">
                 <thead className="border-b border-[var(--border)] bg-[var(--panel)]/80 text-[var(--muted)]">
                   <tr>
-                    <th className="px-3 py-2 font-medium">Vault</th>
-                    <th className="px-3 py-2 font-medium">Owner</th>
-                    <th className="px-3 py-2 font-medium">Stats</th>
-                    <th className="px-3 py-2 font-medium">Actions</th>
+                    <th className="px-3 py-2 font-medium">{t('settings.colVault')}</th>
+                    <th className="px-3 py-2 font-medium">{t('settings.colOwner')}</th>
+                    <th className="px-3 py-2 font-medium">{t('settings.colStats')}</th>
+                    <th className="px-3 py-2 font-medium">{t('settings.colActions')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1071,7 +1228,7 @@ export default function SettingsPage() {
                         <div className="font-mono text-xs text-[var(--muted)]">/{v.slug}</div>
                         <div className="mt-0.5 text-[11px] text-[var(--muted)]">
                           {v.defaultVisibility}
-                          {v.allowPublicPages ? ' · public wiki on' : ''}
+                          {v.allowPublicPages ? ` · ${t('settings.publicWikiOn')}` : ''}
                         </div>
                       </td>
                       <td className="px-3 py-2">
@@ -1081,13 +1238,13 @@ export default function SettingsPage() {
                             <div className="text-xs text-[var(--muted)]">{v.owner.email}</div>
                           </>
                         ) : (
-                          <span className="text-xs text-[var(--muted)]">Unknown</span>
+                          <span className="text-xs text-[var(--muted)]">{t('settings.unknown')}</span>
                         )}
                       </td>
                       <td className="px-3 py-2 text-xs text-[var(--muted)]">
-                        {v.noteCount} note{v.noteCount === 1 ? '' : 's'}
+                        {t('settings.notesCount', { n: v.noteCount })}
                         <br />
-                        {v.memberCount} share{v.memberCount === 1 ? '' : 's'}
+                        {t('settings.sharesCount', { n: v.memberCount })}
                       </td>
                       <td className="px-3 py-2">
                         <div className="flex flex-wrap gap-1">
@@ -1095,14 +1252,14 @@ export default function SettingsPage() {
                             href={`/vaults/${v.id}`}
                             className="btn-ghost text-xs no-underline hover:no-underline"
                           >
-                            Open
+                            {t('settings.open')}
                           </Link>
                           <button
                             type="button"
                             className="btn-ghost text-xs"
                             onClick={() => setShareVault(v)}
                           >
-                            Share
+                            {t('settings.share')}
                           </button>
                           <button
                             type="button"
@@ -1112,7 +1269,7 @@ export default function SettingsPage() {
                               setOwnerUserId(v.owner?.userId ?? '');
                             }}
                           >
-                            Change owner
+                            {t('settings.changeOwner')}
                           </button>
                         </div>
                       </td>
@@ -1128,36 +1285,36 @@ export default function SettingsPage() {
       {createOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div className="w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-xl">
-            <h2 className="text-lg font-semibold">Create user</h2>
+            <h2 className="text-lg font-semibold">{t('settings.createUser')}</h2>
             <div className="mt-4 space-y-3">
               <input
                 className="input w-full"
-                placeholder="Username"
+                placeholder={t('settings.username')}
                 value={newUsername}
                 onChange={(e) => setNewUsername(e.target.value)}
               />
               <input
                 className="input w-full"
                 type="email"
-                placeholder="Email"
+                placeholder={t('home.email')}
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
               />
               <input
                 className="input w-full"
                 type="password"
-                placeholder="Password"
+                placeholder={t('settings.password')}
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
               />
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={newIsAdmin} onChange={(e) => setNewIsAdmin(e.target.checked)} />
-                Admin
+                {t('settings.admin')}
               </label>
             </div>
             <div className="mt-5 flex justify-end gap-2">
               <button type="button" className="btn-ghost" onClick={() => setCreateOpen(false)}>
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -1185,11 +1342,11 @@ export default function SettingsPage() {
                   setNewEmail('');
                   setNewPassword('');
                   setNewIsAdmin(false);
-                  setStatus('User created');
+                  setStatus(t('settings.userCreated'));
                   await loadUsers();
                 }}
               >
-                Create
+                {t('common.create')}
               </button>
             </div>
           </div>
@@ -1198,9 +1355,9 @@ export default function SettingsPage() {
 
       <PromptModal
         open={passwordUserId != null}
-        title="Set password"
-        label="New password"
-        confirmLabel="Save"
+        title={t('settings.setPassword')}
+        label={t('settings.newPassword')}
+        confirmLabel={t('common.save')}
         inputType="password"
         onCancel={() => setPasswordUserId(null)}
         onConfirm={async (value) => {
@@ -1216,7 +1373,7 @@ export default function SettingsPage() {
             setError(json.message || 'Failed');
             return;
           }
-          setStatus('Password updated');
+          setStatus(t('settings.passwordUpdated'));
           setPasswordUserId(null);
           await loadUsers();
         }}
@@ -1224,9 +1381,9 @@ export default function SettingsPage() {
 
       <ConfirmModal
         open={deleteUserId != null}
-        title="Delete user?"
-        message="This cannot be undone. The user must not own any vaults."
-        confirmLabel="Delete"
+        title={t('settings.deleteUserTitle')}
+        message={t('settings.deleteUserMessage')}
+        confirmLabel={t('settings.delete')}
         danger
         onCancel={() => setDeleteUserId(null)}
         onConfirm={async () => {
@@ -1241,7 +1398,7 @@ export default function SettingsPage() {
             setDeleteUserId(null);
             return;
           }
-          setStatus('User deleted');
+          setStatus(t('settings.userDeleted'));
           setDeleteUserId(null);
           await loadUsers();
         }}
@@ -1249,10 +1406,10 @@ export default function SettingsPage() {
 
       <ConfirmModal
         open={syncConfirmOpen}
-        title="Sync users from Myelin"
-        message="Import Myelin users into Synapse. Matched by Myelin user id or email. New accounts are SSO-ready (no local password). Existing Synapse-only users are not deleted. Requires your admin SSO session or personal API token in Profile."
-        confirmLabel={syncBusy ? 'Syncing…' : 'Sync now'}
-        cancelLabel="Cancel"
+        title={t('settings.syncUsersTitle')}
+        message={t('settings.syncUsersMessage')}
+        confirmLabel={syncBusy ? t('settings.syncing') : t('settings.syncNow')}
+        cancelLabel={t('common.cancel')}
         onCancel={() => {
           if (!syncBusy) setSyncConfirmOpen(false);
         }}
@@ -1292,10 +1449,10 @@ export default function SettingsPage() {
 
       <ConfirmModal
         open={exportDeleteId != null}
-        title="Delete Word template"
-        message="This removes the uploaded .docx from the app. Existing notes are not affected."
-        confirmLabel={exportBusy ? 'Deleting…' : 'Delete'}
-        cancelLabel="Cancel"
+        title={t('settings.deleteWordTitle')}
+        message={t('settings.deleteWordMessage')}
+        confirmLabel={exportBusy ? t('settings.deleting') : t('settings.delete')}
+        cancelLabel={t('common.cancel')}
         danger
         onCancel={() => {
           if (!exportBusy) setExportDeleteId(null);
@@ -1325,13 +1482,12 @@ export default function SettingsPage() {
             aria-modal
             className="w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-2xl"
           >
-            <h2 className="text-lg font-semibold tracking-tight">Change vault owner</h2>
+            <h2 className="text-lg font-semibold tracking-tight">{t('settings.changeVaultOwner')}</h2>
             <p className="mt-1 text-sm text-[var(--muted)]">
-              {ownerVault.name} — previous owner keeps <strong className="text-[var(--text)]">Edit</strong>{' '}
-              access.
+              {t('settings.changeOwnerHint', { name: ownerVault.name })}
             </p>
             <label className="mt-4 block text-sm">
-              New owner
+              {t('settings.newOwner')}
               <select
                 className="input mt-1 w-full"
                 value={ownerUserId === '' ? '' : String(ownerUserId)}
@@ -1339,13 +1495,13 @@ export default function SettingsPage() {
                   setOwnerUserId(e.target.value ? Number(e.target.value) : '')
                 }
               >
-                <option value="">Select user…</option>
+                <option value="">{t('settings.selectUser')}</option>
                 {users
                   .filter((u) => u.isActive)
                   .map((u) => (
                     <option key={u.id} value={u.id}>
                       {u.username} ({u.email})
-                      {ownerVault.owner?.userId === u.id ? ' — current' : ''}
+                      {ownerVault.owner?.userId === u.id ? ` ${t('settings.currentOwner')}` : ''}
                     </option>
                   ))}
               </select>
@@ -1360,7 +1516,7 @@ export default function SettingsPage() {
                   setOwnerUserId('');
                 }}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -1372,7 +1528,7 @@ export default function SettingsPage() {
                 }
                 onClick={() => void transferOwner()}
               >
-                {ownerBusy ? 'Transferring…' : 'Transfer ownership'}
+                {ownerBusy ? t('settings.transferring') : t('settings.transferOwnership')}
               </button>
             </div>
           </div>

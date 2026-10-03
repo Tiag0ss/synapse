@@ -16,6 +16,7 @@ import settingsRoutes from './routes/settings';
 import usersRoutes from './routes/users';
 import templatesRoutes from './routes/templates';
 import exportTemplatesRoutes from './routes/exportTemplates';
+import notificationsRoutes from './routes/notifications';
 import { registerHealthRoute } from './health';
 
 dotenv.config();
@@ -47,7 +48,7 @@ async function main() {
   const ok = await testConnection();
   if (!ok) {
     logger.error('Database connection failed — check DB_* in synapse/.env');
-    logger.error('Create database pm_synapse and copy values from .env.example');
+    logger.error('Create database synapse and copy values from .env.example');
     if (process.env.NODE_ENV === 'production') {
       process.exit(1);
     }
@@ -101,6 +102,7 @@ async function main() {
   server.use('/api/public', publicWikiRoutes);
   server.use('/api/shares', noteSharesRoutes);
   server.use('/api/settings', settingsRoutes);
+  server.use('/api/notifications', notificationsRoutes);
   server.use('/api/users', usersRoutes);
   server.use('/api/templates', templatesRoutes);
   server.use('/api/export-templates', exportTemplatesRoutes);

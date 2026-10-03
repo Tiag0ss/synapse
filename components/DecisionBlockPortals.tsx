@@ -2,6 +2,7 @@
 
 import { createPortal } from 'react-dom';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useI18n } from '@/lib/i18n/provider';
 
 export type DecisionView = {
   choiceKind: 'option' | 'custom' | null;
@@ -110,6 +111,7 @@ function DecisionBlockPortalItem({
   noteId?: number;
   onDecisionsChange?: () => void;
 }) {
+  const { t } = useI18n();
   // Clear placeholder once before portal children mount (same pattern as ask blocks).
   // Do not clear in an effect — that races React portal ownership and throws removeChild.
   useState(() => {
@@ -217,7 +219,7 @@ function DecisionBlockPortalItem({
             className="fixed inset-0 z-[80] flex items-center justify-center bg-black/55 p-4"
             role="dialog"
             aria-modal="true"
-            aria-label="Decision history"
+            aria-label={t('chrome.decisionHistory')}
             onClick={() => setHistoryOpen(false)}
           >
             <div
@@ -313,7 +315,7 @@ function DecisionBlockPortalItem({
                 checked={selected === 'other'}
                 onChange={() => setSelected('other')}
               />
-              <span>Other</span>
+              <span>{t('chrome.otherOption')}</span>
             </label>
           </fieldset>
           {selected === 'other' ? (
@@ -322,8 +324,8 @@ function DecisionBlockPortalItem({
               value={customText}
               onChange={(e) => setCustomText(e.target.value)}
               maxLength={8000}
-              placeholder="Describe the decision…"
-              aria-label="Custom decision"
+              placeholder={t('chrome.describeDecisionPlaceholder')}
+              aria-label={t('chrome.customDecision')}
               required
             />
           ) : null}
@@ -333,8 +335,8 @@ function DecisionBlockPortalItem({
               value={authorName}
               onChange={(e) => setAuthorName(e.target.value)}
               maxLength={128}
-              placeholder="Name (optional)"
-              aria-label="Your name (optional)"
+              placeholder={t('chrome.nameOptional')}
+              aria-label={t('chrome.yourNameOptional')}
             />
           ) : null}
           <button
@@ -345,7 +347,7 @@ function DecisionBlockPortalItem({
               (selected === 'other' ? !customText.trim() : mount.options.length === 0)
             }
           >
-            {busy ? 'Saving…' : 'Save decision'}
+            {busy ? t('chrome.saving') : t('chrome.saveDecision')}
           </button>
           {error ? <p className="synapse-decision-form-error">{error}</p> : null}
         </form>
@@ -359,7 +361,7 @@ function DecisionBlockPortalItem({
             disabled={busy}
             onClick={() => void setLocked(!locked)}
           >
-            {locked ? 'Unlock' : 'Lock'}
+            {locked ? t('chrome.unlock') : t('chrome.lock')}
           </button>
           <button
             type="button"
@@ -367,7 +369,7 @@ function DecisionBlockPortalItem({
             disabled={busy}
             onClick={() => setHistoryOpen(true)}
           >
-            History
+            {t('chrome.history')}
           </button>
           {error && !canMutate ? <p className="synapse-decision-form-error">{error}</p> : null}
         </div>

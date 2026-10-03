@@ -9,6 +9,7 @@ import {
   type NoteTreeNote,
 } from '@/lib/notePaths';
 import NoteIcon from '@/components/NoteIcon';
+import { useI18n } from '@/lib/i18n/provider';
 
 type NoteRow = {
   Id: number;
@@ -177,9 +178,11 @@ export default function NotesFolderTree({
   notes,
   selectedId,
   onOpenNote,
-  emptyLabel = 'No notes yet. Create one to start.',
+  emptyLabel,
 }: NotesFolderTreeProps) {
+  const { t } = useI18n();
   const tree = useMemo(() => buildNoteTree(notes), [notes]);
+  const resolvedEmptyLabel = emptyLabel ?? t('common.noNotesYet');
   /** Collapsed by default — only explicitly expanded folders are open. */
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
 
@@ -210,7 +213,7 @@ export default function NotesFolderTree({
   };
 
   if (notes.length === 0) {
-    return <p className="px-2 text-sm text-[var(--muted)]">{emptyLabel}</p>;
+    return <p className="px-2 text-sm text-[var(--muted)]">{resolvedEmptyLabel}</p>;
   }
 
   return (

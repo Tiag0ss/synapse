@@ -18,13 +18,16 @@ export const SETTING_KEYS = {
   smtpFrom: 'smtpFrom',
   smtpFromName: 'smtpFromName',
   aiEnabled: 'aiEnabled',
+  aiProvider: 'aiProvider',
   ollamaBaseUrl: 'ollamaBaseUrl',
   ollamaModel: 'ollamaModel',
+  openaiApiKey: 'openaiApiKey',
+  openaiModel: 'openaiModel',
 } as const;
 
 export type SettingKey = (typeof SETTING_KEYS)[keyof typeof SETTING_KEYS];
 
-const ENCRYPTED_KEYS = new Set<string>([SETTING_KEYS.smtpPassword]);
+const ENCRYPTED_KEYS = new Set<string>([SETTING_KEYS.smtpPassword, SETTING_KEYS.openaiApiKey]);
 
 const settingsCache = new Map<string, string | null>();
 let cacheLoadedAt = 0;

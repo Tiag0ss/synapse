@@ -5,6 +5,7 @@ import {
   applyFrontmatterTodosList,
   type ApplyFrontmatterTodoInput,
 } from '@/lib/frontmatter';
+import { useI18n } from '@/lib/i18n/provider';
 
 export type ExistingTodoSuggestion = {
   id: string;
@@ -92,6 +93,7 @@ export default function AiTodosReviewModal({
   onClose,
   onApply,
 }: AiTodosReviewModalProps) {
+  const { t } = useI18n();
   const [existingRows, setExistingRows] = useState<ExistingRow[]>([]);
   const [proposedRows, setProposedRows] = useState<ProposedRow[]>([]);
   const [applyBusy, setApplyBusy] = useState(false);
@@ -223,7 +225,7 @@ export default function AiTodosReviewModal({
       >
         <div className="border-b border-[var(--border)] px-5 py-4">
           <h2 className="text-lg font-semibold tracking-tight text-[var(--text)]">
-            Review AI todo suggestions
+            {t('chrome.reviewAiTodos')}
           </h2>
           <p className="mt-1 text-sm text-[var(--muted)]">
             Edit, merge into existing, or discard before updating the note. Nothing is saved until
@@ -233,7 +235,7 @@ export default function AiTodosReviewModal({
 
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4">
           {busy && (
-            <p className="text-sm text-[var(--muted)]">Analyzing note with Ollama…</p>
+            <p className="text-sm text-[var(--muted)]">{t('chrome.analyzingAi')}</p>
           )}
           {displayError && (
             <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
@@ -245,7 +247,7 @@ export default function AiTodosReviewModal({
             <>
               <section>
                 <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-                  Existing · {existingRows.length}
+                  {t('chrome.existingTodos')} · {existingRows.length}
                 </h3>
                 {existingRows.length === 0 ? (
                   <p className="text-sm text-[var(--muted)]">No frontmatter todos yet.</p>
@@ -260,7 +262,7 @@ export default function AiTodosReviewModal({
                       >
                         <div className="mb-2 flex flex-wrap items-center gap-2">
                           <span className="rounded bg-[var(--surface-2)] px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[var(--muted)]">
-                            Existing
+                            {t('chrome.existingTodos')}
                           </span>
                           <label className="flex items-center gap-1.5 text-[11px] text-[var(--muted)]">
                             <input
@@ -316,7 +318,7 @@ export default function AiTodosReviewModal({
 
               <section>
                 <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-                  Proposed · {proposedRows.length}
+                  {t('chrome.proposed')} · {proposedRows.length}
                 </h3>
                 {proposedRows.length === 0 ? (
                   <p className="text-sm text-[var(--muted)]">No suggestions returned.</p>
@@ -329,7 +331,7 @@ export default function AiTodosReviewModal({
                       >
                         <div className="mb-2 flex flex-wrap items-center gap-2">
                           <span className="rounded bg-[var(--accent)]/20 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[var(--accent-soft)]">
-                            Proposed
+                            {t('chrome.proposed')}
                           </span>
                           <label className="flex items-center gap-1 text-[11px] text-[var(--muted)]">
                             Action
@@ -347,11 +349,11 @@ export default function AiTodosReviewModal({
                                 });
                               }}
                             >
-                              <option value="add">Add as new</option>
+                              <option value="add">{t('chrome.addAsNew')}</option>
                               <option value="merge" disabled={keepTargets.length === 0}>
-                                Merge into existing
+                                {t('chrome.merge')}
                               </option>
-                              <option value="discard">Discard</option>
+                              <option value="discard">{t('chrome.discard')}</option>
                             </select>
                           </label>
                           {row.action === 'merge' && (
@@ -364,7 +366,7 @@ export default function AiTodosReviewModal({
                                   updateProposed(row.key, { mergeTargetKey: e.target.value })
                                 }
                               >
-                                <option value="">Select…</option>
+                                <option value="">{t('chrome.selectEllipsis')}</option>
                                 {keepTargets.map((t) => (
                                   <option key={t.key} value={t.key}>
                                     {t.content || t.id || t.key}
@@ -427,7 +429,7 @@ export default function AiTodosReviewModal({
 
         <div className="flex flex-wrap justify-end gap-2 border-t border-[var(--border)] px-5 py-4">
           <button type="button" className="btn-ghost" onClick={onClose} disabled={applyBusy}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             type="button"
@@ -435,7 +437,7 @@ export default function AiTodosReviewModal({
             disabled={busy || applyBusy || Boolean(error && proposedRows.length === 0)}
             onClick={() => void handleApply()}
           >
-            {applyBusy ? 'Applying…' : 'Apply to note'}
+            {applyBusy ? 'Applying…' : t('chrome.apply')}
           </button>
         </div>
       </div>

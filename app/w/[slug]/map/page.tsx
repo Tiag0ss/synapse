@@ -5,8 +5,10 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import NoteGraphMindmap from '@/components/NoteGraphMindmap';
 import AppUserMenu from '@/components/AppUserMenu';
+import { useI18n } from '@/lib/i18n/provider';
 
 export default function PublicGraphPage() {
+  const { t } = useI18n();
   const params = useParams();
   const router = useRouter();
   const slug = String(params.slug);
@@ -51,14 +53,16 @@ export default function PublicGraphPage() {
             >
               ← Wiki
             </Link>
-            <h1 className="truncate text-[15px] font-semibold tracking-tight lg:text-sm">Mindmap</h1>
+            <h1 className="truncate text-[15px] font-semibold tracking-tight lg:text-sm">
+              {t('chrome.mindmap')}
+            </h1>
           </div>
           <div className="ml-auto flex items-center gap-2 text-xs text-[var(--muted)]">
             <Link
               href="/w"
               className="hidden text-[var(--muted)] no-underline hover:text-[var(--accent-soft)] hover:underline sm:inline"
             >
-              All wikis
+              {t('chrome.allWikis')}
             </Link>
             {graph && (
               <span className="hidden sm:inline">
@@ -73,7 +77,7 @@ export default function PublicGraphPage() {
       <div ref={boxRef} className="min-h-0 flex-1 p-3">
         {error && <p className="p-4 text-sm text-[var(--danger)]">{error}</p>}
         {!graph && !error && (
-          <p className="p-4 text-sm text-[var(--muted)]">Loading mindmap…</p>
+          <p className="p-4 text-sm text-[var(--muted)]">{t('chrome.loadingMindmap')}</p>
         )}
         {graph && (
           <NoteGraphMindmap

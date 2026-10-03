@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import AppUserMenu from '@/components/AppUserMenu';
 import ConfirmModal from '@/components/ConfirmModal';
+import { useI18n } from '@/lib/i18n/provider';
 import { applyNoteTemplateBody } from '@/lib/noteTemplates';
 import { renderSynapseMarkdown } from '@/lib/renderMarkdown';
 
@@ -26,6 +27,7 @@ type Template = {
 type Me = { userId: number; username: string; email: string; isAdmin: boolean };
 
 export default function TemplatesPage() {
+  const { t } = useI18n();
   const router = useRouter();
   const [me, setMe] = useState<Me | null>(null);
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -249,7 +251,7 @@ export default function TemplatesPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent-soft)]">
             Synapse
           </p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight">Note templates</h1>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight">{t('chrome.templatesTitle')}</h1>
           <p className="mt-1 text-sm text-[var(--muted)]">
             Built-in and shared templates for everyone. Create your own and request admin approval to
             share.
@@ -257,7 +259,7 @@ export default function TemplatesPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Link href="/" className="btn-ghost no-underline hover:no-underline">
-            ← Vaults
+            {t('profile.backVaults')}
           </Link>
           <AppUserMenu user={me} dense />
         </div>
@@ -277,7 +279,7 @@ export default function TemplatesPage() {
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <input
           className="input max-w-xs"
-          placeholder="Filter…"
+          placeholder={t('chrome.filterTemplates')}
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
         />
@@ -287,10 +289,10 @@ export default function TemplatesPage() {
             checked={showMineOnly}
             onChange={(e) => setShowMineOnly(e.target.checked)}
           />
-          Mine only
+          {t('chrome.mineOnly')}
         </label>
         <button type="button" className="btn-primary" disabled={busy} onClick={() => void createMine()}>
-          New personal template
+          {t('chrome.newPersonalTemplate')}
         </button>
       </div>
 
@@ -298,7 +300,7 @@ export default function TemplatesPage() {
         <aside className="border-b border-[var(--border)] md:border-b-0 md:border-r">
           <div className="max-h-[70vh] overflow-y-auto p-2">
             {loading ? (
-              <p className="px-2 py-3 text-xs text-[var(--muted)]">Loading…</p>
+              <p className="px-2 py-3 text-xs text-[var(--muted)]">{t('common.loading')}</p>
             ) : filtered.length === 0 ? (
               <p className="px-2 py-3 text-xs text-[var(--muted)]">No templates</p>
             ) : (
@@ -339,7 +341,7 @@ export default function TemplatesPage() {
                 <h2 className="mr-auto text-base font-semibold text-[var(--text)]">{selected.label}</h2>
                 {canEdit && !editing && (
                   <button type="button" className="btn-ghost py-1 text-xs" onClick={startEdit}>
-                    Edit
+                    {t('chrome.viewEdit')}
                   </button>
                 )}
                 {editing && (
@@ -350,10 +352,10 @@ export default function TemplatesPage() {
                       disabled={busy}
                       onClick={() => void saveEdit()}
                     >
-                      Save
+                      {t('common.save')}
                     </button>
                     <button type="button" className="btn-ghost py-1 text-xs" onClick={cancelEdit}>
-                      Cancel
+                      {t('common.cancel')}
                     </button>
                   </>
                 )}
@@ -384,7 +386,7 @@ export default function TemplatesPage() {
                     className="btn-ghost py-1 text-xs text-red-300"
                     onClick={() => setDeleteId(selected.id)}
                   >
-                    Delete
+                    {t('common.delete')}
                   </button>
                 )}
               </div>
@@ -431,9 +433,9 @@ export default function TemplatesPage() {
 
       <ConfirmModal
         open={deleteId != null}
-        title="Delete template?"
-        message="This cannot be undone."
-        confirmLabel="Delete"
+        title={t('chrome.deleteTemplateTitle')}
+        message={t('chrome.deleteTemplateMessage')}
+        confirmLabel={t('common.delete')}
         onCancel={() => setDeleteId(null)}
         onConfirm={() => void confirmDelete()}
       />

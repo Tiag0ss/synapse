@@ -7,6 +7,7 @@ import {
   fetchVaultBoardJson,
   fetchWikiBoardJson,
 } from '@/lib/hydrateBoardEmbeds';
+import { useI18n } from '@/lib/i18n/provider';
 
 export type BoardEmbedMount = {
   key: string;
@@ -91,6 +92,7 @@ function BoardEmbedFrame({
   onCreateWhiteboard?: () => void;
   onEditBoard?: () => void;
 }) {
+  const { t } = useI18n();
   const showCreate = Boolean(canEdit && missing && onCreateWhiteboard);
   const showEdit = Boolean(canEdit && !missing && noteId > 0 && onEditBoard);
   const showOpen = Boolean(!canEdit && !missing && noteId > 0 && onOpenNote);
@@ -110,7 +112,7 @@ function BoardEmbedFrame({
                 onCreateWhiteboard?.();
               }}
             >
-              Create whiteboard
+              {t('chrome.createWhiteboardAction')}
             </button>
           ) : null}
           {showEdit ? (
@@ -123,7 +125,7 @@ function BoardEmbedFrame({
                 onEditBoard?.();
               }}
             >
-              Edit board
+              {t('chrome.editBoard')}
             </button>
           ) : null}
           {showOpen ? (
@@ -136,20 +138,18 @@ function BoardEmbedFrame({
                 onOpenNote?.(noteId);
               }}
             >
-              Open board
+              {t('chrome.openBoard')}
             </button>
           ) : null}
         </div>
       </div>
       {missing ? (
         <div className="flex min-h-0 flex-1 items-center justify-center px-3 text-center text-sm text-[var(--muted)]">
-          {canEdit
-            ? 'No whiteboard with this name yet. Create one to embed it here.'
-            : 'Whiteboard not found'}
+          {canEdit ? t('chrome.noWhiteboardYet') : t('chrome.whiteboardNotFound')}
         </div>
       ) : loading ? (
         <div className="flex min-h-0 flex-1 items-center justify-center text-sm text-[var(--muted)]">
-          Loading board…
+          {t('chrome.loadingBoard')}
         </div>
       ) : error ? (
         <div className="flex min-h-0 flex-1 items-center justify-center px-3 text-center text-sm text-[var(--danger)]">
@@ -185,6 +185,7 @@ function BoardEmbedPortalItem({
   onCreateWhiteboardEmbed?: (title: string, vaultId?: number | null) => void;
   onEditBoardEmbed?: (noteId: number, vaultId?: number | null) => void;
 }) {
+  const { t } = useI18n();
   const mapKey = String(mount.noteId);
   const fromMap =
     boardMap && Object.prototype.hasOwnProperty.call(boardMap, mapKey)
@@ -212,9 +213,9 @@ function BoardEmbedPortalItem({
   });
   const [error, setError] = useState<string | null>(() => {
     if (mount.missing) return null;
-    if (!mount.noteId) return 'Missing whiteboard';
-    if (hasMapEntry && fromMap == null) return `Board unavailable: ${mount.title}`;
-    if (hasSession && fromSession == null) return `Failed to load ${mount.title}`;
+    if (!mount.noteId) return t('chrome.missingWhiteboard');
+    if (hasMapEntry && fromMap == null) return t('chrome.whiteboardNotFound');
+    if (hasSession && fromSession == null) return t('chrome.whiteboardNotFound');
     return null;
   });
 
@@ -232,7 +233,7 @@ function BoardEmbedPortalItem({
 
     if (hasMapEntry) {
       if (fromMap == null) {
-        setError(`Board unavailable: ${mount.title}`);
+        setError(t('chrome.whiteboardNotFound'));
         setBoardJson(null);
       } else {
         setError(null);
@@ -244,14 +245,14 @@ function BoardEmbedPortalItem({
     }
 
     if (!mount.noteId) {
-      setError('Missing whiteboard');
+      setError(t('chrome.missingWhiteboard'));
       setLoading(false);
       return;
     }
 
     const fetchFn = fetchBoardRef.current;
     if (!fetchFn) {
-      setError(`Failed to load ${mount.title}`);
+      setError(t('chrome.whiteboardNotFound'));
       setLoading(false);
       return;
     }
@@ -265,7 +266,7 @@ function BoardEmbedPortalItem({
         if (cancelled) return;
         boardJsonSessionCache.set(cacheKey, json);
         if (json == null) {
-          setError(`Failed to load ${mount.title}`);
+          setError(t('chrome.whiteboardNotFound'));
           setBoardJson(null);
         } else {
           setBoardJson(json);
@@ -274,7 +275,7 @@ function BoardEmbedPortalItem({
       } catch {
         if (!cancelled) {
           boardJsonSessionCache.set(cacheKey, null);
-          setError(`Failed to load ${mount.title}`);
+          setError(t('chrome.whiteboardNotFound'));
           setBoardJson(null);
         }
       } finally {

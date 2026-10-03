@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { LinkableVaultNotes, NoteIndexEntry } from '@/lib/renderMarkdown';
 import { openPrintWindow, printNoteDocument } from '@/lib/printNote';
+import { useI18n } from '@/lib/i18n/provider';
 
 type ExportTemplate = {
   id: number;
@@ -53,6 +54,7 @@ export default function NoteExportModal({
   onBeforeExport,
   onClose,
 }: NoteExportModalProps) {
+  const { t } = useI18n();
   const [format, setFormat] = useState<ExportFormat>('markdown');
   const [templates, setTemplates] = useState<ExportTemplate[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -204,9 +206,9 @@ export default function NoteExportModal({
 
   const actionLabel =
     format === 'markdown'
-      ? 'Download MD'
+      ? t('chrome.downloadMd')
       : format === 'pdf'
-        ? 'Print / Save PDF'
+        ? t('chrome.printPdf')
         : 'Download DOCX';
 
   return (
@@ -220,7 +222,7 @@ export default function NoteExportModal({
         <header className="flex items-start justify-between gap-3 border-b border-[var(--border)] px-5 py-4">
           <div>
             <h2 id="note-export-title" className="text-lg font-semibold tracking-tight">
-              Export note
+              {t('chrome.exportModalTitle')}
             </h2>
             <p className="mt-0.5 text-xs text-[var(--muted)]">
               Markdown, PDF/print, or Word template
@@ -228,7 +230,7 @@ export default function NoteExportModal({
             </p>
           </div>
           <button type="button" className="btn-ghost py-1" onClick={onClose}>
-            Close
+            {t('common.close')}
           </button>
         </header>
 
@@ -242,13 +244,13 @@ export default function NoteExportModal({
           <div
             className="flex rounded-lg border border-[var(--border)] bg-[var(--surface)] p-0.5"
             role="tablist"
-            aria-label="Export format"
+            aria-label={t('chrome.exportFormatAria')}
           >
             {(
               [
-                { id: 'markdown', label: 'Markdown' },
-                { id: 'pdf', label: 'PDF / Print' },
-                { id: 'docx', label: 'Word' },
+                { id: 'markdown', label: t('chrome.tabMarkdown') },
+                { id: 'pdf', label: t('chrome.tabPdf') },
+                { id: 'docx', label: t('chrome.tabWord') },
               ] as const
             ).map((opt) => (
               <button
@@ -281,9 +283,7 @@ export default function NoteExportModal({
           ) : loading ? (
             <p className="text-sm text-[var(--muted)]">Loading templates…</p>
           ) : templates.length === 0 ? (
-            <p className="text-sm text-[var(--muted)]">
-              No Word templates yet. An admin can upload them under Settings → Word export.
-            </p>
+            <p className="text-sm text-[var(--muted)]">{t('chrome.noWordTemplates')}</p>
           ) : (
             <>
               <label className="block text-sm">
@@ -312,7 +312,7 @@ export default function NoteExportModal({
 
         <footer className="flex justify-end gap-2 border-t border-[var(--border)] px-5 py-3">
           <button type="button" className="btn-ghost" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             type="button"

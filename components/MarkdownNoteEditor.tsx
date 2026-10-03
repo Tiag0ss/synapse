@@ -32,6 +32,7 @@ import {
 import ImageLightbox from '@/components/ImageLightbox';
 import MermaidLightbox from '@/components/MermaidLightbox';
 import NoteLinkSuggest from '@/components/NoteLinkSuggest';
+import { useI18n } from '@/lib/i18n/provider';
 import NotePeekModal, { type NotePeekTarget } from '@/components/NotePeekModal';
 
 const ATTACH_ACCEPT =
@@ -131,6 +132,25 @@ const TOOLBAR_GROUPS: Array<Array<{ label: string; title: string; spec: WrapSpec
     { label: '—', title: 'Divider', spec: { kind: 'block', before: '\n---\n', after: '', placeholder: '' } },
   ],
 ];
+
+const TOOLBAR_TITLE_I18N: Record<string, string> = {
+  'Bold (Ctrl+B)': 'chrome.bold',
+  'Italic (Ctrl+I)': 'chrome.italic',
+  Strikethrough: 'chrome.strikethrough',
+  'Heading 1': 'chrome.heading1',
+  'Heading 2': 'chrome.heading2',
+  'Heading 3': 'chrome.heading3',
+  'Bullet list': 'chrome.bulletList',
+  'Numbered list': 'chrome.numberedList',
+  'Task list': 'chrome.taskList',
+  Quote: 'chrome.quote',
+  'Inline code': 'chrome.inlineCode',
+  'Code block': 'chrome.codeBlock',
+  'Link (Ctrl+K)': 'chrome.linkCtrlK',
+  Wikilink: 'chrome.wikilink',
+  Tag: 'chrome.tag',
+  Divider: 'chrome.divider',
+};
 
 type LegendSection = {
   title: string;
@@ -408,6 +428,7 @@ export default function MarkdownNoteEditor({
   onMediaUploaded,
   attachmentsRefreshToken = 0,
 }: MarkdownNoteEditorProps) {
+  const { t } = useI18n();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -869,7 +890,8 @@ export default function MarkdownNoteEditor({
     };
   }, [vaultId, noteId, plannerLinks]);
 
-  const previewHtml = html || '<p class="synapse-empty">Nothing to preview yet.</p>';
+  const previewHtml =
+    html || `<p class="synapse-empty">${t('chrome.nothingToPreview')}</p>`;
 
   const afterPreviewWrite = useCallback((root: HTMLElement) => {
     void renderMermaidInRoot(root);
@@ -1236,7 +1258,9 @@ export default function MarkdownNoteEditor({
               <button
                 key={btn.title}
                 type="button"
-                title={btn.title}
+                title={
+                  TOOLBAR_TITLE_I18N[btn.title] ? t(TOOLBAR_TITLE_I18N[btn.title]) : btn.title
+                }
                 onClick={() => runToolbar(btn.spec)}
                 className={`toolbar-btn ${btn.weight || ''}`}
               >
@@ -1250,7 +1274,7 @@ export default function MarkdownNoteEditor({
             <span className="mx-1 h-5 w-px bg-[var(--border)]" aria-hidden />
             <button
               type="button"
-              title="Insert image"
+              title={t('chrome.insertImage')}
               className="toolbar-btn"
               disabled={!vaultId || uploading}
               onClick={() => fileInputRef.current?.click()}
@@ -1259,12 +1283,12 @@ export default function MarkdownNoteEditor({
             </button>
             <button
               type="button"
-              title="Attach file"
+              title={t('chrome.attach')}
               className="toolbar-btn"
               disabled={!vaultId || uploading}
               onClick={() => attachInputRef.current?.click()}
             >
-              Attach
+              {t('chrome.attach')}
             </button>
             <input
               ref={fileInputRef}
@@ -1293,7 +1317,9 @@ export default function MarkdownNoteEditor({
           </>
         )}
         <div className="ml-auto flex flex-wrap items-center gap-1">
-          {uploading && <span className="px-2 text-[11px] text-[var(--muted)]">Uploading…</span>}
+          {uploading && (
+            <span className="px-2 text-[11px] text-[var(--muted)]">{t('chrome.uploading')}</span>
+          )}
           {(readOnly
             ? (['preview'] as ViewMode[])
             : compact
@@ -1310,7 +1336,11 @@ export default function MarkdownNoteEditor({
                   : 'text-[var(--muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]'
               }`}
             >
-              {m}
+              {m === 'edit'
+                ? t('chrome.viewEdit')
+                : m === 'split'
+                  ? t('chrome.viewSplit')
+                  : t('chrome.viewPreview')}
             </button>
           ))}
           <button
@@ -1321,9 +1351,9 @@ export default function MarkdownNoteEditor({
                 ? 'bg-[var(--surface-2)] text-[var(--text)]'
                 : 'text-[var(--muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]'
             }`}
-            title="Markdown legend"
+            title={t('chrome.markdownLegend')}
           >
-            Help
+            {t('chrome.help')}
           </button>
         </div>
       </div>
@@ -1380,10 +1410,7 @@ export default function MarkdownNoteEditor({
                 }}
                 onDragLeave={() => setDragging(false)}
                 onDrop={onDrop}
-                placeholder={
-                  placeholder ||
-                  'Write in Markdown… Paste or drop images/files here. Type [[attach for attachments. Use Help for syntax.'
-                }
+                placeholder={placeholder || t('chrome.writeMarkdown')}
                 spellCheck
               />
               {linkSuggest ? (
@@ -1443,7 +1470,9 @@ export default function MarkdownNoteEditor({
                 : 'border-l border-[var(--border)]'
             }`}
           >
-            <h3 className="mb-1 text-sm font-semibold text-[var(--text)]">Markdown guide</h3>
+            <h3 className="mb-1 text-sm font-semibold text-[var(--text)]">
+              {t('chrome.markdownLegend')}
+            </h3>
             <p className="mb-4 leading-relaxed text-[var(--muted)]">
               Toolbar + Ctrl/Cmd+B, I, K. Enter continues lists and tasks. Paste or drop
               images/files. Type [[attach to insert an attachment link.

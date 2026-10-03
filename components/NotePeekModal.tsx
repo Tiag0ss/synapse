@@ -19,6 +19,7 @@ import {
   setActivePeekHit,
 } from '@/lib/peekFindInPreview';
 import WhiteboardPeekCanvas from '@/components/WhiteboardPeekCanvas';
+import { useI18n } from '@/lib/i18n/provider';
 
 export type NotePeekTarget = {
   noteId: number;
@@ -59,6 +60,7 @@ export default function NotePeekModal({
   onCreateNoteFromWikilink,
   onCreateCrossVaultNote,
 }: NotePeekModalProps) {
+  const { t } = useI18n();
   const bodyRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const hitsRef = useRef<HTMLElement[]>([]);
@@ -386,7 +388,7 @@ export default function NotePeekModal({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={title || (isWhiteboard ? 'Whiteboard preview' : 'Note preview')}
+        aria-label={title || (isWhiteboard ? t('chrome.whiteboardPreview') : t('chrome.notePreview'))}
         className={`flex flex-col overflow-hidden border border-[var(--border)] bg-[var(--panel)] shadow-2xl shadow-black/40 ${
           maximized
             ? 'h-dvh w-full max-h-dvh max-w-none rounded-none border-0'
@@ -410,10 +412,10 @@ export default function NotePeekModal({
                 ref={searchRef}
                 type="search"
                 className="input min-w-0 flex-1 py-1 text-xs sm:text-sm"
-                placeholder="Find…"
+                placeholder={t('chrome.find')}
                 value={query}
                 disabled={!canSearch}
-                aria-label="Find in note"
+                aria-label={t('chrome.findInNote')}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
@@ -437,7 +439,7 @@ export default function NotePeekModal({
                 type="button"
                 className="btn-ghost px-1.5 py-0.5 text-xs"
                 disabled={!matchCount}
-                aria-label="Previous match"
+                aria-label={t('chrome.prevMatch')}
                 onClick={() => goToMatch(-1)}
               >
                 ‹
@@ -446,7 +448,7 @@ export default function NotePeekModal({
                 type="button"
                 className="btn-ghost px-1.5 py-0.5 text-xs"
                 disabled={!matchCount}
-                aria-label="Next match"
+                aria-label={t('chrome.nextMatch')}
                 onClick={() => goToMatch(1)}
               >
                 ›
@@ -460,10 +462,10 @@ export default function NotePeekModal({
               type="button"
               className="btn-ghost py-1 text-xs sm:text-sm"
               aria-pressed={maximized}
-              title={maximized ? 'Exit full screen (Esc)' : 'Expand to full screen'}
+              title={maximized ? t('chrome.exitFullscreen') : t('chrome.expandFullscreen')}
               onClick={() => setMaximized((v) => !v)}
             >
-              {maximized ? 'Exit full screen' : 'Expand'}
+              {maximized ? t('chrome.exitMaximize') : t('chrome.expand')}
             </button>
             {!target.shareToken ? (
               <button
@@ -475,11 +477,11 @@ export default function NotePeekModal({
                   onClose();
                 }}
               >
-                {isWhiteboard ? 'Open board' : 'Open note'}
+                {isWhiteboard ? t('chrome.openBoard') : t('chrome.openNoteAction')}
               </button>
             ) : null}
             <button type="button" className="btn-ghost text-xs sm:text-sm" onClick={onClose}>
-              Close
+              {t('common.close')}
             </button>
           </div>
         </div>
@@ -491,7 +493,7 @@ export default function NotePeekModal({
               : 'min-h-0 flex-1 overflow-y-auto px-4 py-3'
           }
         >
-          {loading && <p className="text-sm text-[var(--muted)]">Loading…</p>}
+          {loading && <p className="text-sm text-[var(--muted)]">{t('common.loading')}</p>}
           {!loading && error && <p className="text-sm text-[var(--danger)]">{error}</p>}
           {!loading && !error && isWhiteboard && (
             <WhiteboardPeekCanvas

@@ -6,6 +6,7 @@ import VaultPmSettingsModal from '@/components/VaultPmSettingsModal';
 import VaultShareModal from '@/components/VaultShareModal';
 import ConfirmModal from '@/components/ConfirmModal';
 import type { NoteResolveEntry } from '@/lib/notePaths';
+import { useI18n } from '@/lib/i18n/provider';
 
 type OptionsTab = 'links' | 'share' | 'pm' | 'vault' | 'trash';
 
@@ -65,6 +66,7 @@ export default function VaultOptionsModal({
   onCreateMissingNote,
   isPersonalWork = false,
 }: VaultOptionsModalProps) {
+  const { t } = useI18n();
   const router = useRouter();
   const [tab, setTab] = useState<OptionsTab>(initialTab);
   const [broken, setBroken] = useState<BrokenLinkItem[]>([]);
@@ -116,14 +118,14 @@ export default function VaultOptionsModal({
       const res = await fetch(`/api/vaults/${vaultId}/broken-links`, { credentials: 'include' });
       const data = await res.json();
       if (!res.ok) {
-        setLinksError(data.message || 'Failed to scan links');
+        setLinksError(data.message || t('chrome.failedScanLinks'));
         setBroken([]);
         return;
       }
       setBroken(data.data?.items || []);
       setUniqueTargets(Number(data.data?.uniqueTargets || 0));
     } catch {
-      setLinksError('Network error while scanning links');
+      setLinksError(t('chrome.networkScanLinks'));
     } finally {
       setLoadingLinks(false);
     }
@@ -171,24 +173,24 @@ export default function VaultOptionsModal({
   if (!open) return null;
 
   const tabs: Array<{ id: OptionsTab; label: string; hidden?: boolean }> = [
-    { id: 'links', label: 'Broken links' },
-    { id: 'share', label: 'Share', hidden: isPersonalWork },
-    { id: 'trash', label: 'Trash', hidden: !canEdit },
+    { id: 'links', label: t('chrome.brokenLinksTab') },
+    { id: 'share', label: t('chrome.share'), hidden: isPersonalWork },
+    { id: 'trash', label: t('chrome.vaultOptionsTrash'), hidden: !canEdit },
     { id: 'pm', label: 'Myelin', hidden: !canEdit || isPersonalWork },
-    { id: 'vault', label: 'Vault' },
+    { id: 'vault', label: t('chrome.vaultTab') },
   ];
 
   const createMissing = async (item: BrokenLinkItem) => {
     if (!canEdit) return;
     setBusyTarget(`${item.noteId}:${item.target}`);
-    setLinksStatus(`Creating “${item.target}”…`);
+    setLinksStatus(t('chrome.creatingNamedNote', { title: item.target }));
     try {
       await onCreateMissingNote(item.target, item.noteId);
-      setLinksStatus(`Created “${item.target}”`);
+      setLinksStatus(t('chrome.createdNamedNote', { title: item.target }));
       await loadBroken();
       onChanged();
     } catch {
-      setLinksStatus('Could not create note');
+      setLinksStatus(t('chrome.couldNotCreateNote'));
     } finally {
       setBusyTarget(null);
     }
@@ -198,15 +200,15 @@ export default function VaultOptionsModal({
     if (!isOwner) return;
     const next = nameDraft.trim();
     if (!next) {
-      setVaultStatus('Name cannot be empty');
+      setVaultStatus(t('chrome.nameCannotBeEmpty'));
       return;
     }
     if (next === vaultName) {
-      setVaultStatus('Name unchanged');
+      setVaultStatus(t('chrome.nameUnchanged'));
       return;
     }
     setSavingName(true);
-    setVaultStatus('Saving name…');
+    setVaultStatus(t('chrome.savingName'));
     try {
       const res = await fetch(`/api/vaults/${vaultId}`, {
         method: 'PATCH',
@@ -216,13 +218,13 @@ export default function VaultOptionsModal({
       });
       const data = await res.json();
       if (!res.ok) {
-        setVaultStatus(data.message || 'Failed to rename vault');
+        setVaultStatus(data.message || t('chrome.failedRenameVault'));
         return;
       }
-      setVaultStatus(`Renamed to “${next}”`);
+      setVaultStatus(t('chrome.renamedTo', { name: next }));
       onChanged();
     } catch {
-      setVaultStatus('Failed to rename vault');
+      setVaultStatus(t('chrome.failedRenameVault'));
     } finally {
       setSavingName(false);
     }
@@ -233,7 +235,7 @@ export default function VaultOptionsModal({
     const value = next.toLowerCase();
     setVaultDefaultVis(value);
     setSavingVis(true);
-    setVaultStatus('Saving default visibility…');
+    setVaultStatus(t('chrome.savingVisibility'));
     try {
       const res = await fetch(`/api/vaults/${vaultId}`, {
         method: 'PATCH',
@@ -243,14 +245,14 @@ export default function VaultOptionsModal({
       });
       const data = await res.json();
       if (!res.ok) {
-        setVaultStatus(data.message || 'Failed to update default visibility');
+        setVaultStatus(data.message || t('chrome.failedUpdateVisibility'));
         setVaultDefaultVis((defaultVisibility || 'private').toLowerCase());
         return;
       }
-      setVaultStatus(`Default visibility set to ${value}`);
+      setVaultStatus(t('chrome.visibilitySetTo', { value }));
       onChanged();
     } catch {
-      setVaultStatus('Failed to update default visibility');
+      setVaultStatus(t('chrome.failedUpdateVisibility'));
       setVaultDefaultVis((defaultVisibility || 'private').toLowerCase());
     } finally {
       setSavingVis(false);
@@ -259,12 +261,12 @@ export default function VaultOptionsModal({
 
   const exportZip = async () => {
     setExporting(true);
-    setVaultStatus('Exporting ZIP…');
+    setVaultStatus(t('chrome.exporting'));
     try {
       const res = await fetch(`/api/vaults/${vaultId}/export-zip`, { credentials: 'include' });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setVaultStatus((data as { message?: string }).message || 'Export failed');
+        setVaultStatus((data as { message?: string }).message || t('chrome.exportFailed'));
         return;
       }
       const blob = await res.blob();
@@ -279,9 +281,9 @@ export default function VaultOptionsModal({
       URL.revokeObjectURL(url);
       const notes = res.headers.get('X-Synapse-Note-Count') || '?';
       const images = res.headers.get('X-Synapse-Image-Count') || '?';
-      setVaultStatus(`Exported ${notes} notes · ${images} images`);
+      setVaultStatus(t('chrome.exportedSummary', { notes, images }));
     } catch {
-      setVaultStatus('Export failed');
+      setVaultStatus(t('chrome.exportFailed'));
     } finally {
       setExporting(false);
     }
@@ -294,7 +296,7 @@ export default function VaultOptionsModal({
     });
     const data = await res.json();
     if (!res.ok) {
-      setVaultStatus(data.message || 'Could not leave vault');
+      setVaultStatus(data.message || t('chrome.couldNotLeaveVault'));
       setLeaveOpen(false);
       return;
     }
@@ -314,7 +316,7 @@ export default function VaultOptionsModal({
       });
       const data = await res.json();
       if (!res.ok) {
-        setVaultStatus(data.message || 'Delete failed');
+        setVaultStatus(data.message || t('chrome.deleteFailed'));
         return;
       }
       setDeleteOpen(false);
@@ -334,12 +336,12 @@ export default function VaultOptionsModal({
       });
       const data = await res.json();
       if (!res.ok) {
-        setVaultStatus(data.message || 'Restore failed');
+        setVaultStatus(data.message || t('chrome.restoreFailed'));
         return;
       }
       await loadTrash();
       onChanged();
-      setVaultStatus('Note restored');
+      setVaultStatus(t('chrome.noteRestored'));
     } finally {
       setTrashBusy(null);
     }
@@ -354,11 +356,11 @@ export default function VaultOptionsModal({
       });
       const data = await res.json();
       if (!res.ok) {
-        setVaultStatus(data.message || 'Delete failed');
+        setVaultStatus(data.message || t('chrome.deleteFailed'));
         return;
       }
       await loadTrash();
-      setVaultStatus('Permanently deleted');
+      setVaultStatus(t('chrome.deleteForever'));
     } finally {
       setTrashBusy(null);
     }
@@ -378,33 +380,33 @@ export default function VaultOptionsModal({
       >
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-[var(--border)] px-5 py-4">
           <div>
-            <h2 className="text-lg font-semibold tracking-tight">Vault options</h2>
+            <h2 className="text-lg font-semibold tracking-tight">{t('chrome.vaultOptions')}</h2>
             <p className="mt-1 text-sm text-[var(--muted)]">
-              {vaultName} — links, sharing, trash, export, and Myelin.
+              {t('chrome.vaultOptionsSubtitle', { name: vaultName })}
             </p>
           </div>
           <button type="button" className="btn-ghost" onClick={onClose}>
-            Close
+            {t('common.close')}
           </button>
         </header>
 
         <div className="flex shrink-0 gap-1 border-b border-[var(--border)] px-4 pt-2">
           {tabs
-            .filter((t) => !t.hidden)
-            .map((t) => (
+            .filter((tabItem) => !tabItem.hidden)
+            .map((tabItem) => (
               <button
-                key={t.id}
+                key={tabItem.id}
                 type="button"
                 className={`rounded-t-lg px-3 py-2 text-sm transition ${
-                  tab === t.id
+                  tab === tabItem.id
                     ? 'bg-[var(--surface)] font-medium text-[var(--text)] ring-1 ring-[var(--border)]'
                     : 'text-[var(--muted)] hover:text-[var(--text)]'
                 }`}
-                onClick={() => setTab(t.id)}
+                onClick={() => setTab(tabItem.id)}
               >
-                {t.label}
-                {t.id === 'links' && broken.length > 0 ? ` (${broken.length})` : ''}
-                {t.id === 'trash' && trash.length > 0 ? ` (${trash.length})` : ''}
+                {tabItem.label}
+                {tabItem.id === 'links' && broken.length > 0 ? ` (${broken.length})` : ''}
+                {tabItem.id === 'trash' && trash.length > 0 ? ` (${trash.length})` : ''}
               </button>
             ))}
         </div>
@@ -415,10 +417,13 @@ export default function VaultOptionsModal({
               <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] px-5 py-3">
                 <p className="text-sm text-[var(--muted)]">
                   {loadingLinks
-                    ? 'Scanning vault…'
+                    ? t('chrome.scanningVault')
                     : broken.length === 0
-                      ? 'No broken [[wikilinks]] found.'
-                      : `${broken.length} broken link${broken.length === 1 ? '' : 's'} · ${uniqueTargets} unique target${uniqueTargets === 1 ? '' : 's'}`}
+                      ? t('chrome.noBrokenWikilinks')
+                      : t('chrome.brokenLinksSummary', {
+                          count: broken.length,
+                          unique: uniqueTargets,
+                        })}
                 </p>
                 <button
                   type="button"
@@ -426,7 +431,7 @@ export default function VaultOptionsModal({
                   disabled={loadingLinks}
                   onClick={() => void loadBroken()}
                 >
-                  Refresh
+                  {t('chrome.refresh')}
                 </button>
               </div>
               <div className="min-h-0 flex-1 space-y-3 overflow-auto p-5">
@@ -437,7 +442,7 @@ export default function VaultOptionsModal({
                 )}
                 {!loadingLinks && grouped.length === 0 && !linksError && (
                   <p className="rounded-xl border border-dashed border-[var(--border)] px-4 py-10 text-center text-sm text-[var(--muted)]">
-                    All wikilinks resolve to existing notes.
+                    {t('chrome.allWikilinksResolve')}
                   </p>
                 )}
                 {grouped.map((g) => (
@@ -475,8 +480,8 @@ export default function VaultOptionsModal({
                               onClick={() => void createMissing(link)}
                             >
                               {busyTarget === `${link.noteId}:${link.target}`
-                                ? 'Creating…'
-                                : 'Create note'}
+                                ? t('home.creating')
+                                : t('chrome.createNote')}
                             </button>
                           )}
                         </li>
@@ -508,13 +513,15 @@ export default function VaultOptionsModal({
           {tab === 'trash' && canEdit && (
             <div className="flex h-full min-h-0 flex-col">
               <div className="border-b border-[var(--border)] px-5 py-3 text-sm text-[var(--muted)]">
-                Soft-deleted notes. Restore to bring them back, or delete permanently.
+                {t('chrome.trashSoftDeletedHint')}
               </div>
               <div className="min-h-0 flex-1 space-y-2 overflow-auto p-5">
-                {loadingTrash && <p className="text-sm text-[var(--muted)]">Loading trash…</p>}
+                {loadingTrash && (
+                  <p className="text-sm text-[var(--muted)]">{t('chrome.loadingTrash')}</p>
+                )}
                 {!loadingTrash && trash.length === 0 && (
                   <p className="rounded-xl border border-dashed border-[var(--border)] px-4 py-10 text-center text-sm text-[var(--muted)]">
-                    Trash is empty.
+                    {t('chrome.trashEmpty')}
                   </p>
                 )}
                 {trash.map((n) => (
@@ -534,7 +541,7 @@ export default function VaultOptionsModal({
                       disabled={trashBusy === n.Id}
                       onClick={() => void restoreNote(n.Id)}
                     >
-                      Restore
+                      {t('chrome.restore')}
                     </button>
                     <button
                       type="button"
@@ -542,7 +549,7 @@ export default function VaultOptionsModal({
                       disabled={trashBusy === n.Id}
                       onClick={() => void purgeNote(n.Id)}
                     >
-                      Delete forever
+                      {t('chrome.deleteForever')}
                     </button>
                   </div>
                 ))}
@@ -573,19 +580,18 @@ export default function VaultOptionsModal({
           {tab === 'vault' && (
             <div className="space-y-4 overflow-auto p-5">
               <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)]/40 p-4">
-                <h3 className="text-sm font-semibold">Name</h3>
+                <h3 className="text-sm font-semibold">{t('chrome.vaultNameHeading')}</h3>
                 <p className="mt-1 text-xs text-[var(--muted)]">
-                  Display name for this vault. The wiki slug
+                  {t('chrome.vaultNameHint')}
                   {vaultSlug ? (
                     <>
                       {' '}
                       (<code className="text-[var(--accent-soft)]">/w/{vaultSlug}</code>)
                     </>
-                  ) : null}{' '}
-                  stays the same so existing links keep working.
+                  ) : null}
                 </p>
                 <label className="mt-3 block text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
-                  Vault name
+                  {t('home.vaultName')}
                   <input
                     className="input mt-1.5 w-full max-w-sm"
                     value={nameDraft}
@@ -612,75 +618,65 @@ export default function VaultOptionsModal({
                     }
                     onClick={() => void saveVaultName()}
                   >
-                    {savingName ? 'Saving…' : 'Save name'}
+                    {savingName ? t('chrome.saving') : t('chrome.saveName')}
                   </button>
                   {!isOwner && (
-                    <p className="text-xs text-[var(--muted)]">Only the vault owner can rename.</p>
+                    <p className="text-xs text-[var(--muted)]">{t('chrome.onlyOwnerRename')}</p>
                   )}
                 </div>
               </section>
 
               <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)]/40 p-4">
-                <h3 className="text-sm font-semibold">Wiki audience (default visibility)</h3>
-                <p className="mt-1 text-xs text-[var(--muted)]">
-                  Who may open this vault’s wiki when public pages are enabled. Also the default for
-                  notes that use “Vault default”. Per-note overrides still apply inside the wiki.
-                </p>
+                <h3 className="text-sm font-semibold">{t('chrome.wikiAudienceHeading')}</h3>
+                <p className="mt-1 text-xs text-[var(--muted)]">{t('chrome.wikiAudienceHint')}</p>
                 <label className="mt-3 block text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
-                  Vault wiki audience
+                  {t('chrome.vaultWikiAudience')}
                   <select
                     className="input mt-1.5 w-full max-w-sm"
                     value={vaultDefaultVis}
                     disabled={!isOwner || savingVis}
                     onChange={(e) => void saveDefaultVisibility(e.target.value)}
                   >
-                    <option value="private">Private — Share only</option>
-                    <option value="authenticated">Authenticated — any signed-in user</option>
-                    <option value="unlisted">Unlisted — link only (hidden from /w)</option>
-                    <option value="public">Public — everyone</option>
+                    <option value="private">{t('chrome.visPrivateDetail')}</option>
+                    <option value="authenticated">{t('chrome.visAuthenticatedDetail')}</option>
+                    <option value="unlisted">{t('chrome.visUnlistedDetail')}</option>
+                    <option value="public">{t('chrome.visPublicDetail')}</option>
                   </select>
                 </label>
                 {!isOwner && (
-                  <p className="mt-2 text-xs text-[var(--muted)]">Only the vault owner can change this.</p>
+                  <p className="mt-2 text-xs text-[var(--muted)]">{t('chrome.onlyOwnerChange')}</p>
                 )}
               </section>
 
               <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)]/40 p-4">
-                <h3 className="text-sm font-semibold">Export</h3>
-                <p className="mt-1 text-xs text-[var(--muted)]">
-                  Download all notes as Markdown plus images (compatible with ZIP import).
-                </p>
+                <h3 className="text-sm font-semibold">{t('chrome.vaultOptionsExport')}</h3>
+                <p className="mt-1 text-xs text-[var(--muted)]">{t('chrome.exportZipHint')}</p>
                 <button
                   type="button"
                   className="btn-primary mt-3"
                   disabled={exporting}
                   onClick={() => void exportZip()}
                 >
-                  {exporting ? 'Exporting…' : 'Export ZIP'}
+                  {exporting ? t('chrome.exporting') : t('chrome.exportZip')}
                 </button>
               </section>
 
               {!isOwner && (
                 <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)]/40 p-4">
-                  <h3 className="text-sm font-semibold">Leave vault</h3>
-                  <p className="mt-1 text-xs text-[var(--muted)]">
-                    Remove your access. You can be invited again later.
-                  </p>
+                  <h3 className="text-sm font-semibold">{t('chrome.leaveVault')}</h3>
+                  <p className="mt-1 text-xs text-[var(--muted)]">{t('chrome.leaveVaultHint')}</p>
                   <button type="button" className="btn-danger mt-3" onClick={() => setLeaveOpen(true)}>
-                    Leave vault
+                    {t('chrome.leaveVault')}
                   </button>
                 </section>
               )}
 
               {isOwner && !isPersonalWork && (
                 <section className="rounded-xl border border-red-500/30 bg-red-500/5 p-4">
-                  <h3 className="text-sm font-semibold text-red-300">Delete vault</h3>
-                  <p className="mt-1 text-xs text-[var(--muted)]">
-                    Permanently deletes this vault, all notes, revisions, and media. This cannot be
-                    undone.
-                  </p>
+                  <h3 className="text-sm font-semibold text-red-300">{t('chrome.deleteVault')}</h3>
+                  <p className="mt-1 text-xs text-[var(--muted)]">{t('chrome.deleteVaultHint')}</p>
                   <button type="button" className="btn-danger mt-3" onClick={() => setDeleteOpen(true)}>
-                    Delete vault…
+                    {t('chrome.deleteVault')}…
                   </button>
                 </section>
               )}
@@ -693,9 +689,9 @@ export default function VaultOptionsModal({
 
       <ConfirmModal
         open={leaveOpen}
-        title="Leave vault"
-        message={`Leave “${vaultName}”? You will lose access until invited again.`}
-        confirmLabel="Leave"
+        title={t('chrome.leaveVault')}
+        message={t('chrome.leaveVaultMessage', { name: vaultName })}
+        confirmLabel={t('chrome.leave')}
         danger
         onConfirm={() => void leaveVault()}
         onCancel={() => setLeaveOpen(false)}
@@ -708,10 +704,9 @@ export default function VaultOptionsModal({
             aria-modal="true"
             className="w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-2xl"
           >
-            <h3 className="text-lg font-semibold tracking-tight">Delete vault</h3>
+            <h3 className="text-lg font-semibold tracking-tight">{t('chrome.deleteVault')}</h3>
             <p className="mt-2 text-sm text-[var(--muted)]">
-              Type <strong className="text-[var(--text)]">{vaultName}</strong> to confirm permanent
-              deletion.
+              {t('chrome.deleteVaultTypeConfirm', { name: vaultName })}
             </p>
             <input
               className="input mt-3 w-full"
@@ -730,7 +725,7 @@ export default function VaultOptionsModal({
                   setDeleteConfirm('');
                 }}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -738,7 +733,7 @@ export default function VaultOptionsModal({
                 disabled={deletingVault || deleteConfirm !== vaultName}
                 onClick={() => void deleteVault()}
               >
-                {deletingVault ? 'Deleting…' : 'Delete forever'}
+                {deletingVault ? t('chrome.deleting') : t('chrome.deleteForever')}
               </button>
             </div>
           </div>

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import InstallAppPrompt from '@/components/InstallAppPrompt';
+import { useI18n } from '@/lib/i18n/provider';
 
 const LAST_VAULT_COOKIE = 'synapse_last_vault';
 const LAST_VAULT_KEY = 'synapse_last_vault_id';
@@ -46,6 +47,7 @@ export default function VaultSwitcher({
   currentVaultName,
   onOpenOptions,
 }: VaultSwitcherProps) {
+  const { t } = useI18n();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [vaults, setVaults] = useState<VaultRow[]>([]);
@@ -108,7 +110,7 @@ export default function VaultSwitcher({
               ref={searchRef}
               type="search"
               className="input w-full border-0 bg-transparent py-1.5 text-sm shadow-none focus:ring-0"
-              placeholder="Search vaults…"
+              placeholder={t('chrome.searchVaults')}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => {
@@ -121,13 +123,13 @@ export default function VaultSwitcher({
                   switchTo(filteredVaults[0].Id);
                 }
               }}
-              aria-label="Search vaults"
+              aria-label={t('chrome.searchVaults')}
             />
           </div>
           <ul className="max-h-56 overflow-auto py-1">
             {filteredVaults.length === 0 ? (
               <li className="px-3 py-4 text-center text-sm text-[var(--muted)]">
-                {query.trim() ? 'No matches' : 'No vaults'}
+                {query.trim() ? t('common.noMatches') : 'No vaults'}
               </li>
             ) : (
               filteredVaults.map((v) => {
@@ -144,7 +146,7 @@ export default function VaultSwitcher({
                     >
                       <span className="min-w-0 flex-1 truncate font-medium">{v.Name}</span>
                       {active && (
-                        <span className="text-[var(--accent-soft)]" aria-label="Current vault">
+                        <span className="text-[var(--accent-soft)]" aria-label={t('chrome.currentVault')}>
                           ✓
                         </span>
                       )}
@@ -162,7 +164,7 @@ export default function VaultSwitcher({
               onClick={() => setOpen(false)}
             >
               <span aria-hidden>📚</span>
-              <span>Manage vaults…</span>
+              <span>{t('chrome.manageVaults')}</span>
             </Link>
           </div>
           <InstallAppPrompt variant="menu" />
@@ -176,7 +178,7 @@ export default function VaultSwitcher({
           aria-haspopup="menu"
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
-          title="Switch vault"
+          title={t('chrome.switchVault')}
         >
           <span className="text-[10px] text-[var(--muted)]" aria-hidden>
             ⇅
@@ -189,8 +191,8 @@ export default function VaultSwitcher({
           <button
             type="button"
             className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)]/60 text-[var(--muted)] transition hover:border-[var(--accent)]/40 hover:bg-[var(--surface-2)]/80 hover:text-[var(--text)]"
-            title="Vault options"
-            aria-label="Vault options"
+            title={t('chrome.vaultOptions')}
+            aria-label={t('chrome.vaultOptions')}
             onClick={() => {
               setOpen(false);
               onOpenOptions();

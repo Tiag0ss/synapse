@@ -1,9 +1,15 @@
 import type { Express, Request, Response } from 'express';
+import { getMyelinHealthCounters } from './services/pmClient';
 
 export type HealthPayload = {
   status: 'healthy';
   service: 'synapse';
   timestamp: string;
+  myelin: {
+    ok: number;
+    fail: number;
+    lastErrorAt: string | null;
+  };
 };
 
 export function buildHealthPayload(now: Date = new Date()): HealthPayload {
@@ -11,6 +17,7 @@ export function buildHealthPayload(now: Date = new Date()): HealthPayload {
     status: 'healthy',
     service: 'synapse',
     timestamp: now.toISOString(),
+    myelin: getMyelinHealthCounters(),
   };
 }
 

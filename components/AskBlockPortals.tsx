@@ -3,6 +3,7 @@
 import { createPortal } from 'react-dom';
 import { useCallback, useMemo, useState } from 'react';
 import ConfirmModal from '@/components/ConfirmModal';
+import { useI18n } from '@/lib/i18n/provider';
 import {
   clearAskGuestEditToken,
   getAskGuestEditToken,
@@ -105,6 +106,7 @@ function AskBlockPortalItem({
   noteId?: number;
   onAnswersChange?: () => void;
 }) {
+  const { t } = useI18n();
   const [authorName, setAuthorName] = useState('');
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState(false);
@@ -353,8 +355,8 @@ function AskBlockPortalItem({
 
   const confirmMessage =
     mode === 'share'
-      ? 'This removes your pending answer from the shared note.'
-      : 'This hides the answer from shares and the wiki. History is kept.';
+      ? t('chrome.deleteAnswerShareMsg')
+      : t('chrome.deleteAnswerEditorMsg');
 
   return createPortal(
     <div className="synapse-ask-ui">
@@ -362,7 +364,7 @@ function AskBlockPortalItem({
         <div className="synapse-ask-question">{mount.question}</div>
         {mode === 'share' && mount.askId && editingId == null && !replyOpen ? (
           <button type="button" className="synapse-ask-reply-toggle" onClick={openReply}>
-            Reply
+            {t('chrome.reply')}
           </button>
         ) : null}
       </div>
@@ -386,9 +388,9 @@ function AskBlockPortalItem({
             value={authorName}
             onChange={(e) => setAuthorName(e.target.value)}
             maxLength={128}
-            placeholder="Name (optional)"
+            placeholder={t('chrome.nameOptional')}
             autoComplete="nickname"
-            aria-label="Your name (optional)"
+            aria-label={t('chrome.yourNameOptional')}
           />
           <textarea
             className="input synapse-ask-form-body"
@@ -397,15 +399,15 @@ function AskBlockPortalItem({
             maxLength={8000}
             rows={1}
             required
-            placeholder="Write a reply…"
-            aria-label="Your answer"
+            placeholder={t('chrome.writeReply')}
+            aria-label={t('chrome.yourAnswer')}
             autoFocus
           />
           <button type="submit" className="btn-primary" disabled={busy || !body.trim()}>
-            {busy ? 'Sending…' : 'Send'}
+            {busy ? t('chrome.sending') : t('chrome.send')}
           </button>
           <button type="button" className="synapse-ask-btn" disabled={busy} onClick={closeReply}>
-            Cancel
+            {t('common.cancel')}
           </button>
           {error ? <p className="synapse-ask-form-error">{error}</p> : null}
         </form>
@@ -417,7 +419,7 @@ function AskBlockPortalItem({
         {visibleAnswers.length === 0 ? (
           mode === 'share' ? null : (
             <li className="synapse-ask-empty">
-              {mode === 'readonly' ? 'No approved answers yet.' : 'No answers yet.'}
+              {mode === 'readonly' ? t('chrome.noApprovedAnswers') : t('chrome.noAnswersYet')}
             </li>
           )
         ) : (
@@ -436,8 +438,8 @@ function AskBlockPortalItem({
                     value={editAuthorName}
                     onChange={(e) => setEditAuthorName(e.target.value)}
                     maxLength={128}
-                    placeholder="Name (optional)"
-                    aria-label="Your name (optional)"
+                    placeholder={t('chrome.nameOptional')}
+                    aria-label={t('chrome.yourNameOptional')}
                   />
                   <textarea
                     className="input synapse-ask-form-body"
@@ -446,15 +448,15 @@ function AskBlockPortalItem({
                     maxLength={8000}
                     rows={1}
                     required
-                    aria-label="Your answer"
-                    placeholder="Write a reply…"
+                    aria-label={t('chrome.yourAnswer')}
+                    placeholder={t('chrome.writeReply')}
                   />
                   <button
                     type="submit"
                     className="btn-primary"
                     disabled={busy || !editBody.trim()}
                   >
-                    {busy ? 'Saving…' : 'Save'}
+                    {busy ? t('chrome.saving') : t('common.save')}
                   </button>
                   <button
                     type="button"
@@ -462,13 +464,13 @@ function AskBlockPortalItem({
                     disabled={busy}
                     onClick={() => setEditingId(null)}
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                 </form>
               ) : (
                 <>
                   <div className="synapse-ask-answer-meta">
-                    <span className="synapse-ask-author">{a.authorName || 'Anonymous'}</span>
+                    <span className="synapse-ask-author">{a.authorName || t('chrome.anonymous')}</span>
                     <span className="synapse-ask-when">{formatWhen(a.createdAt)}</span>
                     {mode !== 'readonly' ? (
                       <span className={`synapse-ask-status is-${a.status}`}>{a.status}</span>
@@ -482,7 +484,7 @@ function AskBlockPortalItem({
                             disabled={busy}
                             onClick={() => void patchStatus(a.id, 'approved')}
                           >
-                            Approve
+                            {t('chrome.approve')}
                           </button>
                         ) : null}
                         {a.status !== 'pending' ? (
@@ -492,7 +494,7 @@ function AskBlockPortalItem({
                             disabled={busy}
                             onClick={() => void patchStatus(a.id, 'pending')}
                           >
-                            Pending
+                            {t('chrome.pendingStatus')}
                           </button>
                         ) : null}
                         {a.status !== 'rejected' ? (
@@ -502,7 +504,7 @@ function AskBlockPortalItem({
                             disabled={busy}
                             onClick={() => void patchStatus(a.id, 'rejected')}
                           >
-                            Reject
+                            {t('chrome.reject')}
                           </button>
                         ) : null}
                         <button
@@ -511,7 +513,7 @@ function AskBlockPortalItem({
                           disabled={busy}
                           onClick={() => setConfirmDeleteId(a.id)}
                         >
-                          Delete
+                          {t('common.delete')}
                         </button>
                       </span>
                     ) : null}
@@ -523,7 +525,7 @@ function AskBlockPortalItem({
                           disabled={busy}
                           onClick={() => startGuestEdit(a)}
                         >
-                          Edit
+                          {t('chrome.editAction')}
                         </button>
                         <button
                           type="button"
@@ -531,7 +533,7 @@ function AskBlockPortalItem({
                           disabled={busy}
                           onClick={() => setConfirmDeleteId(a.id)}
                         >
-                          Delete
+                          {t('common.delete')}
                         </button>
                       </span>
                     ) : null}
@@ -557,7 +559,7 @@ function AskBlockPortalItem({
             className="synapse-ask-btn"
             onClick={() => setHistoryOpen(true)}
           >
-            History
+            {t('chrome.history')}
           </button>
           {error ? <p className="mt-1 text-sm text-[var(--danger)]">{error}</p> : null}
         </div>
@@ -575,7 +577,7 @@ function AskBlockPortalItem({
               <div
                 role="dialog"
                 aria-modal="true"
-                aria-label={`History: ${mount.question}`}
+                aria-label={t('chrome.askHistoryAria', { question: mount.question })}
                 className="flex max-h-[min(80vh,36rem)] w-full max-w-lg flex-col rounded-xl border border-[var(--border)] bg-[var(--panel)] p-4 shadow-2xl shadow-black/40 sm:p-5"
                 onClick={(e) => e.stopPropagation()}
               >
@@ -619,9 +621,9 @@ function AskBlockPortalItem({
 
       <ConfirmModal
         open={confirmDeleteId != null}
-        title="Delete answer?"
+        title={t('chrome.deleteAnswerTitle')}
         message={confirmMessage}
-        confirmLabel="Delete"
+        confirmLabel={t('common.delete')}
         danger
         onCancel={() => setConfirmDeleteId(null)}
         onConfirm={() => {

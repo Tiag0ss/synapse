@@ -24,6 +24,7 @@ import AppUserMenu from '@/components/AppUserMenu';
 import FlashcardsStudy from '@/components/FlashcardsStudy';
 import type { FoldCard } from '@/lib/extractFoldCards';
 import { useIsLgUp } from '@/lib/useMediaQuery';
+import { useI18n } from '@/lib/i18n/provider';
 
 interface WikiLinkRow {
   Id: number;
@@ -35,6 +36,7 @@ interface WikiLinkRow {
 type WikiCenterMode = 'note' | 'flashcards';
 
 export default function PublicWikiPage() {
+  const { t } = useI18n();
   const params = useParams();
   const router = useRouter();
   const slug = String(params.slug);
@@ -372,7 +374,7 @@ export default function PublicWikiPage() {
       <main className="p-8">
         <p className="text-[var(--danger)]">{error}</p>
         <Link href="/" className="mt-4 inline-block text-sm text-[var(--accent-soft)]">
-          Sign in →
+          {t('nav.signIn')} →
         </Link>
       </main>
     );
@@ -391,7 +393,7 @@ export default function PublicWikiPage() {
                   ? 'bg-[var(--accent)] text-[var(--accent-fg)]'
                   : 'text-[var(--muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]'
               }`}
-              aria-label="Notes"
+              aria-label={t('chrome.notes')}
               aria-pressed={notesOpen}
               onClick={() => {
                 setNotesOpen((v) => !v);
@@ -413,12 +415,12 @@ export default function PublicWikiPage() {
                   <Link
                     href={activeId ? `/vaults/${vaultId}?note=${activeId}` : `/vaults/${vaultId}`}
                     className="text-[var(--accent-soft)] no-underline hover:underline"
-                    title="Open this vault in Synapse"
+                    title={t('chrome.openVault')}
                   >
                     Synapse
                   </Link>
                 ) : (
-                  'Public wiki'
+                  t('chrome.publicWiki')
                 )}
               </p>
               <h1 className="truncate text-[15px] font-semibold tracking-tight">
@@ -432,7 +434,7 @@ export default function PublicWikiPage() {
                   ? 'bg-[var(--accent)] text-[var(--accent-fg)]'
                   : 'text-[var(--muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]'
               }`}
-              aria-label="Info"
+              aria-label={t('chrome.info')}
               aria-pressed={contextOpen}
               onClick={() => {
                 setContextOpen((v) => !v);
@@ -459,13 +461,13 @@ export default function PublicWikiPage() {
               className="inline-flex h-9 flex-1 items-center justify-center rounded-lg text-xs font-medium text-[var(--muted)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
               onClick={() => setQuickOpen(true)}
             >
-              Jump
+              {t('chrome.jump')}
             </button>
             <Link
               href={`/w/${slug}/map`}
               className="inline-flex h-9 flex-1 items-center justify-center rounded-lg text-xs font-medium text-[var(--muted)] no-underline transition hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
             >
-              Mindmap
+              {t('chrome.mindmap')}
             </Link>
             <button
               type="button"
@@ -475,7 +477,7 @@ export default function PublicWikiPage() {
                   : 'text-[var(--muted)]'
               }`}
               onClick={() => toggleFlashcards()}
-              title="Study :::fold blocks from visible wiki pages"
+              title={t('chrome.studyFlashcardsWiki')}
             >
               {centerMode === 'flashcards' ? 'Notes' : 'Flashcards'}
             </button>
@@ -483,7 +485,7 @@ export default function PublicWikiPage() {
               href="/w"
               className="inline-flex h-9 flex-1 items-center justify-center rounded-lg text-xs font-medium text-[var(--muted)] no-underline transition hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
             >
-              All wikis
+              {t('chrome.allWikis')}
             </Link>
           </div>
         </div>
@@ -495,13 +497,13 @@ export default function PublicWikiPage() {
               <Link
                 href={activeId ? `/vaults/${vaultId}?note=${activeId}` : `/vaults/${vaultId}`}
                 className="text-[11px] font-semibold uppercase tracking-wider text-[var(--accent-soft)] no-underline hover:underline"
-                title="Open this vault in Synapse"
+                title={t('chrome.openVault')}
               >
                 Synapse
               </Link>
             ) : (
               <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-                Public wiki
+                {t('chrome.publicWiki')}
               </span>
             )}
             <h1 className="truncate text-sm font-semibold tracking-tight">{vaultName || slug}</h1>
@@ -511,34 +513,34 @@ export default function PublicWikiPage() {
               href="/w"
               className="text-[var(--muted)] no-underline hover:text-[var(--accent-soft)] hover:underline"
             >
-              All wikis
+              {t('chrome.allWikis')}
             </Link>
             <input
               className="input w-44 py-1.5"
-              placeholder="Filter notes…"
+              placeholder={t('chrome.filterNotes')}
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              title="Filters the note list by title or path"
+              title={t('chrome.filterNotesTitle')}
             />
             <button
               type="button"
               className="btn-ghost py-1.5"
               onClick={() => setQuickOpen(true)}
-              title="Search notes including body (Ctrl/Cmd+O)"
+              title={t('chrome.jumpTitle')}
             >
-              Jump…
+              {t('common.jump')}…
             </button>
             <Link
               href={`/w/${slug}/map`}
               className="text-[var(--accent-soft)] no-underline hover:underline"
             >
-              Mindmap
+              {t('chrome.mindmap')}
             </Link>
             <button
               type="button"
               className={centerMode === 'flashcards' ? 'btn-primary py-1.5' : 'btn-ghost py-1.5'}
               onClick={() => toggleFlashcards()}
-              title="Study :::fold blocks from visible wiki pages"
+              title={t('chrome.studyFlashcardsWiki')}
             >
               {centerMode === 'flashcards' ? 'Back to notes' : 'Flashcards'}
             </button>
@@ -559,7 +561,7 @@ export default function PublicWikiPage() {
           <button
             type="button"
             className="fixed inset-0 z-40 bg-black/55 lg:hidden"
-            aria-label="Close panel"
+            aria-label={t('chrome.closePanel')}
             onClick={() => {
               setNotesOpen(false);
               setContextOpen(false);
@@ -586,12 +588,12 @@ export default function PublicWikiPage() {
               className="btn-ghost py-1 text-xs lg:hidden"
               onClick={() => setNotesOpen(false)}
             >
-              Close
+              {t('chrome.close')}
             </button>
           </div>
           <input
             className="input mb-3 w-full py-1.5 lg:hidden"
-            placeholder="Filter notes…"
+            placeholder={t('chrome.filterNotes')}
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
@@ -615,7 +617,7 @@ export default function PublicWikiPage() {
               {error}{' '}
               {error.toLowerCase().includes('sign-in') && (
                 <Link href="/" className="text-[var(--accent-soft)] underline">
-                  Sign in
+                  {t('nav.signIn')}
                 </Link>
               )}
             </p>
@@ -648,7 +650,7 @@ export default function PublicWikiPage() {
                 </h2>
               ) : (
                 <div className="space-y-3">
-                  <p className="text-[var(--muted)]">Select a public note</p>
+                  <p className="text-[var(--muted)]">{t('chrome.selectPublicNote')}</p>
                   <button
                     type="button"
                     className="btn-ghost lg:hidden"
@@ -700,14 +702,16 @@ export default function PublicWikiPage() {
           }`}
         >
           <div className="flex items-center justify-between gap-2 border-b border-[var(--border)] px-3 py-2 lg:hidden">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">Info</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+              {t('chrome.info')}
+            </p>
             <button type="button" className="btn-ghost py-1 text-xs" onClick={() => setContextOpen(false)}>
-              Close
+              {t('chrome.close')}
             </button>
           </div>
           <div className="shrink-0 border-b border-[var(--border)] p-3">
             <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-              Focused mindmap
+              {t('chrome.focusedMindmap')}
             </h2>
             <p className="mt-0.5 text-[11px] text-[var(--muted)]">Current note + links</p>
             <div className="mt-2">
@@ -724,7 +728,7 @@ export default function PublicWikiPage() {
                 />
               ) : (
                 <div className="flex h-[200px] items-center justify-center rounded-xl border border-dashed border-[var(--border)] text-xs text-[var(--muted)]">
-                  Loading…
+                  {t('common.loading')}
                 </div>
               )}
             </div>
@@ -733,7 +737,7 @@ export default function PublicWikiPage() {
           <div className="min-h-0 flex-1 space-y-5 overflow-auto p-4 text-sm">
             <div>
               <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-                References
+                {t('chrome.references')}
               </h2>
               <p className="mt-0.5 text-[11px] text-[var(--muted)]">
                 {isWhiteboard ? 'Notes linked from this board' : 'Links from this note'}
@@ -758,9 +762,9 @@ export default function PublicWikiPage() {
 
             <div>
               <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-                Backlinks
+                {t('chrome.backlinks')}
               </h2>
-              <p className="mt-0.5 text-[11px] text-[var(--muted)]">Notes that link here</p>
+              <p className="mt-0.5 text-[11px] text-[var(--muted)]">{t('chrome.backlinksHint')}</p>
               <div className="mt-2 space-y-1">
                 {backlinks.length === 0 && <p className="text-[var(--muted)]">None</p>}
                 {backlinks.map((b) => (

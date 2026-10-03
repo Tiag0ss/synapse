@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { pathStem } from '@/lib/notePaths';
+import { useI18n } from '@/lib/i18n/provider';
 
 export interface GraphNode {
   Id: number;
@@ -166,6 +167,7 @@ export default function NoteGraphMindmap({
   compactLegend = false,
   onNodeClick,
 }: NoteGraphMindmapProps) {
+  const { t } = useI18n();
   const wrapRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(320);
   const [positions, setPositions] = useState<SimNode[]>([]);
@@ -731,11 +733,11 @@ export default function NoteGraphMindmap({
             }}
             className="input h-7 px-1.5 py-0 text-[11px]"
             onPointerDown={(e) => e.stopPropagation()}
-            aria-label="Mindmap view"
-            title="Mindmap view"
+            aria-label={t('chrome.mindmapView')}
+            title={t('chrome.mindmapView')}
           >
-            <option value="folders">Folders</option>
-            <option value="notes">All notes</option>
+            <option value="folders">{t('chrome.viewFolders')}</option>
+            <option value="notes">{t('chrome.viewAllNotes')}</option>
           </select>
           {useFolders && openFolder != null ? (
             <button
@@ -747,7 +749,7 @@ export default function NoteGraphMindmap({
                 resetCamera();
               }}
             >
-              ← Folders
+              {t('chrome.backFolders')}
             </button>
           ) : useFolders ? (
             <span className="px-1.5 text-[var(--muted)]">
@@ -762,7 +764,12 @@ export default function NoteGraphMindmap({
             type="search"
             value={titleQuery}
             onChange={(e) => setTitleQuery(e.target.value)}
-            placeholder={useFolders && openFolder == null ? 'Filter folders…' : 'Filter notes…'}
+            placeholder={
+              useFolders && openFolder == null ? t('chrome.filterFolders') : t('chrome.filterNotes')
+            }
+            aria-label={
+              useFolders && openFolder == null ? t('chrome.filterFolders') : t('chrome.filterNotes')
+            }
             className="input h-7 min-w-[7rem] flex-1 px-2 py-0 text-[11px]"
             onPointerDown={(e) => e.stopPropagation()}
           />
@@ -771,18 +778,19 @@ export default function NoteGraphMindmap({
             onChange={(e) => setKindFilter(e.target.value as KindFilter)}
             className="input h-7 px-1.5 py-0 text-[11px]"
             onPointerDown={(e) => e.stopPropagation()}
-            aria-label="Filter by link kind"
+            aria-label={t('chrome.filterByLinkKind')}
           >
-            <option value="wikilink">Wikilinks</option>
-            <option value="all">All links</option>
-            <option value="mention">Mentions</option>
-            <option value="other">Other</option>
+            <option value="wikilink">{t('chrome.linkWikilinks')}</option>
+            <option value="all">{t('chrome.linkAll')}</option>
+            <option value="mention">{t('chrome.linkMentions')}</option>
+            <option value="other">{t('chrome.linkOther')}</option>
           </select>
           <div className="flex items-center gap-0.5">
             <button
               type="button"
               className="toolbar-btn min-h-7 px-2"
-              title="Zoom out"
+              title={t('chrome.zoomOut')}
+              aria-label={t('chrome.zoomOut')}
               onPointerDown={(e) => e.stopPropagation()}
               onClick={() => {
                 const rect = wrapRef.current?.getBoundingClientRect();
@@ -795,7 +803,8 @@ export default function NoteGraphMindmap({
             <button
               type="button"
               className="toolbar-btn min-h-7 px-2"
-              title="Zoom in"
+              title={t('chrome.zoomIn')}
+              aria-label={t('chrome.zoomIn')}
               onPointerDown={(e) => e.stopPropagation()}
               onClick={() => {
                 const rect = wrapRef.current?.getBoundingClientRect();
@@ -808,11 +817,12 @@ export default function NoteGraphMindmap({
             <button
               type="button"
               className="toolbar-btn min-h-7 px-2"
-              title="Reset view"
+              title={t('chrome.resetView')}
+              aria-label={t('chrome.resetView')}
               onPointerDown={(e) => e.stopPropagation()}
               onClick={resetCamera}
             >
-              Reset
+              {t('chrome.resetButton')}
             </button>
           </div>
           <span className="px-1 text-[var(--muted)]">{Math.round(zoom * 100)}%</span>
@@ -995,7 +1005,7 @@ export default function NoteGraphMindmap({
         <div className="pointer-events-none absolute bottom-2 left-3 flex flex-wrap gap-3 text-[10px] text-[var(--muted)]">
           {folderOverview ? (
             <>
-              <span>Folder clusters</span>
+              <span>{t('chrome.folderClusters')}</span>
               <span>
                 <span className="mr-1 inline-block h-0.5 w-3 bg-teal-300 align-middle" /> Cross-folder
                 links

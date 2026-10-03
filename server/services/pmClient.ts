@@ -37,6 +37,37 @@ export function invalidatePmTokenCache(userId?: number): void {
   }
 }
 
+/** In-memory Myelin HTTP counters for `/health` (process-local, not durable). */
+const myelinCounters = {
+  ok: 0,
+  fail: 0,
+  lastErrorAt: null as string | null,
+};
+
+export function getMyelinHealthCounters(): {
+  ok: number;
+  fail: number;
+  lastErrorAt: string | null;
+} {
+  return { ...myelinCounters };
+}
+
+/** Test helper — do not call from production routes. */
+export function resetMyelinHealthCountersForTests(): void {
+  myelinCounters.ok = 0;
+  myelinCounters.fail = 0;
+  myelinCounters.lastErrorAt = null;
+}
+
+function recordMyelinFetchResult(ok: boolean): void {
+  if (ok) {
+    myelinCounters.ok += 1;
+    return;
+  }
+  myelinCounters.fail += 1;
+  myelinCounters.lastErrorAt = new Date().toISOString();
+}
+
 export async function clearSsoToken(userId: number): Promise<void> {
   await pool.execute('DELETE FROM SsoTokens WHERE UserId = ?', [userId]);
   ssoTokenCache.delete(userId);
@@ -321,6 +352,7 @@ async function pmFetch<T>(
 ): Promise<{ ok: boolean; status: number; data: T & { message?: string; success?: boolean } }> {
   const enabled = await getSettingBool(SETTING_KEYS.pmIntegrationEnabled, true);
   if (!enabled) {
+    recordMyelinFetchResult(false);
     return {
       ok: false,
       status: 503,
@@ -332,6 +364,7 @@ async function pmFetch<T>(
 
   const resolved = await resolvePmBearerWithSource(userId);
   if (!resolved) {
+    recordMyelinFetchResult(false);
     return {
       ok: false,
       status: 401,
@@ -385,9 +418,11 @@ async function pmFetch<T>(
         }
       }
     }
+    recordMyelinFetchResult(res.ok);
     return { ok: res.ok, status: res.status, data };
   } catch (error) {
     logger.error('PM API network error', { path, error, pmBase: PM_BASE_URL });
+    recordMyelinFetchResult(false);
     return {
       ok: false,
       status: 502,

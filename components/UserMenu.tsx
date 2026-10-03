@@ -4,6 +4,18 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import UserAvatar from '@/components/UserAvatar';
+import {
+  THEME_PALETTE_META,
+  THEME_PALETTES,
+  getStoredThemeMode,
+  getStoredThemePalette,
+  setThemeMode,
+  setThemePalette,
+  type ThemeMode,
+  type ThemePalette,
+} from '@/lib/theme';
+import { useI18n } from '@/lib/i18n/provider';
+import { LOCALES, LOCALE_LABELS, type Locale } from '@/lib/i18n/config';
 
 export type UserMenuUser = {
   userId: number;
@@ -20,8 +32,16 @@ interface UserMenuProps {
 
 export default function UserMenu({ user, dense = false }: UserMenuProps) {
   const router = useRouter();
+  const { t, locale, setLocale } = useI18n();
   const [open, setOpen] = useState(false);
+  const [themeMode, setThemeModeState] = useState<ThemeMode>('system');
+  const [themePalette, setThemePaletteState] = useState<ThemePalette>('synapse');
   const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setThemeModeState(getStoredThemeMode());
+    setThemePaletteState(getStoredThemePalette());
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -61,7 +81,7 @@ export default function UserMenu({ user, dense = false }: UserMenuProps) {
           <span className="block truncate text-xs font-semibold text-[var(--text)]">
             {user.username}
           </span>
-          <span className="block truncate text-[10px] text-[var(--muted)]">Signed in</span>
+          <span className="block truncate text-[10px] text-[var(--muted)]">{t('nav.signedIn')}</span>
         </span>
       </button>
 
@@ -81,7 +101,7 @@ export default function UserMenu({ user, dense = false }: UserMenuProps) {
               className="block rounded-lg px-2.5 py-2 text-sm text-[var(--text)] no-underline hover:bg-[var(--surface-2)] hover:no-underline"
               onClick={() => setOpen(false)}
             >
-              My profile
+              {t('nav.profile')}
             </Link>
             <Link
               role="menuitem"
@@ -89,7 +109,7 @@ export default function UserMenu({ user, dense = false }: UserMenuProps) {
               className="block rounded-lg px-2.5 py-2 text-sm text-[var(--text)] no-underline hover:bg-[var(--surface-2)] hover:no-underline"
               onClick={() => setOpen(false)}
             >
-              Note templates
+              {t('nav.templates')}
             </Link>
             {user.isAdmin && (
               <Link
@@ -98,7 +118,7 @@ export default function UserMenu({ user, dense = false }: UserMenuProps) {
                 className="block rounded-lg px-2.5 py-2 text-sm text-[var(--text)] no-underline hover:bg-[var(--surface-2)] hover:no-underline"
                 onClick={() => setOpen(false)}
               >
-                Admin settings
+                {t('nav.settings')}
               </Link>
             )}
             <Link
@@ -107,8 +127,71 @@ export default function UserMenu({ user, dense = false }: UserMenuProps) {
               className="block rounded-lg px-2.5 py-2 text-sm text-[var(--text)] no-underline hover:bg-[var(--surface-2)] hover:no-underline"
               onClick={() => setOpen(false)}
             >
-              Public wikis
+              {t('nav.wikis')}
             </Link>
+          </div>
+          <div className="border-t border-[var(--border)] px-3 py-2.5">
+            <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-[var(--muted)]">
+              {t('nav.language')}
+            </p>
+            <select
+              className="input mb-3 w-full py-1 text-xs"
+              value={locale}
+              onChange={(e) => setLocale(e.target.value as Locale)}
+              aria-label={t('nav.language')}
+            >
+              {LOCALES.map((l) => (
+                <option key={l} value={l}>
+                  {LOCALE_LABELS[l]}
+                </option>
+              ))}
+            </select>
+            <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-[var(--muted)]">
+              {t('nav.theme')}
+            </p>
+            <div className="mb-2 flex gap-1">
+              {(['system', 'light', 'dark'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  className={`flex-1 rounded-md border px-1 py-1 text-[10px] capitalize ${
+                    themeMode === mode
+                      ? 'border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] text-[var(--text)]'
+                      : 'border-[var(--border)] text-[var(--muted)] hover:bg-[var(--surface-2)]'
+                  }`}
+                  onClick={() => {
+                    setThemeMode(mode);
+                    setThemeModeState(mode);
+                  }}
+                >
+                  {mode}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-1.5">
+              {THEME_PALETTES.map((palette) => {
+                const meta = THEME_PALETTE_META[palette];
+                const selected = themePalette === palette;
+                return (
+                  <button
+                    key={palette}
+                    type="button"
+                    title={meta.label}
+                    aria-label={`Palette ${meta.label}`}
+                    className={`h-6 w-6 rounded-full border-2 ${
+                      selected ? 'border-[var(--text)]' : 'border-transparent'
+                    }`}
+                    style={{
+                      background: `linear-gradient(135deg, ${meta.swatchLight}, ${meta.swatchDark})`,
+                    }}
+                    onClick={() => {
+                      setThemePalette(palette);
+                      setThemePaletteState(palette);
+                    }}
+                  />
+                );
+              })}
+            </div>
           </div>
           <div className="border-t border-[var(--border)] p-1.5">
             <button
@@ -117,7 +200,7 @@ export default function UserMenu({ user, dense = false }: UserMenuProps) {
               className="w-full rounded-lg px-2.5 py-2 text-left text-sm text-red-300 hover:bg-red-500/10"
               onClick={() => void logout()}
             >
-              Log out
+              {t('nav.logOut')}
             </button>
           </div>
         </div>

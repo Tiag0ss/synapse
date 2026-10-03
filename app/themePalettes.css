@@ -1,0 +1,148 @@
+/* Theme palette overrides — scoped by data-theme-palette on html (Synapse tokens) */
+
+
+/* Synapse (default palette — matches globals.css fallbacks) */
+html.light[data-theme-palette="synapse"] {
+  --bg: #f4f7fb;
+  --bg-glow: #dbeafe;
+  --panel: #ffffff;
+  --surface: #f8fafc;
+  --surface-2: #eef2f7;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --text: #0f172a;
+  --muted: #64748b;
+  --accent: #0d9488;
+  --accent-fg: #ffffff;
+  --accent-soft: #0f766e;
+  --danger: #dc2626;
+  --warn: #d97706;
+}
+
+html.dark[data-theme-palette="synapse"] {
+  --bg: #0a0e13;
+  --bg-glow: #12202e;
+  --panel: #111820;
+  --surface: #0e141c;
+  --surface-2: #1a2430;
+  --border: #243041;
+  --border-strong: #334155;
+  --text: #e8eef6;
+  --muted: #8b98a8;
+  --accent: #14b8a6;
+  --accent-fg: #042f2e;
+  --accent-soft: #5eead4;
+  --danger: #f87171;
+  --warn: #fbbf24;
+}
+
+/* Catppuccin — Latte (light) / Mocha (dark) */
+html.light[data-theme-palette="catppuccin"] {
+  --bg: #eff1f5;
+  --bg-glow: #dce0e8;
+  --panel: #e6e9ef;
+  --surface: #ccd0da;
+  --surface-2: #bcc0cc;
+  --border: #ccd0da;
+  --border-strong: #acb0be;
+  --text: #4c4f69;
+  --muted: #6c6f85;
+  --accent: #8839ef;
+  --accent-fg: #eff1f5;
+  --accent-soft: #7287fd;
+  --danger: #d20f39;
+  --warn: #df8e1d;
+
+}
+
+html.dark[data-theme-palette="catppuccin"] {
+  --bg: #1e1e2e;
+  --bg-glow: #313244;
+  --panel: #181825;
+  --surface: #11111b;
+  --surface-2: #313244;
+  --border: #45475a;
+  --border-strong: #585b70;
+  --text: #cdd6f4;
+  --muted: #a6adc8;
+  --accent: #cba6f7;
+  --accent-fg: #11111b;
+  --accent-soft: #b4befe;
+  --danger: #f38ba8;
+  --warn: #f9e2af;
+
+}
+
+/* Ocean — cool blues */
+html.light[data-theme-palette="ocean"] {
+  --bg: #f0f9ff;
+  --bg-glow: #e0f2fe;
+  --panel: #ffffff;
+  --surface: #f8fafc;
+  --surface-2: #e0f2fe;
+  --border: #bae6fd;
+  --border-strong: #7dd3fc;
+  --text: #0c4a6e;
+  --muted: #475569;
+  --accent: #0369a1;
+  --accent-fg: #ffffff;
+  --accent-soft: #0284c7;
+  --danger: #dc2626;
+  --warn: #d97706;
+
+}
+
+html.dark[data-theme-palette="ocean"] {
+  --bg: #0c1929;
+  --bg-glow: #1e3a5f;
+  --panel: #0f172a;
+  --surface: #0a1628;
+  --surface-2: #1e293b;
+  --border: #1e3a5f;
+  --border-strong: #334155;
+  --text: #e0f2fe;
+  --muted: #94a3b8;
+  --accent: #38bdf8;
+  --accent-fg: #0c1929;
+  --accent-soft: #7dd3fc;
+  --danger: #f87171;
+  --warn: #fbbf24;
+
+}
+
+/* Forest — natural greens */
+html.light[data-theme-palette="forest"] {
+  --bg: #f4f9f4;
+  --bg-glow: #dcfce7;
+  --panel: #ffffff;
+  --surface: #f0fdf4;
+  --surface-2: #dcfce7;
+  --border: #bbf7d0;
+  --border-strong: #86efac;
+  --text: #14532d;
+  --muted: #4d7c69;
+  --accent: #059669;
+  --accent-fg: #ffffff;
+  --accent-soft: #047857;
+  --danger: #dc2626;
+  --warn: #ca8a04;
+
+}
+
+html.dark[data-theme-palette="forest"] {
+  --bg: #0a1612;
+  --bg-glow: #1a2e24;
+  --panel: #0f1f18;
+  --surface: #0a1612;
+  --surface-2: #1a2e24;
+  --border: #2d4a3e;
+  --border-strong: #3d5a4e;
+  --text: #ecfdf5;
+  --muted: #86efac;
+  --accent: #34d399;
+  --accent-fg: #052e16;
+  --accent-soft: #6ee7b7;
+  --danger: #f87171;
+  --warn: #fbbf24;
+
+}

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import NoteIcon from '@/components/NoteIcon';
 import { NOTE_ICON_IDS, type NoteIconId } from '@/lib/noteIcons';
+import { useI18n } from '@/lib/i18n/provider';
 
 interface NoteIconPickerProps {
   value: NoteIconId | null;
@@ -11,6 +12,7 @@ interface NoteIconPickerProps {
 }
 
 export default function NoteIconPicker({ value, onChange, disabled }: NoteIconPickerProps) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -36,8 +38,8 @@ export default function NoteIconPicker({ value, onChange, disabled }: NoteIconPi
         type="button"
         disabled={disabled}
         className="btn-ghost flex h-10 w-10 items-center justify-center p-0"
-        title="Note icon"
-        aria-label="Choose note icon"
+        title={t('chrome.noteIcon')}
+        aria-label={t('chrome.chooseNoteIcon')}
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >

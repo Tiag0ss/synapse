@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import ConfirmModal from '@/components/ConfirmModal';
+import { useI18n } from '@/lib/i18n/provider';
 
 interface MemberRow {
   pmUserId: number;
@@ -44,6 +45,7 @@ export default function VaultShareModal({
   membersBasePath,
   canManage,
 }: VaultShareModalProps) {
+  const { t } = useI18n();
   const [owner, setOwner] = useState<MemberRow | null>(null);
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [accessRole, setAccessRole] = useState<string | null>(null);
@@ -216,7 +218,7 @@ export default function VaultShareModal({
     ...members.map((m) => ({ ...m, kind: 'member' as const })),
   ];
 
-  const bulkRoleLabel = bulkRole === 'edit' ? 'Edit (vault + wiki)' : 'Read (wiki only)';
+  const bulkRoleLabel = bulkRole === 'edit' ? t('chrome.roleEditVaultWiki') : t('chrome.roleReadWikiOnly');
 
   const body = (
     <div className="flex h-full min-h-0 flex-col">
@@ -227,7 +229,7 @@ export default function VaultShareModal({
         </p>
 
         {loading && rows.length === 0 ? (
-          <p className="text-sm text-[var(--muted)]">Loading…</p>
+          <p className="text-sm text-[var(--muted)]">{t('common.loading')}</p>
         ) : (
           <div className="overflow-x-auto rounded-2xl border border-[var(--border)]">
             <table className="w-full min-w-[28rem] text-left text-sm">
@@ -258,7 +260,7 @@ export default function VaultShareModal({
                       <td className="px-3 py-2">
                         {row.kind === 'owner' ? (
                           <span className="text-xs font-medium text-[var(--accent-soft)]">
-                            Owner
+                            {t('chrome.ownerLabel')}
                           </span>
                         ) : manage ? (
                           <select
@@ -269,8 +271,8 @@ export default function VaultShareModal({
                               void changeRole(row.pmUserId, e.target.value as 'read' | 'edit')
                             }
                           >
-                            <option value="read">Wiki only (Read)</option>
-                            <option value="edit">Vault + wiki (Edit)</option>
+                            <option value="read">{t('chrome.wikiOnlyRead')}</option>
+                  <option value="edit">{t('chrome.vaultWikiEdit')}</option>
                           </select>
                         ) : (
                           <span className="text-xs capitalize text-[var(--muted)]">{row.role}</span>
@@ -278,7 +280,7 @@ export default function VaultShareModal({
                       </td>
                       <td className="px-3 py-2">
                         {row.kind === 'owner' ? (
-                          <span className="text-xs text-[var(--muted)]">Full access</span>
+                          <span className="text-xs text-[var(--muted)]">{t('chrome.fullAccess')}</span>
                         ) : manage ? (
                           <button
                             type="button"
@@ -286,7 +288,7 @@ export default function VaultShareModal({
                             disabled={busy}
                             onClick={() => void removeMember(row.pmUserId)}
                           >
-                            Remove
+                            {t('chrome.remove')}
                           </button>
                         ) : (
                           <span className="text-xs text-[var(--muted)]">—</span>
@@ -303,19 +305,18 @@ export default function VaultShareModal({
         {manage && (
           <>
             <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)]/40 p-4">
-              <p className="text-sm font-semibold text-[var(--text)]">Add people</p>
-              <p className="mt-1 text-xs text-[var(--muted)]">
-                Search Synapse users and grant wiki Read or vault Edit access.
-              </p>
+              <p className="text-sm font-semibold text-[var(--text)]">{t('chrome.addPeople')}</p>
+              <p className="mt-1 text-xs text-[var(--muted)]">{t('chrome.addPeopleHint')}</p>
               <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-start">
                 <div className="relative min-w-[14rem] flex-1">
                   <label className="sr-only" htmlFor="vault-share-user-search">
-                    Search users
+                    {t('chrome.searchUsers')}
                   </label>
                   <input
                     id="vault-share-user-search"
                     className="input w-full"
-                    placeholder="Search users…"
+                    placeholder={t('chrome.searchUsersPlaceholder')}
+                    aria-label={t('chrome.searchUsersPlaceholder')}
                     value={selected ? selected.username : query}
                     onChange={(e) => {
                       setSelected(null);
@@ -336,9 +337,9 @@ export default function VaultShareModal({
                       className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-xl"
                     >
                       {hitsLoading ? (
-                        <p className="px-3 py-2 text-xs text-[var(--muted)]">Loading…</p>
+                        <p className="px-3 py-2 text-xs text-[var(--muted)]">{t('common.loading')}</p>
                       ) : pickerHits.length === 0 ? (
-                        <p className="px-3 py-2 text-xs text-[var(--muted)]">No users found.</p>
+                        <p className="px-3 py-2 text-xs text-[var(--muted)]">{t('chrome.noUsersFound')}</p>
                       ) : (
                         pickerHits.map((u) => {
                           const already = memberIds.has(u.pmUserId);
@@ -368,7 +369,7 @@ export default function VaultShareModal({
                             >
                               <span className="font-medium text-[var(--text)]">{u.username}</span>
                               <span className="text-xs text-[var(--muted)]">
-                                {already ? 'Already added' : u.email || '—'}
+                                {already ? t('chrome.alreadyAdded') : u.email || '—'}
                               </span>
                             </button>
                           );
@@ -381,10 +382,10 @@ export default function VaultShareModal({
                   className="input w-full sm:w-auto"
                   value={role}
                   onChange={(e) => setRole(e.target.value as 'read' | 'edit')}
-                  aria-label="Access role for new member"
+                  aria-label={t('chrome.accessRoleNewMember')}
                 >
-                  <option value="read">Wiki only (Read)</option>
-                  <option value="edit">Vault + wiki (Edit)</option>
+                  <option value="read">{t('chrome.wikiOnlyRead')}</option>
+                  <option value="edit">{t('chrome.vaultWikiEdit')}</option>
                 </select>
                 <button
                   type="button"
@@ -392,7 +393,7 @@ export default function VaultShareModal({
                   disabled={busy || !selected || memberIds.has(selected.pmUserId)}
                   onClick={() => selected && void addMember(selected)}
                 >
-                  Add
+                  {t('chrome.add')}
                 </button>
               </div>
               {pickerOpen && (
@@ -401,27 +402,24 @@ export default function VaultShareModal({
                   className="mt-2 text-xs text-[var(--muted)] hover:text-[var(--text)]"
                   onClick={() => setPickerOpen(false)}
                 >
-                  Close list
+                  {t('chrome.closeList')}
                 </button>
               )}
             </div>
 
             <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)]/40 p-4">
-              <p className="text-sm font-semibold text-[var(--text)]">Add all users</p>
-              <p className="mt-1 text-xs text-[var(--muted)]">
-                Grant access to every active Synapse user who is not already a member. Existing
-                members keep their current role.
-              </p>
+              <p className="text-sm font-semibold text-[var(--text)]">{t('chrome.addAllUsers')}</p>
+              <p className="mt-1 text-xs text-[var(--muted)]">{t('chrome.addAllUsersHint')}</p>
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <select
                   className="input w-auto"
                   value={bulkRole}
                   onChange={(e) => setBulkRole(e.target.value as 'read' | 'edit')}
-                  aria-label="Access role for bulk add"
+                  aria-label={t('chrome.accessRoleBulkAdd')}
                   disabled={busy}
                 >
-                  <option value="read">Wiki only (Read)</option>
-                  <option value="edit">Vault + wiki (Edit)</option>
+                  <option value="read">{t('chrome.wikiOnlyRead')}</option>
+                  <option value="edit">{t('chrome.vaultWikiEdit')}</option>
                 </select>
                 <button
                   type="button"
@@ -429,7 +427,7 @@ export default function VaultShareModal({
                   disabled={busy}
                   onClick={() => setBulkConfirmOpen(true)}
                 >
-                  Add all users
+                  {t('chrome.addAllUsers')}
                 </button>
               </div>
             </div>
@@ -437,10 +435,7 @@ export default function VaultShareModal({
         )}
 
         {!manage && (
-          <p className="text-xs text-[var(--muted)]">
-            Only the vault owner can change sharing. Ask the owner for Edit access if you need to
-            manage members.
-          </p>
+          <p className="text-xs text-[var(--muted)]">{t('chrome.shareOwnerOnlyHint')}</p>
         )}
       </div>
 
@@ -452,10 +447,10 @@ export default function VaultShareModal({
 
       <ConfirmModal
         open={bulkConfirmOpen}
-        title="Add all users?"
-        message={`Grant ${bulkRoleLabel} to all active Synapse users who are not already members of “${vaultName}”? Existing members will not be changed.`}
-        confirmLabel="Add all"
-        cancelLabel="Cancel"
+        title={t('chrome.addAllUsersTitle')}
+        message={t('chrome.addAllUsersMessage', { role: bulkRoleLabel, name: vaultName })}
+        confirmLabel={t('chrome.addAll')}
+        cancelLabel={t('common.cancel')}
         onConfirm={() => void runBulkAdd()}
         onCancel={() => setBulkConfirmOpen(false)}
       />
@@ -475,11 +470,11 @@ export default function VaultShareModal({
       >
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-[var(--border)] px-5 py-4">
           <div>
-            <h2 className="text-lg font-semibold tracking-tight">Share vault</h2>
+            <h2 className="text-lg font-semibold tracking-tight">{t('chrome.shareVaultTitle')}</h2>
             <p className="mt-0.5 text-sm text-[var(--muted)]">{vaultName}</p>
           </div>
           <button type="button" className="btn-ghost" onClick={onClose}>
-            Close
+            {t('common.close')}
           </button>
         </header>
         <div className="min-h-0 flex-1 overflow-hidden">{body}</div>

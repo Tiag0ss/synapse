@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useI18n } from '@/lib/i18n/provider';
 
 type PmIntegration = {
   enabled: boolean;
@@ -14,6 +15,7 @@ type PmIntegration = {
  * token nor a personal pt_… API key — Planner actions will fail until they reconnect.
  */
 export default function PmSsoBanner({ className = '' }: { className?: string }) {
+  const { t } = useI18n();
   const [show, setShow] = useState(false);
 
   useEffect(() => {
@@ -45,18 +47,17 @@ export default function PmSsoBanner({ className = '' }: { className?: string }) 
     >
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2">
         <p className="min-w-0 leading-snug">
-          Myelin credentials missing — reconnect SSO or add a personal API token in
-          Profile to create and sync Myelin tasks.
+          {t('chrome.pmCredentialsMissing')}
         </p>
         <div className="flex shrink-0 flex-wrap items-center gap-3">
           <a
             href="/api/auth/sso/start"
             className="font-medium text-[var(--accent-soft)] no-underline hover:underline"
           >
-            Reconnect SSO
+            {t('chrome.reconnectSso')}
           </a>
           <Link href="/profile" className="font-medium text-[var(--accent-soft)] no-underline hover:underline">
-            Open Profile
+            {t('chrome.openProfile')}
           </Link>
         </div>
       </div>

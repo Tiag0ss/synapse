@@ -63,7 +63,7 @@ import {
   setFrontmatterTodoStatus,
   setFrontmatterTodoStatusLabel,
 } from '../services/frontmatter';
-import { OllamaError, suggestTodosFromNote } from '../services/ollamaClient';
+import { AiError, suggestTodosFromNote } from '../services/aiSuggestTodos';
 import { listNoteTaskCandidates } from '../services/noteTasks';
 import {
   checkboxTextKey,
@@ -634,6 +634,14 @@ router.post('/:vaultId/members', async (req: AuthRequest, res: Response) => {
      ON DUPLICATE KEY UPDATE Role = VALUES(Role), InvitedByPmUserId = VALUES(InvitedByPmUserId)`,
     [vault.Id, targetUserId, parsed.data.role, req.user!.userId]
   );
+  const { notifyVaultShare } = await import('../services/notifications');
+  void notifyVaultShare({
+    userId: targetUserId,
+    vaultId: Number(vault.Id),
+    vaultName: String(vault.Name || 'Vault'),
+    role: parsed.data.role,
+    byUsername: req.user!.username,
+  });
   res.status(201).json({
     success: true,
     data: {
@@ -660,6 +668,13 @@ router.patch('/:vaultId/members/:memberPmUserId', async (req: AuthRequest, res: 
   if (!result.affectedRows) {
     return res.status(404).json({ success: false, message: 'Member not found' });
   }
+  const { notifyVaultRoleChange } = await import('../services/notifications');
+  void notifyVaultRoleChange({
+    userId: memberPmUserId,
+    vaultId: Number(vault.Id),
+    vaultName: String(vault.Name || 'Vault'),
+    role,
+  });
   res.json({ success: true, data: { pmUserId: memberPmUserId, role } });
 });
 
@@ -860,7 +875,7 @@ router.get('/:vaultId/notes', async (req: AuthRequest, res: Response) => {
   res.json({ success: true, data: rows });
 });
 
-/** Full-text-ish search with snippets for quick switcher. */
+/** Full-text search with snippets for quick switcher (FULLTEXT when q length ≥ 3). */
 router.get('/:vaultId/search', async (req: AuthRequest, res: Response) => {
   const vault = await readableVault(Number(req.params.vaultId), req.user!.userId);
   if (!vault) return res.status(404).json({ success: false, message: 'Vault not found' });
@@ -870,33 +885,70 @@ router.get('/:vaultId/search', async (req: AuthRequest, res: Response) => {
     return res.json({ success: true, data: [] });
   }
   const like = `%${q}%`;
-  const [rows] = await pool.execute<RowDataPacket[]>(
-    `SELECT n.Id, n.Path, n.Title, n.BodyMarkdown,
-       CASE
-         WHEN n.Title LIKE ? THEN 'title'
-         WHEN n.Path LIKE ? THEN 'path'
-         WHEN EXISTS (
-           SELECT 1 FROM NoteTags t WHERE t.NoteId = n.Id AND t.Tag LIKE ?
-         ) THEN 'tag'
-         ELSE 'body'
-       END AS MatchIn
-     FROM Notes n
-     WHERE n.VaultId = ? AND n.DeletedAt IS NULL
-       AND (
-         n.Title LIKE ? OR n.Path LIKE ? OR n.BodyMarkdown LIKE ?
-         OR EXISTS (SELECT 1 FROM NoteTags t WHERE t.NoteId = n.Id AND t.Tag LIKE ?)
-       )
-     ORDER BY
-       CASE
-         WHEN n.Title LIKE ? THEN 0
-         WHEN n.Path LIKE ? THEN 1
-         WHEN EXISTS (SELECT 1 FROM NoteTags t WHERE t.NoteId = n.Id AND t.Tag LIKE ?) THEN 2
-         ELSE 3
-       END,
-       n.Path ASC
-     LIMIT ${limit}`,
-    [like, like, like, vault.Id, like, like, like, like, like, like, like]
-  );
+  const useFulltext = q.length >= 3;
+  let rows: RowDataPacket[];
+  if (useFulltext) {
+    const [ftRows] = await pool.execute<RowDataPacket[]>(
+      `SELECT n.Id, n.Path, n.Title, n.BodyMarkdown,
+         CASE
+           WHEN n.Title LIKE ? THEN 'title'
+           WHEN n.Path LIKE ? THEN 'path'
+           WHEN EXISTS (
+             SELECT 1 FROM NoteTags t WHERE t.NoteId = n.Id AND t.Tag LIKE ?
+           ) THEN 'tag'
+           ELSE 'body'
+         END AS MatchIn,
+         MATCH(n.Title, n.BodyMarkdown) AGAINST (? IN NATURAL LANGUAGE MODE) AS Score
+       FROM Notes n
+       WHERE n.VaultId = ? AND n.DeletedAt IS NULL
+         AND (
+           MATCH(n.Title, n.BodyMarkdown) AGAINST (? IN NATURAL LANGUAGE MODE)
+           OR n.Path LIKE ?
+           OR EXISTS (SELECT 1 FROM NoteTags t WHERE t.NoteId = n.Id AND t.Tag LIKE ?)
+         )
+       ORDER BY
+         CASE
+           WHEN n.Title LIKE ? THEN 0
+           WHEN n.Path LIKE ? THEN 1
+           WHEN EXISTS (SELECT 1 FROM NoteTags t WHERE t.NoteId = n.Id AND t.Tag LIKE ?) THEN 2
+           ELSE 3
+         END,
+         Score DESC,
+         n.Path ASC
+       LIMIT ${limit}`,
+      [like, like, like, q, vault.Id, q, like, like, like, like, like]
+    );
+    rows = ftRows;
+  } else {
+    const [likeRows] = await pool.execute<RowDataPacket[]>(
+      `SELECT n.Id, n.Path, n.Title, n.BodyMarkdown,
+         CASE
+           WHEN n.Title LIKE ? THEN 'title'
+           WHEN n.Path LIKE ? THEN 'path'
+           WHEN EXISTS (
+             SELECT 1 FROM NoteTags t WHERE t.NoteId = n.Id AND t.Tag LIKE ?
+           ) THEN 'tag'
+           ELSE 'body'
+         END AS MatchIn
+       FROM Notes n
+       WHERE n.VaultId = ? AND n.DeletedAt IS NULL
+         AND (
+           n.Title LIKE ? OR n.Path LIKE ? OR n.BodyMarkdown LIKE ?
+           OR EXISTS (SELECT 1 FROM NoteTags t WHERE t.NoteId = n.Id AND t.Tag LIKE ?)
+         )
+       ORDER BY
+         CASE
+           WHEN n.Title LIKE ? THEN 0
+           WHEN n.Path LIKE ? THEN 1
+           WHEN EXISTS (SELECT 1 FROM NoteTags t WHERE t.NoteId = n.Id AND t.Tag LIKE ?) THEN 2
+           ELSE 3
+         END,
+         n.Path ASC
+       LIMIT ${limit}`,
+      [like, like, like, vault.Id, like, like, like, like, like, like, like]
+    );
+    rows = likeRows;
+  }
 
   const qLower = q.toLowerCase();
   const data = rows.map((r) => {
@@ -2309,7 +2361,7 @@ router.post('/:vaultId/notes/:noteId/ai/suggest-todos', async (req: AuthRequest,
       },
     });
   } catch (error) {
-    if (error instanceof OllamaError) {
+    if (error instanceof AiError) {
       return res.status(error.status).json({ success: false, message: error.message });
     }
     logger.error('AI suggest-todos failed', { error });

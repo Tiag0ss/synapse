@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import UserMenu, { type UserMenuUser } from '@/components/UserMenu';
+import NotificationsBell from '@/components/NotificationsBell';
+import { useI18n } from '@/lib/i18n/provider';
 
 type Props = {
   /** Skip fetch when the parent already loaded the session. */
@@ -22,6 +24,7 @@ export default function AppUserMenu({
   showSignInWhenGuest = false,
   className = '',
 }: Props) {
+  const { t } = useI18n();
   const [user, setUser] = useState<UserMenuUser | null>(userProp ?? null);
   const [ready, setReady] = useState(userProp != null);
 
@@ -74,7 +77,8 @@ export default function AppUserMenu({
 
   if (user) {
     return (
-      <div className={className}>
+      <div className={`flex items-center gap-1.5 ${className}`}>
+        <NotificationsBell dense={dense} />
         <UserMenu user={user} dense={dense} />
       </div>
     );
@@ -85,9 +89,9 @@ export default function AppUserMenu({
       <Link
         href="/"
         className={`btn-ghost py-1.5 text-xs no-underline hover:no-underline ${className}`}
-        title="Sign in to Synapse"
+        title={t('nav.signIn')}
       >
-        Sign in
+        {t('nav.signIn')}
       </Link>
     );
   }

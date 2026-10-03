@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useI18n } from '@/lib/i18n/provider';
 
 export type ToastTone = 'info' | 'success' | 'error';
 
@@ -56,6 +57,7 @@ export default function AppToast({
   tone = null,
   durationMs = 4500,
 }: Props) {
+  const { t } = useI18n();
   const [toast, setToast] = useState<ToastPayload | null>(null);
 
   useEffect(() => {
@@ -98,7 +100,7 @@ export default function AppToast({
           <button
             type="button"
             className="shrink-0 rounded px-1 text-[var(--muted)] hover:text-[var(--text)]"
-            aria-label="Dismiss"
+            aria-label={t('chrome.dismiss')}
             onClick={() => setToast(null)}
           >
             ×

@@ -18,6 +18,7 @@ import AiTodosReviewModal, {
   type ProposedTodoSuggestion,
 } from '@/components/AiTodosReviewModal';
 import LinkOrCreatePmTaskModal from '@/components/LinkOrCreatePmTaskModal';
+import { useI18n } from '@/lib/i18n/provider';
 
 interface NoteTaskItem {
   index: number;
@@ -98,6 +99,7 @@ export default function NoteTasksPanel({
   onRefreshPlanner,
   refreshingPlanner = false,
 }: NoteTasksPanelProps) {
+  const { t } = useI18n();
   const [items, setItems] = useState<NoteTaskItem[]>([]);
   const [notePmTaskId, setNotePmTaskId] = useState<number | null>(null);
   const [noteOpenUrl, setNoteOpenUrl] = useState<string | null>(null);
@@ -503,23 +505,23 @@ export default function NoteTasksPanel({
     <div className={compact ? '' : 'rounded-xl border border-[var(--border)] bg-[var(--panel)]/50 p-3'}>
       {needsReauth && (
         <div className="mb-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[12px] text-amber-100">
-          <p>Reconnect Myelin to create or sync tasks.</p>
+          <p>{t('chrome.reconnectMyelinTasks')}</p>
           <div className="mt-1.5 flex flex-wrap gap-3">
             <a
               href="/api/auth/sso/start"
               className="font-medium text-[var(--accent-soft)] no-underline hover:underline"
             >
-              Reconnect SSO
+              {t('chrome.reconnectSso')}
             </a>
             <a href="/profile" className="font-medium text-[var(--accent-soft)] no-underline hover:underline">
-              Add personal token in Profile
+              {t('chrome.addPersonalTokenProfile')}
             </a>
           </div>
         </div>
       )}
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-          {pullOnly ? 'Myelin tasks' : `Tasks · ${items.length}`}
+          {pullOnly ? t('chrome.myelinTasks') : `${t('chrome.tasksPanel')} · ${items.length}`}
           {totalHours > 0 ? (
             <>
               {' · '}
@@ -537,7 +539,7 @@ export default function NoteTasksPanel({
                   className="pointer-events-none absolute left-0 top-full z-20 mt-1.5 hidden min-w-[9rem] rounded-lg border border-[var(--border)] bg-[var(--panel)] px-2.5 py-2 text-left font-normal normal-case tracking-normal shadow-lg group-hover/hours:block group-focus-within/hours:block"
                 >
                   <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-                    By category
+                    {t('chrome.byCategory')}
                   </span>
                   <span className="block space-y-0.5 text-[11px] text-[var(--text)]">
                     {Object.entries(categoryEstimates.categories).map(([name, hours]) => (
@@ -547,7 +549,7 @@ export default function NoteTasksPanel({
                       </span>
                     ))}
                     <span className="mt-1 flex justify-between gap-4 border-t border-[var(--border)] pt-1 font-medium">
-                      <span>Total</span>
+                      <span>{t('chrome.totalLabel')}</span>
                       <span className="tabular-nums">{categoryEstimates.totalHours}h</span>
                     </span>
                   </span>
@@ -562,25 +564,22 @@ export default function NoteTasksPanel({
               type="button"
               className="btn-primary py-1 text-[11px]"
               disabled={busy || refreshingPlanner}
-              title="Refresh tasks from Myelin"
+              title={t('chrome.refreshTasks')}
               onClick={() => void refreshPlanner()}
             >
-              {refreshingPlanner || busy ? 'Refreshing…' : 'Refresh tasks'}
+              {refreshingPlanner || busy ? t('chrome.refreshing') : t('chrome.refreshTasks')}
             </button>
           ) : (
             <span className="text-[10px] text-[var(--muted)]">
-              {items.filter((i) => i.checked).length} done
-              {missingCount > 0 ? ` · ${missingCount} unlinked` : ''}
+              {t('chrome.doneCount', { count: items.filter((i) => i.checked).length })}
+              {missingCount > 0 ? t('chrome.unlinkedSuffix', { count: missingCount }) : ''}
             </span>
           )}
         </div>
       </div>
 
       {pullOnly && (
-        <p className="mb-3 text-[11px] text-[var(--muted)]">
-          Pull-only from Myelin — adds, removes, and updates tasks assigned to you. Linked notes on
-          the overview are kept.
-        </p>
+        <p className="mb-3 text-[11px] text-[var(--muted)]">{t('chrome.pullOnlyTasksHint')}</p>
       )}
 
       {!readOnly && !pullOnly && (hasEstimateSources || aiEnabled) && (
@@ -590,10 +589,10 @@ export default function NoteTasksPanel({
               type="button"
               className="btn-ghost py-1 text-[11px]"
               disabled={busy || aiBusy}
-              title="Sum checkbox + YAML todo hours by category into estimate (missing → Other; Total indent 0)"
+              title={t('chrome.sumEstimatesTitle')}
               onClick={() => void recalculateEstimates()}
             >
-              Recalculate estimates
+              {t('chrome.recalculateEstimates')}
             </button>
           )}
           {aiEnabled && (
@@ -601,10 +600,10 @@ export default function NoteTasksPanel({
               type="button"
               className="btn-ghost py-1 text-[11px]"
               disabled={busy || aiBusy}
-              title="Ask external Ollama to propose YAML todos (review before save)"
+              title={t('chrome.askOllamaTodosTitle')}
               onClick={() => void suggestTodosWithAi()}
             >
-              Suggest todos with AI
+              {t('chrome.suggestTodosAi')}
             </button>
           )}
         </div>
@@ -613,7 +612,9 @@ export default function NoteTasksPanel({
       {!pullOnly && (
       <div className="mb-3 space-y-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)]/40 px-2.5 py-2">
         <p className="text-[11px] text-[var(--muted)]">
-          Note task{noteTitle ? ` · ${noteTitle}` : ''}
+          {noteTitle
+            ? t('chrome.noteTaskWithTitle', { title: noteTitle })
+            : t('chrome.noteTaskLabel')}
         </p>
         <div className="flex flex-wrap items-center gap-1.5">
           {notePmTaskId ? (
@@ -622,30 +623,31 @@ export default function NoteTasksPanel({
               target="_blank"
               rel="noreferrer"
               className="btn-ghost py-1 text-[11px] no-underline"
-              title="Open note task in Myelin"
+              title={t('chrome.openNoteTaskMyelin')}
             >
               Myelin #{notePmTaskId}
             </a>
           ) : (
-            <span className="text-[11px] text-[var(--muted)]">No note-level Myelin task</span>
+            <span className="text-[11px] text-[var(--muted)]">{t('chrome.noNoteLevelTask')}</span>
           )}
         </div>
         {!readOnly && !pullOnly && hasProject && missingCount > 0 && (
           <p className="text-[11px] text-[var(--muted)]">
-            {missingCount} unlinked — use{' '}
-            <span className="text-[var(--text)]">Link / create</span> on a task, or open{' '}
+            {t('chrome.unlinkedUse', { count: missingCount })}{' '}
+            <span className="text-[var(--text)]">{t('chrome.linkCreate')}</span>{' '}
+            {t('chrome.onTaskOrOpen')}{' '}
             {onOpenPmSettings ? (
               <button
                 type="button"
                 className="font-medium text-[var(--accent-soft)] underline-offset-2 hover:underline"
                 onClick={() => onOpenPmSettings()}
               >
-                Vault → Myelin settings
+                {t('chrome.vaultMyelinSettings')}
               </button>
             ) : (
-              <span className="text-[var(--text)]">Vault → Myelin settings</span>
+              <span className="text-[var(--text)]">{t('chrome.vaultMyelinSettings')}</span>
             )}{' '}
-            for bulk actions.
+            {t('chrome.forBulkActions')}
           </p>
         )}
       </div>
@@ -653,17 +655,7 @@ export default function NoteTasksPanel({
 
       {items.length === 0 ? (
         <p className="text-[11px] text-[var(--muted)]">
-          {pullOnly
-            ? 'No Myelin tasks assigned to you right now. Use Refresh tasks when work is assigned in Myelin.'
-            : (
-              <>
-          Add <code className="text-[var(--accent-soft)]">- [ ]</code> /{' '}
-          <code className="text-[var(--accent-soft)]">[-]</code> /{' '}
-          <code className="text-[var(--accent-soft)]">[x]</code> lines or YAML{' '}
-          <code className="text-[var(--accent-soft)]">todos:</code> for tasks. Indent nested
-          checkboxes to create Myelin subtasks.
-              </>
-            )}
+          {pullOnly ? t('chrome.emptyPullOnlyTasks') : t('chrome.emptyTasksHint')}
         </p>
       ) : (
         <ul className="space-y-1.5">
@@ -687,24 +679,24 @@ export default function NoteTasksPanel({
                 title={
                   toggleLocked
                     ? pullOnly
-                      ? 'Pull-only — refresh from Myelin to update'
+                      ? t('chrome.pullOnlyRefreshHint')
                       : item.checked
-                      ? 'Done'
+                      ? t('chrome.taskDone')
                       : item.partial
-                        ? 'In progress'
-                        : 'Open'
+                        ? t('chrome.taskInProgress')
+                        : t('chrome.taskOpen')
                     : item.checked
-                      ? 'Mark as open'
-                      : 'Mark as done'
+                      ? t('chrome.markAsOpen')
+                      : t('chrome.markAsDone')
                 }
-                aria-label={item.checked ? 'Mark as open' : 'Mark as done'}
+                aria-label={item.checked ? t('chrome.markAsOpen') : t('chrome.markAsDone')}
               >
                 {item.partial && !item.checked ? '−' : '✓'}
               </button>
               {item.source === 'frontmatter' && (
                 <span
                   className="shrink-0 rounded border border-[var(--border)] px-1 py-0.5 text-[9px] font-medium uppercase tracking-wide text-[var(--muted)]"
-                  title="From YAML frontmatter todos"
+                  title={t('chrome.fromYamlTodos')}
                 >
                   YAML
                 </span>
@@ -712,13 +704,13 @@ export default function NoteTasksPanel({
               {item.category ? (
                 <span
                   className="shrink-0 rounded border border-[var(--border)] px-1 py-0.5 text-[9px] font-medium text-[var(--accent-soft)]"
-                  title="Category"
+                  title={t('chrome.categoryLabel')}
                 >
                   {item.category}
                 </span>
               ) : null}
               {item.estimateHours != null ? (
-                <span className="shrink-0 text-[10px] text-[var(--muted)]" title="Estimate">
+                <span className="shrink-0 text-[10px] text-[var(--muted)]" title={t('chrome.estimateLabel')}>
                   {item.estimateHours}h
                 </span>
               ) : null}
@@ -789,7 +781,7 @@ export default function NoteTasksPanel({
                   if (id && onOpenNote) onOpenNote(id);
                 }}
                 dangerouslySetInnerHTML={{
-                  __html: renderInlineMarkdown(item.text || '(empty)', notes, linkableVaults),
+                  __html: renderInlineMarkdown(item.text || t('chrome.emptyCheckbox'), notes, linkableVaults),
                 }}
               />
               {item.linkedNote &&
@@ -801,7 +793,7 @@ export default function NoteTasksPanel({
                       <button
                         type="button"
                         className="synapse-wikilink shrink-0 max-w-[9rem] truncate rounded border border-[var(--border)] px-1.5 py-0.5 text-[10px] font-medium no-underline"
-                        title={`Open note ${target}`}
+                        title={t('chrome.openNoteTitle', { name: target })}
                         onClick={() => onOpenNote(sameVaultId)}
                       >
                         {target}
@@ -816,7 +808,7 @@ export default function NoteTasksPanel({
                       <button
                         type="button"
                         className="synapse-wikilink shrink-0 max-w-[9rem] truncate rounded border border-[var(--border)] px-1.5 py-0.5 text-[10px] font-medium no-underline"
-                        title={`Open note ${cross.label}`}
+                        title={t('chrome.openNoteTitle', { name: cross.label })}
                         onClick={() => onOpenCrossVaultNote(cross.vaultId, cross.noteId)}
                       >
                         {cross.label}
@@ -827,17 +819,17 @@ export default function NoteTasksPanel({
                     return (
                       <span
                         className="synapse-wikilink is-locked shrink-0 max-w-[12rem] truncate rounded border border-[var(--border)] px-1.5 py-0.5 text-[10px] font-medium"
-                        title="You don't have access to this note"
+                        title={t('chrome.noAccessThisNote')}
                       >
                         {cross.label}
-                        <span className="synapse-wikilink-lock ml-1">no access</span>
+                        <span className="synapse-wikilink-lock ml-1">{t('chrome.noAccess')}</span>
                       </span>
                     );
                   }
                   return (
                     <span
                       className="synapse-wikilink is-missing shrink-0 max-w-[9rem] truncate rounded border border-[var(--border)] px-1.5 py-0.5 text-[10px] font-medium"
-                      title={`Missing note: ${target}`}
+                      title={t('chrome.missingNoteTitle', { name: target })}
                     >
                       {target}
                     </span>
@@ -849,7 +841,7 @@ export default function NoteTasksPanel({
                   target="_blank"
                   rel="noreferrer"
                   className="shrink-0 text-[10px] text-[var(--accent-soft)] no-underline"
-                  title="Open in Myelin"
+                  title={t('chrome.openInMyelin')}
                 >
                   Myelin #{item.pmTaskId}
                 </a>
@@ -861,10 +853,10 @@ export default function NoteTasksPanel({
                     type="button"
                     className="shrink-0 text-[10px] font-medium text-[var(--accent-soft)] disabled:opacity-40"
                     disabled={busy}
-                    title="Create a new Myelin task or link an existing one"
+                    title={t('chrome.linkOrCreateMyelinTaskTitle')}
                     onClick={() => setChooserItem(item)}
                   >
-                    Link / create
+                    {t('chrome.linkCreate')}
                   </button>
                 )
               )}

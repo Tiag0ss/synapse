@@ -8,6 +8,7 @@ import {
   wordHighlight,
   type DiffHunk,
 } from '@/lib/sideBySideDiff';
+import { useI18n } from '@/lib/i18n/provider';
 
 export interface RevisionSnapshot {
   RevisionNumber: number;
@@ -93,6 +94,7 @@ export default function RevisionDiffModal({
   restoring,
   applying,
 }: RevisionDiffModalProps) {
+  const { t } = useI18n();
   const leftScroll = useRef<HTMLDivElement>(null);
   const rightScroll = useRef<HTMLDivElement>(null);
   const syncing = useRef(false);
@@ -170,7 +172,7 @@ export default function RevisionDiffModal({
       >
         <header className="flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-[var(--border)] px-5 py-4">
           <div>
-            <h2 className="text-lg font-semibold tracking-tight">Compare &amp; restore</h2>
+            <h2 className="text-lg font-semibold tracking-tight">{t('chrome.compareRestore')}</h2>
             <p className="mt-1 text-sm text-[var(--muted)]">
               Meld-style diff · left is revision #{revision?.RevisionNumber ?? '…'} · right is the
               current note · restore individual changes or the whole revision
@@ -192,10 +194,10 @@ export default function RevisionDiffModal({
                 onChange={(e) => setOnlyChanges(e.target.checked)}
                 className="accent-[var(--accent)]"
               />
-              Only changes
+              {t('chrome.onlyChanges')}
             </label>
             <button type="button" className="btn-ghost" onClick={onClose} disabled={busy}>
-              Cancel
+              {t('common.close')}
             </button>
             <button
               type="button"
@@ -203,7 +205,9 @@ export default function RevisionDiffModal({
               disabled={!revision || loading || busy}
               onClick={onRestore}
             >
-              {restoring ? 'Restoring…' : `Restore all #${revision?.RevisionNumber ?? ''}`}
+              {restoring
+                ? 'Restoring…'
+                : `${t('chrome.restoreAll')}${revision?.RevisionNumber != null ? ` #${revision.RevisionNumber}` : ''}`}
             </button>
           </div>
         </header>
@@ -297,10 +301,10 @@ export default function RevisionDiffModal({
                             type="button"
                             className="diff-restore-btn"
                             disabled={busy}
-                            title="Restore only this change into the current note"
+                            title={t('chrome.restoreChange')}
                             onClick={() => restoreHunk(hunk)}
                           >
-                            {applying ? '…' : 'Restore'}
+                            {applying ? '…' : t('chrome.restoreChange')}
                           </button>
                         )}
                       </div>

@@ -23,6 +23,7 @@ import {
 } from '../services/adminVaults';
 import { bulkAddAllActiveUsers } from '../services/vaultMembersBulk';
 import { OllamaError, listOllamaModels } from '../services/ollamaClient';
+import { AiError, listOpenAiModels, pingOpenAiApiKey } from '../services/aiSuggestTodos';
 import logger from '../utils/logger';
 
 const router = Router();
@@ -46,8 +47,11 @@ router.get('/general', async (_req: AuthRequest, res: Response) => {
       smtpFromName,
       smtpPassword,
       aiEnabled,
+      aiProvider,
       ollamaBaseUrl,
       ollamaModel,
+      openaiApiKey,
+      openaiModel,
     ] = await Promise.all([
       getSetting(SETTING_KEYS.siteName),
       getSettingBool(SETTING_KEYS.allowPublicWikiDirectory, true),
@@ -63,8 +67,11 @@ router.get('/general', async (_req: AuthRequest, res: Response) => {
       getSetting(SETTING_KEYS.smtpFromName),
       getDecryptedSetting(SETTING_KEYS.smtpPassword),
       getSettingBool(SETTING_KEYS.aiEnabled, false),
+      getSetting(SETTING_KEYS.aiProvider),
       getSetting(SETTING_KEYS.ollamaBaseUrl),
       getSetting(SETTING_KEYS.ollamaModel),
+      getDecryptedSetting(SETTING_KEYS.openaiApiKey),
+      getSetting(SETTING_KEYS.openaiModel),
     ]);
 
     res.json({
@@ -95,8 +102,11 @@ router.get('/general', async (_req: AuthRequest, res: Response) => {
         },
         ai: {
           aiEnabled,
+          aiProvider: aiProvider === 'openai' ? 'openai' : 'ollama',
           ollamaBaseUrl: ollamaBaseUrl || 'http://127.0.0.1:11434',
           ollamaModel: ollamaModel || 'llama3.2',
+          hasOpenaiApiKey: Boolean(openaiApiKey),
+          openaiModel: openaiModel || 'gpt-4o-mini',
         },
       },
     });
@@ -124,8 +134,12 @@ router.put('/general', async (req: AuthRequest, res: Response) => {
       smtpPassword: z.string().max(500).nullable().optional(),
       pmIntegrationEnabled: z.boolean().optional(),
       aiEnabled: z.boolean().optional(),
+      aiProvider: z.enum(['ollama', 'openai']).optional(),
       ollamaBaseUrl: z.string().max(512).optional(),
       ollamaModel: z.string().max(128).optional(),
+      /** omit = leave unchanged; empty string = clear */
+      openaiApiKey: z.string().max(500).nullable().optional(),
+      openaiModel: z.string().max(128).optional(),
     });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) {
@@ -171,6 +185,19 @@ router.put('/general', async (req: AuthRequest, res: Response) => {
       const model = d.ollamaModel.trim();
       await setSetting(SETTING_KEYS.ollamaModel, model || null);
     }
+    if (d.aiProvider != null) {
+      await setSetting(SETTING_KEYS.aiProvider, d.aiProvider);
+    }
+    if (d.openaiApiKey !== undefined) {
+      await setSetting(
+        SETTING_KEYS.openaiApiKey,
+        d.openaiApiKey === '' || d.openaiApiKey == null ? null : d.openaiApiKey
+      );
+    }
+    if (d.openaiModel != null) {
+      const model = d.openaiModel.trim();
+      await setSetting(SETTING_KEYS.openaiModel, model || null);
+    }
 
     invalidateSettingsCache();
     res.json({ success: true, message: 'Settings saved' });
@@ -187,11 +214,47 @@ router.get('/ai/models', async (req: AuthRequest, res: Response) => {
     const models = await listOllamaModels(q);
     res.json({ success: true, data: { models } });
   } catch (error) {
-    if (error instanceof OllamaError) {
-      return res.status(error.status).json({ success: false, message: error.message });
+    if (error instanceof OllamaError || error instanceof AiError) {
+      return res.status((error as AiError).status).json({ success: false, message: error.message });
     }
     logger.error('GET settings/ai/models failed', { error });
     res.status(500).json({ success: false, message: 'Failed to list Ollama models' });
+  }
+});
+
+/** Validate OpenAI API key (optional body.apiKey uses form value before save). */
+router.post('/ai/openai/ping', async (req: AuthRequest, res: Response) => {
+  try {
+    const key =
+      typeof req.body?.apiKey === 'string' && req.body.apiKey.trim()
+        ? String(req.body.apiKey).trim()
+        : null;
+    await pingOpenAiApiKey(key);
+    res.json({ success: true, message: 'OpenAI API key accepted' });
+  } catch (error) {
+    if (error instanceof AiError) {
+      return res.status(error.status).json({ success: false, message: error.message });
+    }
+    logger.error('POST settings/ai/openai/ping failed', { error });
+    res.status(500).json({ success: false, message: 'Failed to validate OpenAI key' });
+  }
+});
+
+/** List chat models from OpenAI (optional body.apiKey uses form value before save). */
+router.post('/ai/openai/models', async (req: AuthRequest, res: Response) => {
+  try {
+    const key =
+      typeof req.body?.apiKey === 'string' && req.body.apiKey.trim()
+        ? String(req.body.apiKey).trim()
+        : null;
+    const models = await listOpenAiModels(key);
+    res.json({ success: true, data: { models } });
+  } catch (error) {
+    if (error instanceof AiError) {
+      return res.status(error.status).json({ success: false, message: error.message });
+    }
+    logger.error('POST settings/ai/openai/models failed', { error });
+    res.status(500).json({ success: false, message: 'Failed to list OpenAI models' });
   }
 });
 

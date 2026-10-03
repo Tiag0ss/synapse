@@ -206,6 +206,19 @@ const STATEMENTS = [
     KEY idx_export_template_label (Label),
     CONSTRAINT fk_export_template_uploader FOREIGN KEY (UploadedByUserId) REFERENCES Users(Id) ON DELETE SET NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS Notifications (
+    Id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    UserId INT NOT NULL,
+    Kind VARCHAR(32) NOT NULL,
+    Title VARCHAR(255) NOT NULL,
+    Body VARCHAR(2000) NULL,
+    Href VARCHAR(1024) NULL,
+    ReadAt DATETIME NULL,
+    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_notif_user_created (UserId, CreatedAt),
+    KEY idx_notif_user_unread (UserId, ReadAt),
+    CONSTRAINT fk_notif_user FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
+  )`,
   `CREATE TABLE IF NOT EXISTS NoteShareLinks (
     Id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     NoteId INT NOT NULL,
@@ -331,6 +344,7 @@ const ALTERS = [
   "ALTER TABLE NoteShareLinks ADD COLUMN ShareKind VARCHAR(16) NOT NULL DEFAULT 'note'",
   'ALTER TABLE NoteShareLinks ADD COLUMN FoldFront VARCHAR(512) NULL',
   'ALTER TABLE Vaults ADD COLUMN PmProjectName VARCHAR(512) NULL',
+  'ALTER TABLE Notes ADD FULLTEXT INDEX ft_notes_title_body (Title, BodyMarkdown)',
 ];
 
 /** Legacy SsoTokens used PmUserId PK — migrate rows into UserId-keyed table after Users exist. */
@@ -419,8 +433,10 @@ async function seedDefaultAppSettings(): Promise<void> {
     minPasswordLength: '8',
     pmIntegrationEnabled: 'true',
     aiEnabled: 'false',
+    aiProvider: 'ollama',
     ollamaBaseUrl: 'http://127.0.0.1:11434',
     ollamaModel: 'llama3.2',
+    openaiModel: 'gpt-4o-mini',
   };
   for (const [key, value] of Object.entries(defaults)) {
     await pool.execute(
@@ -428,6 +444,11 @@ async function seedDefaultAppSettings(): Promise<void> {
       [key, value]
     );
   }
+  // Rename leftover product branding from the former "PM Synapse" name.
+  await pool.execute(
+    `UPDATE AppSettings SET SettingValue = 'Synapse'
+     WHERE SettingKey = 'siteName' AND SettingValue IN ('PM Synapse', 'PM-Synapse', 'pm-synapse')`
+  );
 }
 
 /** Seed built-in templates; INSERT IGNORE so new code templates appear without overwriting edits. */

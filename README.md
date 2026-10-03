@@ -27,8 +27,9 @@ This project is a work in progress — bugs may still be found; please report th
 - 👥 **Vault sharing** — **Read** = wiki only; **Edit** = vault editor + wiki; invite by search or PM user id
 - 🔐 **Auth** — Local username/password and optional PM SSO (linked by email); password reset via SMTP
 - ⚙️ **Admin settings** — Registration toggle, SMTP, PM integration switch, user management
-- 🤖 **AI todo suggestions** — Optional external [Ollama](https://ollama.com/) (Admin → AI); analyzes a note and proposes YAML `todos:` — review/merge before save; never auto-applies
-- 🔌 **PM bridge** — Per-user SSO token or personal `pt_…` API key (Profile); manual vault→project link; Synapse refs on PM tasks
+- 🤖 **AI todo suggestions** — Optional [Ollama](https://ollama.com/) or OpenAI (Admin → AI); analyzes a note and proposes YAML `todos:` — review/merge before save; never auto-applies
+- 🔌 **Myelin bridge** — Per-user SSO token or personal `pt_…` API key (Profile); manual vault→project link; Synapse refs on Myelin tasks
+- 🎨 **Theme & language** — Light/dark/system + palettes; UI chrome in Portuguese, English, Spanish, or French (picker in the user menu / Profile)
 
 ## Tech Stack
 
@@ -49,14 +50,14 @@ This project is a work in progress — bugs may still be found; please report th
 mysql -u root -p < server/database/scripts/bootstrap.sql
 ```
 
-That creates DB `pm_synapse` and user `synapse` / password `change-me-synapse-db-password` (edit the SQL first if you want another password).
+That creates DB `synapse` and user `synapse` / password `change-me-synapse-db-password` (edit the SQL first if you want another password). Legacy installs may still use `pm_synapse` — set `DB_NAME` accordingly.
 
 Or run manually:
 
 ```sql
-CREATE DATABASE IF NOT EXISTS pm_synapse CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS synapse CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER IF NOT EXISTS 'synapse'@'localhost' IDENTIFIED BY 'your-password';
-GRANT ALL PRIVILEGES ON pm_synapse.* TO 'synapse'@'localhost';
+GRANT ALL PRIVILEGES ON synapse.* TO 'synapse'@'localhost';
 FLUSH PRIVILEGES;
 ```
 
@@ -73,7 +74,7 @@ DB_HOST=localhost
 DB_PORT=3306
 DB_USER=synapse
 DB_PASSWORD=change-me-synapse-db-password
-DB_NAME=pm_synapse
+DB_NAME=synapse
 PM_BASE_URL=http://localhost:3000
 SSO_CLIENT_ID=synapse
 SSO_CLIENT_SECRET=change-me-synapse-sso-secret
@@ -96,6 +97,15 @@ pnpm run dev
 ```
 
 Open [http://localhost:3010](http://localhost:3010) — register a local account (first user becomes admin) and/or sign in with Myelin. Admins manage registration, SMTP, and users under **Settings**. Each user manages their personal Myelin API token under **Profile**. Local and SSO accounts with the same email are linked.
+
+### First-run checklist
+
+1. **Create a vault** on the home page (or open one shared with you).
+2. **Optional AI** — Admin → Settings → AI: choose **Ollama** (base URL + model) or **OpenAI** (API key + model). Suggestions always go through the review modal; nothing is auto-applied.
+3. **Link Myelin** — In the vault, open Myelin settings to attach a project; set your personal API token or SSO under **Profile** if needed.
+4. **Checkbox tasks** — Write `- [ ] …` items, then push/link to Myelin explicitly (never auto-created on note save). Toggle syncs status; Synapse pulls closed/cancelled from Myelin.
+5. **Wiki** — Enable public pages on the vault, set note visibility, browse `/w`.
+6. **Theme & language** — User menu (or Profile): theme mode/palette and `pt` / `en` / `es` / `fr`. Note bodies stay in the language you write.
 
 **Note:** TypeScript must stay on 5.x (`typescript@5.9.3`) — Next.js 16 does not support TypeScript 7.
 
@@ -143,7 +153,7 @@ See [DEPLOYMENT.md](./DEPLOYMENT.md) for compose ports, volumes, and SSO checkli
 +---------------------------+          +----------------------------+
 |  synapse               |  SSO +   |  myelin        |
 |  Next.js + Express :3010 |  REST →  |  Next.js + Express :3000   |
-|  MySQL: pm_synapse        |          |  MySQL/MSSQL               |
+|  MySQL: synapse           |          |  MySQL/MSSQL               |
 +---------------------------+          +----------------------------+
 ```
 

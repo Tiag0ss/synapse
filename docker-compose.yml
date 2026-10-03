@@ -17,7 +17,7 @@ services:
       DB_PORT: ${DB_PORT:-3306}
       DB_USER: ${DB_USER:-synapse}
       DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: ${DB_NAME:-pm_synapse}
+      DB_NAME: ${DB_NAME:-synapse}
       JWT_SECRET: ${JWT_SECRET}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
       PM_BASE_URL: ${PM_BASE_URL}
@@ -55,7 +55,7 @@ services:
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
-      MYSQL_DATABASE: ${DB_NAME:-pm_synapse}
+      MYSQL_DATABASE: ${DB_NAME:-synapse}
       MYSQL_USER: ${DB_USER:-synapse}
       MYSQL_PASSWORD: ${DB_PASSWORD}
     ports:
