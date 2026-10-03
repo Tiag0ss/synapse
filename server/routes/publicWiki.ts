@@ -16,7 +16,10 @@ import {
   hasWikiShare,
   type VaultAccessRole,
 } from '../services/vaultAccess';
-import { listLinkableVaultNotesForWikiViewer } from '../services/linkableNotes';
+import {
+  listLinkableVaultNotesForGuestShare,
+  listWikiPeekableNoteIds,
+} from '../services/linkableNotes';
 import { getSettingBool, SETTING_KEYS } from '../services/appSettings';
 import { buildPmTaskOpenUrl } from '../services/pmClient';
 import { buildWikiFlashcards } from '../services/wikiFlashcards';
@@ -34,6 +37,29 @@ const publicLimiter = rateLimit({
 
 router.use(publicLimiter);
 router.use(optionalAuthenticateSession);
+
+function boardJsonToString(raw: unknown): string | null {
+  if (raw == null) return null;
+  if (typeof Buffer !== 'undefined' && Buffer.isBuffer(raw)) return raw.toString('utf8');
+  if (typeof raw === 'object') {
+    try {
+      return JSON.stringify(raw);
+    } catch {
+      return null;
+    }
+  }
+  const s = String(raw);
+  return s.trim() ? s : null;
+}
+
+/** Rewrite vault media URLs for a public wiki slug when the vault allows public pages. */
+function rewriteWikiMediaUrls(html: string, vaultId: number, wikiSlug: string | null): string {
+  let out = html.replace(
+    new RegExp(`/api/vaults/${vaultId}/media/(\\d+)`, 'g'),
+    wikiSlug ? `/api/public/${wikiSlug}/media/$1` : `/api/vaults/${vaultId}/media/$1`
+  );
+  return out;
+}
 
 async function resolveShareRole(
   vaultId: number,
@@ -279,6 +305,110 @@ router.get('/:slug', async (req: AuthRequest, res: Response) => {
   });
 });
 
+/**
+ * Peek / open a note by id when its effective visibility allows (public, unlisted,
+ * authenticated if signed in, or any note in a vault the viewer can edit).
+ * Does not require the target vault's AllowPublicPages — same idea as share peek.
+ */
+router.get('/notes/:noteId', async (req: AuthRequest, res: Response) => {
+  const noteId = Number(req.params.noteId);
+  if (!Number.isFinite(noteId) || noteId <= 0) {
+    return res.status(404).json({ success: false, message: 'Note not found' });
+  }
+  const isAuthed = Boolean(req.user?.userId);
+  const pmUserId = req.user?.userId ?? null;
+
+  const [notes] = await pool.execute<RowDataPacket[]>(
+    `SELECT n.*, v.Id AS VaultRowId, v.slug AS VaultSlug, v.DefaultVisibility, v.AllowPublicPages,
+            v.OwnerPmUserId, v.PmProjectId
+     FROM Notes n
+     INNER JOIN Vaults v ON v.Id = n.VaultId
+     WHERE n.Id = ? AND n.DeletedAt IS NULL
+     LIMIT 1`,
+    [noteId]
+  );
+  if (!notes.length) {
+    return res.status(404).json({ success: false, message: 'Note not found' });
+  }
+  const note = notes[0];
+  const vaultId = Number(note.VaultId);
+  const shareRole = await resolveShareRole(vaultId, pmUserId ?? undefined);
+  const canEditVault = Boolean(shareRole && canOpenVaultApp(shareRole));
+  const visibility = effectiveVisibility(note.Visibility, note.DefaultVisibility);
+  const access = canOpenNoteOnWiki(visibility, isAuthed, canEditVault);
+  if (!access.ok) {
+    if (access.reason === 'auth') {
+      return res.status(401).json({
+        success: false,
+        message: 'Sign in required to view this note',
+        requiresAuth: true,
+      });
+    }
+    return res.status(404).json({ success: false, message: 'Note not found' });
+  }
+
+  const noteKind = String(note.Kind || 'note') === 'whiteboard' ? 'whiteboard' : 'note';
+  const boardJson =
+    noteKind === 'whiteboard' ? boardJsonToString(note.BoardJson) : null;
+  const wikiSlug =
+    Number(note.AllowPublicPages) === 1 ? String(note.VaultSlug || '') || null : null;
+
+  const [allNotes] = await pool.execute<RowDataPacket[]>(
+    'SELECT Id, Title, Path, Visibility, Kind, BoardJson FROM Notes WHERE VaultId = ? AND DeletedAt IS NULL',
+    [vaultId]
+  );
+  const noteIndex = allNotes.map((n) => ({
+    id: Number(n.Id),
+    title: String(n.Title),
+    path: String(n.Path || ''),
+    kind: String(n.Kind || 'note'),
+  }));
+  const [guestPeekNoteIds, linkableVaults] = await Promise.all([
+    listWikiPeekableNoteIds({ isAuthed, pmUserId }),
+    listLinkableVaultNotesForGuestShare(),
+  ]);
+  const peekable = new Set(guestPeekNoteIds);
+  const bodyMd = String(note.BodyMarkdown || '');
+  const html =
+    noteKind === 'whiteboard'
+      ? ''
+      : rewriteWikiMediaUrls(
+          markdownToSafeHtml(bodyMd, noteIndex, linkableVaults, noteId, { guestPeekNoteIds }),
+          vaultId,
+          wikiSlug
+        );
+
+  const embeddedBoards: Record<string, string> = {};
+  if (noteKind !== 'whiteboard') {
+    const byId = new Map(allNotes.map((n) => [Number(n.Id), n]));
+    for (const target of extractBoardEmbedTargets(bodyMd)) {
+      if (target.startsWith('@')) continue;
+      const id = resolveNoteId(target, noteIndex);
+      if (id == null || !peekable.has(id)) continue;
+      const row = byId.get(id);
+      if (!row || String(row.Kind || 'note') !== 'whiteboard') continue;
+      const bj = boardJsonToString(row.BoardJson);
+      if (bj != null) embeddedBoards[String(id)] = bj;
+    }
+  }
+
+  res.json({
+    success: true,
+    data: {
+      id: noteId,
+      title: note.Title,
+      path: note.Path,
+      kind: noteKind,
+      vaultId,
+      wikiSlug,
+      boardJson,
+      embeddedBoards,
+      html,
+      robots: access.robots,
+    },
+  });
+});
+
 router.get('/:slug/notes/:noteId', async (req: AuthRequest, res: Response) => {
   const [vaults] = await pool.execute<RowDataPacket[]>(
     'SELECT * FROM Vaults WHERE slug = ? AND AllowPublicPages = 1',
@@ -322,57 +452,47 @@ router.get('/:slug/notes/:noteId', async (req: AuthRequest, res: Response) => {
     'SELECT Id, Title, Path, Visibility, Kind, BoardJson FROM Notes WHERE VaultId = ? AND DeletedAt IS NULL',
     [vault.Id]
   );
-  const noteIndex = allNotes
-    .filter((n) => {
-      const v = effectiveVisibility(n.Visibility, vault.DefaultVisibility);
-      return canOpenNoteOnWiki(v, ctx.isAuthed, ctx.canEditVault).ok;
-    })
-    .map((n) => ({
-      id: Number(n.Id),
-      title: String(n.Title),
-      path: String(n.Path || ''),
-      kind: String(n.Kind || 'note'),
-    }));
 
-  const linkableVaults = await listLinkableVaultNotesForWikiViewer({
-    pmUserId: req.user?.userId ?? null,
-    isAuthed: ctx.isAuthed,
-  });
+  const pmUserId = req.user?.userId ?? null;
+  // Always guest-peek render: resolve every title/@slug, unlock only notes the viewer
+  // may open (public/unlisted/authenticated/edit). Editors used to skip this path and
+  // only indexed AllowPublicPages vaults — so `[[@private-vault/unlisted]]` showed
+  // “no access” even when the target note is unlisted.
+  const noteIndex = allNotes.map((n) => ({
+    id: Number(n.Id),
+    title: String(n.Title),
+    path: String(n.Path || ''),
+    kind: String(n.Kind || 'note'),
+  }));
+
+  const [guestPeekNoteIds, linkableVaults] = await Promise.all([
+    listWikiPeekableNoteIds({ isAuthed: ctx.isAuthed, pmUserId }),
+    listLinkableVaultNotesForGuestShare(),
+  ]);
 
   const bodyMd = String(note.BodyMarkdown || '');
   const html =
     noteKind === 'whiteboard'
       ? ''
-      : markdownToSafeHtml(bodyMd, noteIndex, linkableVaults, Number(note.Id)).replace(
-          new RegExp(`/api/vaults/${Number(vault.Id)}/media/(\\d+)`, 'g'),
-          `/api/public/${String(vault.slug)}/media/$1`
+      : rewriteWikiMediaUrls(
+          markdownToSafeHtml(bodyMd, noteIndex, linkableVaults, Number(note.Id), {
+            guestPeekNoteIds,
+          }),
+          Number(vault.Id),
+          String(vault.slug)
         );
 
   const embeddedBoards: Record<string, string> = {};
   if (noteKind !== 'whiteboard') {
     const byId = new Map(allNotes.map((n) => [Number(n.Id), n]));
-    const visible = new Set(noteIndex.map((n) => n.id));
+    const visible = new Set(guestPeekNoteIds);
     for (const target of extractBoardEmbedTargets(bodyMd)) {
       if (target.startsWith('@')) continue;
       const id = resolveNoteId(target, noteIndex);
       if (id == null || !visible.has(id)) continue;
       const row = byId.get(id);
       if (!row || String(row.Kind || 'note') !== 'whiteboard') continue;
-      const raw = row.BoardJson;
-      let bj: string | null = null;
-      if (raw != null) {
-        if (typeof Buffer !== 'undefined' && Buffer.isBuffer(raw)) bj = raw.toString('utf8');
-        else if (typeof raw === 'object') {
-          try {
-            bj = JSON.stringify(raw);
-          } catch {
-            bj = null;
-          }
-        } else {
-          const s = String(raw);
-          bj = s.trim() ? s : null;
-        }
-      }
+      const bj = boardJsonToString(row.BoardJson);
       if (bj != null) embeddedBoards[String(id)] = bj;
     }
   }
@@ -418,7 +538,7 @@ router.get('/:slug/notes/:noteId', async (req: AuthRequest, res: Response) => {
     [note.Id, vault.Id]
   );
 
-  const visibleIds = new Set(noteIndex.map((n) => n.id));
+  const visibleIds = new Set(guestPeekNoteIds);
   const prefer = (rows: RowDataPacket[]) => {
     const byId = new Map<number, RowDataPacket>();
     for (const row of rows) {

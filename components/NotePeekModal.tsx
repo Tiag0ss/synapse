@@ -26,6 +26,11 @@ export type NotePeekTarget = {
   titleHint?: string;
   /** When set, fetch from public wiki API instead of vault notes API. */
   wikiSlug?: string;
+  /**
+   * Wiki / guest peek by note id (public, unlisted, or otherwise openable).
+   * Uses `GET /api/public/notes/:noteId` — does not require AllowPublicPages on the target vault.
+   */
+  wikiPeek?: boolean;
   /** When set, fetch from an unlocked note share (public/unlisted targets only). */
   shareToken?: string;
 };
@@ -114,9 +119,11 @@ export default function NotePeekModal({
 
     const url = target.shareToken
       ? `/api/shares/${encodeURIComponent(target.shareToken)}/notes/${target.noteId}`
-      : target.wikiSlug
-        ? `/api/public/${encodeURIComponent(target.wikiSlug)}/notes/${target.noteId}`
-        : `/api/vaults/${target.vaultId}/notes/${target.noteId}`;
+      : target.wikiPeek
+        ? `/api/public/notes/${target.noteId}`
+        : target.wikiSlug
+          ? `/api/public/${encodeURIComponent(target.wikiSlug)}/notes/${target.noteId}`
+          : `/api/vaults/${target.vaultId}/notes/${target.noteId}`;
 
     void (async () => {
       try {
@@ -145,7 +152,7 @@ export default function NotePeekModal({
           setBodyMarkdown('');
           setEmbeddedBoards({});
         } else if (
-          (target.wikiSlug || target.shareToken) &&
+          (target.wikiSlug || target.wikiPeek || target.shareToken) &&
           typeof n.html === 'string'
         ) {
           setBodyHtml(n.html);
@@ -215,13 +222,29 @@ export default function NotePeekModal({
           return null;
         }
       }
+      if (target?.wikiPeek) {
+        const fromMap = embeddedBoards[String(embedNoteId)];
+        if (fromMap != null) return fromMap;
+        try {
+          const res = await fetch(`/api/public/notes/${embedNoteId}`, {
+            credentials: 'include',
+          });
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok) return null;
+          const kind = String(json.data?.kind || 'note');
+          if (kind !== 'whiteboard') return null;
+          return json.data?.boardJson != null ? String(json.data.boardJson) : null;
+        } catch {
+          return null;
+        }
+      }
       const wikiSlug = target?.wikiSlug;
       if (wikiSlug) return fetchWikiBoardJson(wikiSlug, embedNoteId);
       const vid = embedVaultId || target?.vaultId || 0;
       if (!vid) return null;
       return fetchVaultBoardJson(vid, embedNoteId);
     },
-    [target?.shareToken, target?.wikiSlug, target?.vaultId, embeddedBoards]
+    [target?.shareToken, target?.wikiPeek, target?.wikiSlug, target?.vaultId, embeddedBoards]
   );
 
   const onEmbedOpenNote = useCallback((id: number, embedVaultId?: number) => {
@@ -301,6 +324,18 @@ export default function NotePeekModal({
         return;
       }
 
+      // Wiki guest peek: keep peeking linked public/unlisted notes (including cross-vault).
+      if (target.wikiPeek || (target.wikiSlug && peek)) {
+        onPeekNote({
+          noteId: id,
+          vaultId: vaultId > 0 ? vaultId : target.vaultId,
+          titleHint: missingTitle || undefined,
+          wikiSlug: String(ref.dataset.vaultSlug || target.wikiSlug || '').trim() || undefined,
+          wikiPeek: true,
+        });
+        return;
+      }
+
       if (goto) {
         onOpenNote(id, vaultId > 0 ? vaultId : target.vaultId);
         onClose();
@@ -312,6 +347,7 @@ export default function NotePeekModal({
         vaultId: vaultId > 0 ? vaultId : target.vaultId,
         titleHint: missingTitle || undefined,
         wikiSlug: target.wikiSlug,
+        wikiPeek: target.wikiPeek,
       });
     };
 

@@ -402,16 +402,6 @@ export default function HomePage() {
             <p className="truncate text-[11px] text-[var(--muted)]">Knowledge vaults</p>
           </div>
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              className="btn-ghost py-1.5 text-sm"
-              onClick={() => {
-                setHomeTab('wikis');
-                setCreateOpen(false);
-              }}
-            >
-              Wikis
-            </button>
             <AppUserMenu user={me} />
           </div>
         </div>

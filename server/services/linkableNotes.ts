@@ -61,6 +61,43 @@ export async function listGuestPeekableNoteIds(): Promise<number[]> {
     .filter((id) => Number.isFinite(id) && id > 0);
 }
 
+/**
+ * Note ids a wiki viewer may peek/open via wikilink (public, unlisted, authenticated when
+ * signed in, or any note in a vault they can edit). Used like share `guestPeekNoteIds`.
+ */
+export async function listWikiPeekableNoteIds(opts: {
+  isAuthed: boolean;
+  pmUserId: number | null;
+}): Promise<number[]> {
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    `SELECT n.Id, n.Visibility, n.VaultId, v.DefaultVisibility
+     FROM Notes n
+     INNER JOIN Vaults v ON v.Id = n.VaultId
+     WHERE n.DeletedAt IS NULL`
+  );
+  const editCache = new Map<number, boolean>();
+  const ids: number[] = [];
+  for (const n of rows) {
+    const vaultId = Number(n.VaultId);
+    let canEdit = editCache.get(vaultId);
+    if (canEdit === undefined) {
+      if (opts.pmUserId) {
+        const access = await accessibleVault(vaultId, opts.pmUserId, 'edit');
+        canEdit = Boolean(access);
+      } else {
+        canEdit = false;
+      }
+      editCache.set(vaultId, canEdit);
+    }
+    const vis = effectiveVisibility(n.Visibility, n.DefaultVisibility);
+    if (canOpenNoteOnWiki(vis, opts.isAuthed, canEdit).ok) {
+      const id = Number(n.Id);
+      if (Number.isFinite(id) && id > 0) ids.push(id);
+    }
+  }
+  return ids;
+}
+
 /** Editable vaults (vault app) with all active notes (including whiteboards). */
 export async function listLinkableVaultNotesForApp(
   pmUserId: number

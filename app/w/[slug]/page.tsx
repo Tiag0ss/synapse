@@ -311,11 +311,27 @@ export default function PublicWikiPage() {
         if (!resolvedId) return;
         setPeekTarget({
           noteId: resolvedId,
-          vaultId: vaultId || 0,
+          vaultId: Number(ref.dataset.vaultId || vaultId) || vaultId || 0,
           titleHint: titleHint || undefined,
           wikiSlug: crossVaultSlug || slug,
+          wikiPeek: true,
         });
         return;
+      }
+
+      // Label click on a note the sidebar may not list (e.g. unlisted) → peek instead of navigate.
+      if (goto && resolvedId) {
+        const inSidebar = notes.some((n) => n.Id === resolvedId);
+        if (!inSidebar) {
+          setPeekTarget({
+            noteId: resolvedId,
+            vaultId: Number(ref.dataset.vaultId || vaultId) || vaultId || 0,
+            titleHint: titleHint || undefined,
+            wikiSlug: crossVaultSlug || slug,
+            wikiPeek: true,
+          });
+          return;
+        }
       }
 
       if (resolvedId && crossVaultSlug && crossVaultSlug !== slug) {
@@ -326,7 +342,7 @@ export default function PublicWikiPage() {
     };
     root.addEventListener('click', onClick);
     return () => root.removeEventListener('click', onClick);
-  }, [html, noteIndex, openNote, slug, vaultId]);
+  }, [html, noteIndex, notes, openNote, slug, vaultId]);
 
   const afterWikiWrite = useCallback((root: HTMLElement) => {
     void renderMermaidInRoot(root);
