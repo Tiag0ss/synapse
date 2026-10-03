@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import type { LinkableVaultNotes, NoteIndexEntry } from '@/lib/renderMarkdown';
+import { openPrintWindow, printNoteDocument } from '@/lib/printNote';
 
 type ExportTemplate = {
   id: number;
@@ -9,15 +11,17 @@ type ExportTemplate = {
   originalName: string;
 };
 
-type ExportFormat = 'markdown' | 'docx';
+type ExportFormat = 'markdown' | 'pdf' | 'docx';
 
 interface NoteExportModalProps {
   open: boolean;
   vaultId: string;
   noteId: number | null;
   noteTitle: string;
-  /** Current editor body (used for Markdown download after save flush). */
+  /** Current editor body (used for Markdown / PDF after save flush). */
   bodyMarkdown?: string;
+  notes?: NoteIndexEntry[];
+  linkableVaults?: LinkableVaultNotes[];
   /** Flush unsaved editor changes before export (server reads DB for DOCX). */
   onBeforeExport?: () => Promise<boolean>;
   onClose: () => void;
@@ -44,6 +48,8 @@ export default function NoteExportModal({
   noteId,
   noteTitle,
   bodyMarkdown = '',
+  notes = [],
+  linkableVaults = [],
   onBeforeExport,
   onClose,
 }: NoteExportModalProps) {
@@ -105,6 +111,50 @@ export default function NoteExportModal({
     }
   };
 
+  const printOrPdf = async () => {
+    if (!noteId) return;
+    setBusy(true);
+    setError('');
+    // Open synchronously in the click gesture (before await), otherwise browsers block it.
+    let printWindow: Window;
+    try {
+      printWindow = openPrintWindow();
+    } catch (e) {
+      setBusy(false);
+      setError(e instanceof Error ? e.message : 'Failed to open print window');
+      return;
+    }
+    try {
+      if (onBeforeExport) {
+        const ok = await onBeforeExport();
+        if (!ok) {
+          printWindow.close();
+          setError('Save failed — fix save errors before exporting');
+          return;
+        }
+      }
+      await printNoteDocument({
+        title: noteTitle,
+        bodyMarkdown: bodyRef.current ?? '',
+        notes,
+        linkableVaults,
+        noteId,
+        vaultId,
+        printWindow,
+      });
+      onClose();
+    } catch (e) {
+      try {
+        printWindow.close();
+      } catch {
+        /* ignore */
+      }
+      setError(e instanceof Error ? e.message : 'Failed to open print dialog');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const downloadDocx = async () => {
     if (!noteId || selectedId == null) return;
     setBusy(true);
@@ -143,13 +193,21 @@ export default function NoteExportModal({
 
   const download = () => {
     if (format === 'markdown') void downloadMarkdown();
+    else if (format === 'pdf') void printOrPdf();
     else void downloadDocx();
   };
 
   const canDownload =
     Boolean(noteId) &&
     !busy &&
-    (format === 'markdown' || (selectedId != null && templates.length > 0));
+    (format === 'markdown' || format === 'pdf' || (selectedId != null && templates.length > 0));
+
+  const actionLabel =
+    format === 'markdown'
+      ? 'Download MD'
+      : format === 'pdf'
+        ? 'Print / Save PDF'
+        : 'Download DOCX';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
@@ -165,7 +223,7 @@ export default function NoteExportModal({
               Export note
             </h2>
             <p className="mt-0.5 text-xs text-[var(--muted)]">
-              Download Markdown or fill a Word template
+              Markdown, PDF/print, or Word template
               {noteTitle ? ` · ${noteTitle}` : ''}
             </p>
           </div>
@@ -189,7 +247,8 @@ export default function NoteExportModal({
             {(
               [
                 { id: 'markdown', label: 'Markdown' },
-                { id: 'docx', label: 'Word (DOCX)' },
+                { id: 'pdf', label: 'PDF / Print' },
+                { id: 'docx', label: 'Word' },
               ] as const
             ).map((opt) => (
               <button
@@ -197,7 +256,7 @@ export default function NoteExportModal({
                 type="button"
                 role="tab"
                 aria-selected={format === opt.id}
-                className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition ${
+                className={`flex-1 rounded-md px-2 py-1.5 text-sm font-medium transition sm:px-3 ${
                   format === opt.id
                     ? 'bg-[var(--accent)] text-[var(--accent-fg)]'
                     : 'text-[var(--muted)] hover:text-[var(--text)]'
@@ -213,6 +272,11 @@ export default function NoteExportModal({
             <p className="text-sm text-[var(--muted)]">
               Downloads the note body as a <code className="font-mono text-[var(--accent-soft)]">.md</code>{' '}
               file (including frontmatter and checkboxes).
+            </p>
+          ) : format === 'pdf' ? (
+            <p className="text-sm text-[var(--muted)]">
+              Opens the system print dialog. Choose <span className="text-[var(--text)]">Save as PDF</span>{' '}
+              or send to a printer. Layout uses the rendered note preview.
             </p>
           ) : loading ? (
             <p className="text-sm text-[var(--muted)]">Loading templates…</p>
@@ -256,11 +320,7 @@ export default function NoteExportModal({
             disabled={!canDownload}
             onClick={download}
           >
-            {busy
-              ? 'Exporting…'
-              : format === 'markdown'
-                ? 'Download MD'
-                : 'Download DOCX'}
+            {busy ? 'Exporting…' : actionLabel}
           </button>
         </footer>
       </div>

@@ -4,7 +4,8 @@ import { mermaidSynapseInit, withElkConfig } from './mermaidTheme';
 
 type MermaidApi = typeof import('mermaid').default;
 
-let renderGeneration = 0;
+/** Per-root generation so preview + print can render concurrently. */
+const rootGenerations = new WeakMap<HTMLElement, number>();
 let initialized = false;
 let mermaidApi: MermaidApi | null = null;
 
@@ -28,7 +29,8 @@ async function ensureMermaidElk(): Promise<MermaidApi> {
 
 function decorateMermaidExpand(wrap: HTMLElement): void {
   if (wrap.querySelector('.synapse-mermaid-expand')) return;
-  const btn = document.createElement('button');
+  const doc = wrap.ownerDocument;
+  const btn = doc.createElement('button');
   btn.type = 'button';
   btn.className = 'synapse-mermaid-expand';
   btn.title = 'Expand diagram';
@@ -92,20 +94,25 @@ function decodeBasicEntities(text: string): string {
     .replace(/&amp;/g, '&');
 }
 
+/** Works across browsing contexts (print window ≠ opener `HTMLElement`). */
+function isHtmlElement(node: Node | null | undefined): node is HTMLElement {
+  return !!node && node.nodeType === Node.ELEMENT_NODE;
+}
+
 function collectMermaidPres(root: HTMLElement): HTMLElement[] {
   const found = new Set<HTMLElement>();
   root.querySelectorAll('pre.synapse-mermaid-source').forEach((el) => {
-    if (el instanceof HTMLElement) found.add(el);
+    if (isHtmlElement(el)) found.add(el);
   });
   root.querySelectorAll('code.language-mermaid').forEach((el) => {
     const pre = el.closest('pre');
-    if (pre instanceof HTMLElement) found.add(pre);
+    if (isHtmlElement(pre)) found.add(pre);
   });
   return Array.from(found);
 }
 
 function showMermaidError(el: HTMLElement, source: string, error: unknown): void {
-  const wrap = document.createElement('div');
+  const wrap = el.ownerDocument.createElement('div');
   wrap.className = 'synapse-mermaid synapse-mermaid-error';
   wrap.textContent = `Mermaid/ELK error: ${formatMermaidError(error)}\n\n${source}`;
   el.replaceWith(wrap);
@@ -182,13 +189,15 @@ async function renderWithElk(mermaid: MermaidApi, source: string, widthPx: numbe
  */
 export async function renderMermaidInRoot(root: HTMLElement | null): Promise<void> {
   if (!root || typeof window === 'undefined') return;
-  const generation = ++renderGeneration;
+  const generation = (rootGenerations.get(root) || 0) + 1;
+  rootGenerations.set(root, generation);
+  const stillCurrent = () => rootGenerations.get(root) === generation && root.isConnected;
 
   let mermaid: MermaidApi;
   try {
     mermaid = await ensureMermaidElk();
   } catch (err) {
-    if (generation !== renderGeneration || !root.isConnected) return;
+    if (!stillCurrent()) return;
     for (const pre of collectMermaidPres(root)) {
       showMermaidError(pre, '', err);
     }
@@ -196,15 +205,16 @@ export async function renderMermaidInRoot(root: HTMLElement | null): Promise<voi
   }
 
   await new Promise<void>((r) => requestAnimationFrame(() => r()));
-  if (generation !== renderGeneration || !root.isConnected) return;
+  if (!stillCurrent()) return;
 
   const blocks = collectMermaidPres(root);
   if (!blocks.length) return;
 
   const widthPx = root.clientWidth || root.getBoundingClientRect().width || 720;
+  const doc = root.ownerDocument;
 
   for (let i = 0; i < blocks.length; i++) {
-    if (generation !== renderGeneration || !root.isConnected) return;
+    if (!stillCurrent()) return;
 
     const pre = blocks[i];
     if (!root.contains(pre)) continue;
@@ -214,12 +224,13 @@ export async function renderMermaidInRoot(root: HTMLElement | null): Promise<voi
     if (!source) continue;
 
     const closestBlock = pre.closest('.synapse-code-block');
-    const outer: HTMLElement = closestBlock instanceof HTMLElement ? closestBlock : pre;
+    const outer: HTMLElement = isHtmlElement(closestBlock) ? closestBlock : pre;
 
     try {
       const svg = await renderWithElk(mermaid, source, widthPx);
-      if (generation !== renderGeneration || !root.contains(outer)) return;
-      const wrap = document.createElement('div');
+      if (!stillCurrent() || !root.contains(outer)) return;
+      // Use the root's document so print windows (not just the opener) can host the SVG.
+      const wrap = doc.createElement('div');
       wrap.className = 'synapse-mermaid';
       wrap.innerHTML = svg;
       wrap.dataset.mermaidRendered = '1';

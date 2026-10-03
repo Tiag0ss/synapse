@@ -38,7 +38,8 @@ export default function SharedNotePage() {
   const [askAnswers, setAskAnswers] = useState<Record<string, AskAnswerView[]>>({});
   const [decisions, setDecisions] = useState<Record<string, DecisionView>>({});
   const [flashcard, setFlashcard] = useState<{ front: string; backHtml: string } | null>(null);
-  const [flashRevealed, setFlashRevealed] = useState(false);
+  /** Shared flashcards show the answer immediately (guest can still hide). */
+  const [flashRevealed, setFlashRevealed] = useState(true);
   const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
   const [mermaidLightbox, setMermaidLightbox] = useState<string | null>(null);
   const [peekTarget, setPeekTarget] = useState<NotePeekTarget | null>(null);
@@ -89,10 +90,11 @@ export default function SharedNotePage() {
         front: String(d.flashcard.front || d.title || 'Flashcard'),
         backHtml: String(d.flashcard.backHtml || ''),
       });
+      setFlashRevealed(true);
     } else {
       setFlashcard(null);
+      setFlashRevealed(false);
     }
-    setFlashRevealed(false);
     setPhase('content');
     setError('');
   }, [token]);

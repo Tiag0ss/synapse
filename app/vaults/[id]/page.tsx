@@ -1556,7 +1556,7 @@ export default function VaultWorkspacePage() {
                     type="button"
                     className="btn-ghost shrink-0 px-2.5 py-1.5 text-sm"
                     onClick={() => setExportOpen(true)}
-                  title="Export note (Markdown or Word)"
+                  title="Export note (Markdown, PDF/print, or Word)"
                   aria-label="Export"
                     hidden={isWhiteboard}
                   >
@@ -1674,7 +1674,7 @@ export default function VaultWorkspacePage() {
                   type="button"
                   className="btn-ghost"
                   onClick={() => setExportOpen(true)}
-                  title="Export note (Markdown or Word)"
+                  title="Export note (Markdown, PDF/print, or Word)"
                   hidden={isWhiteboard}
                 >
                   Export
@@ -2291,6 +2291,8 @@ export default function VaultWorkspacePage() {
         noteId={selectedId}
         noteTitle={title}
         bodyMarkdown={body}
+        notes={noteIndex}
+        linkableVaults={linkableVaults}
         onBeforeExport={ensureNoteSaved}
         onClose={() => setExportOpen(false)}
       />
