@@ -6,6 +6,7 @@ import {
   findActiveShareByToken,
   deleteShareAskAnswerForToken,
   getShareContent,
+  getShareLinkedNote,
   getShareMeta,
   readShareCookie,
   shareMediaAllowed,
@@ -63,8 +64,10 @@ router.get('/:token', async (req, res: Response) => {
   }
 
   const found = await findActiveShareByToken(token);
+  const requiresPassword = Boolean(meta.requiresPassword);
   const unlocked = Boolean(
-    found.share && readShareCookie(shareCookieFromReq(req), found.share)
+    found.share &&
+      (!requiresPassword || readShareCookie(shareCookieFromReq(req), found.share))
   );
 
   res.json({
@@ -73,6 +76,8 @@ router.get('/:token', async (req, res: Response) => {
       title: meta.title,
       kind: meta.kind,
       expiresAt: meta.expiresAt,
+      requiresPassword,
+      foldFront: meta.foldFront,
       unlocked,
     },
   });
@@ -121,6 +126,62 @@ router.post('/:token/unlock', unlockLimiter, async (req, res: Response) => {
   res.json({ success: true, message: 'Unlocked' });
 });
 
+/** Peek a public/unlisted note linked from an unlocked share. */
+router.get('/:token/notes/:noteId', async (req, res: Response) => {
+  const token = String(req.params.token || '');
+  const noteId = Number(req.params.noteId);
+  if (!token || token.length > 128 || !Number.isFinite(noteId) || noteId <= 0) {
+    return res.status(404).json({ success: false, message: 'Not found' });
+  }
+
+  try {
+    const content = await getShareLinkedNote({
+      rawToken: token,
+      shareCookie: shareCookieFromReq(req),
+      noteId,
+    });
+    if (!content.ok) {
+      if (content.reason === 'locked') {
+        return res.status(401).json({
+          success: false,
+          message: 'Password required',
+          code: 'locked',
+        });
+      }
+      if (content.reason === 'forbidden') {
+        return res.status(404).json({ success: false, message: 'Note not found' });
+      }
+      const status = content.reason === 'not_found' ? 404 : 410;
+      return res.status(status).json({
+        success: false,
+        message:
+          content.reason === 'expired'
+            ? 'This share link has expired'
+            : content.reason === 'revoked'
+              ? 'This share link was revoked'
+              : 'Note not found',
+        code: content.reason,
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        title: content.title,
+        kind: content.kind,
+        noteId: content.noteId,
+        vaultId: content.vaultId,
+        html: content.html,
+        boardJson: content.boardJson,
+        embeddedBoards: content.embeddedBoards,
+      },
+    });
+  } catch (error) {
+    logger.error('Share linked note failed', { error });
+    return res.status(500).json({ success: false, message: 'Failed to load note' });
+  }
+});
+
 router.get('/:token/content', async (req, res: Response) => {
   const token = String(req.params.token || '');
   if (!token || token.length > 128) {
@@ -159,12 +220,14 @@ router.get('/:token/content', async (req, res: Response) => {
         title: content.title,
         kind: content.kind,
         noteId: content.noteId,
+        vaultId: content.vaultId,
         html: content.html,
         boardJson: content.boardJson,
         embeddedBoards: content.embeddedBoards,
         askAnswers: content.askAnswers,
         decisions: content.decisions,
         expiresAt: content.expiresAt,
+        flashcard: content.flashcard,
       },
     });
   } catch (error) {

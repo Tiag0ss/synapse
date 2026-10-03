@@ -211,8 +211,10 @@ const STATEMENTS = [
     VaultId INT NOT NULL,
     CreatedByPmUserId INT NOT NULL,
     TokenHash VARCHAR(64) NOT NULL,
-    PasswordHash VARCHAR(255) NOT NULL,
-    ExpiresAt DATETIME NOT NULL,
+    PasswordHash VARCHAR(255) NULL,
+    ExpiresAt DATETIME NULL,
+    ShareKind VARCHAR(16) NOT NULL DEFAULT 'note',
+    FoldFront VARCHAR(512) NULL,
     RevokedAt DATETIME NULL,
     CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uq_note_share_token (TokenHash),
@@ -323,6 +325,10 @@ const ALTERS = [
   'ALTER TABLE Notes ADD COLUMN BoardJson MEDIUMTEXT NULL',
   'ALTER TABLE Notes ADD KEY idx_note_kind (VaultId, Kind)',
   'ALTER TABLE NoteAskAnswers ADD COLUMN GuestEditTokenHash VARCHAR(64) NULL',
+  'ALTER TABLE NoteShareLinks MODIFY COLUMN PasswordHash VARCHAR(255) NULL',
+  'ALTER TABLE NoteShareLinks MODIFY COLUMN ExpiresAt DATETIME NULL',
+  "ALTER TABLE NoteShareLinks ADD COLUMN ShareKind VARCHAR(16) NOT NULL DEFAULT 'note'",
+  'ALTER TABLE NoteShareLinks ADD COLUMN FoldFront VARCHAR(512) NULL',
 ];
 
 /** Legacy SsoTokens used PmUserId PK — migrate rows into UserId-keyed table after Users exist. */

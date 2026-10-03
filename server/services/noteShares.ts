@@ -5,6 +5,11 @@ import { pool, RowDataPacket, ResultSetHeader } from '../config/database';
 import { jwtSecret } from './secrets';
 import { markdownToSafeHtml, extractBoardEmbedTargets } from './markdown';
 import { resolveNoteId } from './notePaths';
+import { effectiveVisibility } from './vaultAccess';
+import {
+  listGuestPeekableNoteIds,
+  listLinkableVaultNotesForGuestShare,
+} from './linkableNotes';
 import { isPlannerOverviewNote } from './personalWorkVault';
 import {
   listAskAnswersGroupedForShare,
@@ -19,13 +24,18 @@ import {
   type DecisionPublicView,
   type DecisionRow,
 } from './noteDecisions';
+import { extractFoldCards } from './extractFoldCards';
 
 const BCRYPT_ROUNDS = 10;
 const SHARE_COOKIE = 'synapse_share';
 const MIN_EXPIRES_SEC = 15 * 60;
 const MAX_EXPIRES_SEC = 90 * 24 * 60 * 60;
+/** Cookie lifetime when the share itself has no expiry. */
+const UNLIMITED_COOKIE_SEC = 90 * 24 * 60 * 60;
 
 export { SHARE_COOKIE, MIN_EXPIRES_SEC, MAX_EXPIRES_SEC };
+
+export type ShareKind = 'note' | 'whiteboard' | 'flashcard';
 
 export type NoteShareRow = {
   Id: number;
@@ -33,18 +43,23 @@ export type NoteShareRow = {
   VaultId: number;
   CreatedByPmUserId: number;
   TokenHash: string;
-  PasswordHash: string;
-  ExpiresAt: Date;
+  PasswordHash: string | null;
+  ExpiresAt: Date | null;
+  ShareKind: string;
+  FoldFront: string | null;
   RevokedAt: Date | null;
   CreatedAt: Date;
 };
 
 export type NoteShareListItem = {
   id: number;
-  expiresAt: string;
+  expiresAt: string | null;
   revokedAt: string | null;
   createdAt: string;
   status: 'active' | 'expired' | 'revoked';
+  hasPassword: boolean;
+  shareKind: 'note' | 'flashcard';
+  foldFront: string | null;
 };
 
 export type ShareAccessState = 'ok' | 'not_found' | 'expired' | 'revoked';
@@ -68,8 +83,27 @@ export function clampExpiresInSeconds(raw: number): number {
   return Math.min(MAX_EXPIRES_SEC, Math.max(MIN_EXPIRES_SEC, Math.floor(raw)));
 }
 
-function toIso(d: Date | string): string {
+/** `null` means never expires; otherwise clamp to allowed range. */
+export function normalizeExpiresInSeconds(raw: number | null | undefined): number | null {
+  if (raw == null) return null;
+  return clampExpiresInSeconds(raw);
+}
+
+function toIso(d: Date | string | null | undefined): string | null {
+  if (d == null) return null;
   return new Date(d).toISOString();
+}
+
+function shareRequiresPassword(share: { PasswordHash: string | null | undefined }): boolean {
+  return Boolean(share.PasswordHash && String(share.PasswordHash).trim());
+}
+
+function shareUnlocked(
+  share: NoteShareRow,
+  shareCookie: string | undefined
+): boolean {
+  if (!shareRequiresPassword(share)) return true;
+  return readShareCookie(shareCookie, share);
 }
 
 function boardJsonToString(raw: unknown): string | null {
@@ -88,13 +122,34 @@ function boardJsonToString(raw: unknown): string | null {
   return s.trim() ? s : null;
 }
 
+function rewriteShareMediaUrls(html: string, vaultId: number, token: string): string {
+  return html
+    .replace(
+      new RegExp(`/api/vaults/${vaultId}/media/(\\d+)`, 'g'),
+      `/api/shares/${encodeURIComponent(token)}/media/$1`
+    )
+    .replace(
+      new RegExp(`/api/public/[^/"'\\s]+/media/(\\d+)`, 'g'),
+      `/api/shares/${encodeURIComponent(token)}/media/$1`
+    );
+}
+
+function isGuestPeekVisibility(noteVis: unknown, vaultDefault: unknown): boolean {
+  const vis = effectiveVisibility(noteVis, vaultDefault);
+  return vis === 'public' || vis === 'unlisted';
+}
+
 function shareStatus(row: {
-  ExpiresAt: Date | string;
+  ExpiresAt: Date | string | null;
   RevokedAt: Date | string | null;
 }): 'active' | 'expired' | 'revoked' {
   if (row.RevokedAt) return 'revoked';
-  if (new Date(row.ExpiresAt).getTime() <= Date.now()) return 'expired';
+  if (row.ExpiresAt != null && new Date(row.ExpiresAt).getTime() <= Date.now()) return 'expired';
   return 'active';
+}
+
+function rowShareKind(raw: unknown): 'note' | 'flashcard' {
+  return String(raw || 'note') === 'flashcard' ? 'flashcard' : 'note';
 }
 
 export async function findActiveShareByToken(
@@ -103,7 +158,7 @@ export async function findActiveShareByToken(
   const tokenHash = hashShareToken(rawToken);
   const [rows] = await pool.execute<RowDataPacket[]>(
     `SELECT Id, NoteId, VaultId, CreatedByPmUserId, TokenHash, PasswordHash,
-            ExpiresAt, RevokedAt, CreatedAt
+            ExpiresAt, ShareKind, FoldFront, RevokedAt, CreatedAt
      FROM NoteShareLinks WHERE TokenHash = ? LIMIT 1`,
     [tokenHash]
   );
@@ -119,10 +174,22 @@ export async function createNoteShare(params: {
   vaultId: number;
   noteId: number;
   createdByPmUserId: number;
-  expiresInSeconds: number;
+  /** `null` = never expires */
+  expiresInSeconds: number | null;
+  requirePassword?: boolean;
+  shareKind?: 'note' | 'flashcard';
+  foldFront?: string | null;
 }): Promise<
-  | { ok: true; id: number; url: string; password: string; expiresAt: string }
-  | { ok: false; reason: 'not_found' | 'hub_note' }
+  | {
+      ok: true;
+      id: number;
+      url: string;
+      password: string | null;
+      expiresAt: string | null;
+      shareKind: 'note' | 'flashcard';
+      foldFront: string | null;
+    }
+  | { ok: false; reason: 'not_found' | 'hub_note' | 'fold_not_found' | 'whiteboard' }
 > {
   const [notes] = await pool.execute<RowDataPacket[]>(
     `SELECT Id, Path, BodyMarkdown, Kind FROM Notes
@@ -135,17 +202,31 @@ export async function createNoteShare(params: {
     return { ok: false, reason: 'hub_note' };
   }
 
-  const expiresIn = clampExpiresInSeconds(params.expiresInSeconds);
+  const shareKind = params.shareKind === 'flashcard' ? 'flashcard' : 'note';
+  const foldFront = shareKind === 'flashcard' ? String(params.foldFront || '').trim() : null;
+  if (shareKind === 'flashcard') {
+    if (String(note.Kind || 'note') === 'whiteboard') {
+      return { ok: false, reason: 'whiteboard' };
+    }
+    if (!foldFront) return { ok: false, reason: 'fold_not_found' };
+    const cards = extractFoldCards(String(note.BodyMarkdown || ''));
+    if (!cards.some((c) => c.front === foldFront)) {
+      return { ok: false, reason: 'fold_not_found' };
+    }
+  }
+
+  const expiresIn = normalizeExpiresInSeconds(params.expiresInSeconds);
+  const requirePassword = params.requirePassword !== false;
   const rawToken = randomBase64Url(32);
-  const password = randomBase64Url(9);
+  const password = requirePassword ? randomBase64Url(9) : null;
   const tokenHash = hashShareToken(rawToken);
-  const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
-  const expiresAt = new Date(Date.now() + expiresIn * 1000);
+  const passwordHash = password ? await bcrypt.hash(password, BCRYPT_ROUNDS) : null;
+  const expiresAt = expiresIn != null ? new Date(Date.now() + expiresIn * 1000) : null;
 
   const [result] = await pool.execute<ResultSetHeader>(
     `INSERT INTO NoteShareLinks
-      (NoteId, VaultId, CreatedByPmUserId, TokenHash, PasswordHash, ExpiresAt)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+      (NoteId, VaultId, CreatedByPmUserId, TokenHash, PasswordHash, ExpiresAt, ShareKind, FoldFront)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       params.noteId,
       params.vaultId,
@@ -153,6 +234,8 @@ export async function createNoteShare(params: {
       tokenHash,
       passwordHash,
       expiresAt,
+      shareKind,
+      foldFront,
     ]
   );
 
@@ -161,13 +244,16 @@ export async function createNoteShare(params: {
     id: Number(result.insertId),
     url: `${appBaseUrl()}/s/${rawToken}`,
     password,
-    expiresAt: expiresAt.toISOString(),
+    expiresAt: expiresAt ? expiresAt.toISOString() : null,
+    shareKind,
+    foldFront,
   };
 }
 
 export async function listNoteShares(
   vaultId: number,
-  noteId: number
+  noteId: number,
+  opts?: { shareKind?: 'note' | 'flashcard'; foldFront?: string | null }
 ): Promise<NoteShareListItem[] | null> {
   const [notes] = await pool.execute<RowDataPacket[]>(
     `SELECT Id FROM Notes WHERE Id = ? AND VaultId = ? AND DeletedAt IS NULL LIMIT 1`,
@@ -176,7 +262,7 @@ export async function listNoteShares(
   if (!notes.length) return null;
 
   const [rows] = await pool.execute<RowDataPacket[]>(
-    `SELECT Id, ExpiresAt, RevokedAt, CreatedAt
+    `SELECT Id, ExpiresAt, RevokedAt, CreatedAt, PasswordHash, ShareKind, FoldFront
      FROM NoteShareLinks
      WHERE NoteId = ? AND VaultId = ?
      ORDER BY CreatedAt DESC
@@ -184,13 +270,27 @@ export async function listNoteShares(
     [noteId, vaultId]
   );
 
-  return rows.map((r) => ({
+  let items = rows.map((r) => ({
     id: Number(r.Id),
-    expiresAt: toIso(r.ExpiresAt),
-    revokedAt: r.RevokedAt ? toIso(r.RevokedAt) : null,
-    createdAt: toIso(r.CreatedAt),
-    status: shareStatus(r as { ExpiresAt: Date; RevokedAt: Date | null }),
+    expiresAt: toIso(r.ExpiresAt as Date | null),
+    revokedAt: r.RevokedAt ? toIso(r.RevokedAt as Date) : null,
+    createdAt: toIso(r.CreatedAt as Date) || new Date(0).toISOString(),
+    status: shareStatus(r as { ExpiresAt: Date | null; RevokedAt: Date | null }),
+    hasPassword: shareRequiresPassword(r as { PasswordHash: string | null }),
+    shareKind: rowShareKind(r.ShareKind),
+    foldFront: r.FoldFront != null ? String(r.FoldFront) : null,
   }));
+
+  if (opts?.shareKind === 'flashcard') {
+    const front = String(opts.foldFront || '').trim();
+    items = items.filter(
+      (i) => i.shareKind === 'flashcard' && (!front || i.foldFront === front)
+    );
+  } else if (opts?.shareKind === 'note') {
+    items = items.filter((i) => i.shareKind !== 'flashcard');
+  }
+
+  return items;
 }
 
 export async function revokeNoteShare(params: {
@@ -218,6 +318,7 @@ export async function verifySharePassword(
   share: NoteShareRow,
   password: string
 ): Promise<boolean> {
+  if (!shareRequiresPassword(share) || !share.PasswordHash) return false;
   return bcrypt.compare(password, share.PasswordHash);
 }
 
@@ -229,8 +330,10 @@ type ShareCookiePayload = {
 };
 
 export function signShareCookie(share: NoteShareRow): { token: string; maxAgeMs: number } {
-  const expMs = new Date(share.ExpiresAt).getTime();
-  const maxAgeMs = Math.max(1000, expMs - Date.now());
+  const maxAgeMs =
+    share.ExpiresAt != null
+      ? Math.max(1000, new Date(share.ExpiresAt).getTime() - Date.now())
+      : UNLIMITED_COOKIE_SEC * 1000;
   const token = jwt.sign(
     {
       typ: 'note_share',
@@ -267,8 +370,10 @@ export async function getShareMeta(rawToken: string): Promise<
       ok: true;
       state: 'ok';
       title: string;
-      kind: 'note' | 'whiteboard';
-      expiresAt: string;
+      kind: ShareKind;
+      expiresAt: string | null;
+      requiresPassword: boolean;
+      foldFront: string | null;
     }
 > {
   const found = await findActiveShareByToken(rawToken);
@@ -285,12 +390,23 @@ export async function getShareMeta(rawToken: string): Promise<
   );
   if (!notes.length) return { ok: false, state: 'not_found' };
 
+  const shareKind = rowShareKind(found.share.ShareKind);
+  const noteKind =
+    String(notes[0].Kind || 'note') === 'whiteboard' ? 'whiteboard' : 'note';
+  const kind: ShareKind = shareKind === 'flashcard' ? 'flashcard' : noteKind;
+  const foldFront =
+    shareKind === 'flashcard' && found.share.FoldFront != null
+      ? String(found.share.FoldFront)
+      : null;
+
   return {
     ok: true,
     state: 'ok',
-    title: String(notes[0].Title || 'Note'),
-    kind: String(notes[0].Kind || 'note') === 'whiteboard' ? 'whiteboard' : 'note',
+    title: foldFront || String(notes[0].Title || 'Note'),
+    kind,
     expiresAt: toIso(found.share.ExpiresAt),
+    requiresPassword: shareRequiresPassword(found.share),
+    foldFront,
   };
 }
 
@@ -302,7 +418,7 @@ export async function getShareContent(params: {
   | {
       ok: true;
       title: string;
-      kind: 'note' | 'whiteboard';
+      kind: ShareKind;
       noteId: number;
       vaultId: number;
       html: string;
@@ -316,8 +432,9 @@ export async function getShareContent(params: {
         createdAt: string;
       }>>;
       decisions: Record<string, DecisionPublicView>;
-      expiresAt: string;
+      expiresAt: string | null;
       shareLinkId: number;
+      flashcard: { front: string; backHtml: string } | null;
     }
 > {
   const found = await findActiveShareByToken(params.rawToken);
@@ -327,7 +444,7 @@ export async function getShareContent(params: {
   if (found.state === 'expired') return { ok: false, reason: 'expired' };
   if (found.state === 'revoked') return { ok: false, reason: 'revoked' };
 
-  if (!readShareCookie(params.shareCookie, found.share)) {
+  if (!shareUnlocked(found.share, params.shareCookie)) {
     return { ok: false, reason: 'locked' };
   }
 
@@ -341,14 +458,59 @@ export async function getShareContent(params: {
   if (!notes.length) return { ok: false, reason: 'not_found' };
   const note = notes[0];
   const noteId = Number(note.Id);
-  const kind = String(note.Kind || 'note') === 'whiteboard' ? 'whiteboard' : 'note';
+  const noteKind = String(note.Kind || 'note') === 'whiteboard' ? 'whiteboard' : 'note';
+  const shareKind = rowShareKind(found.share.ShareKind);
   const token = params.rawToken;
 
-  if (kind === 'whiteboard') {
+  if (shareKind === 'flashcard') {
+    const foldFront = String(found.share.FoldFront || '').trim();
+    const card = extractFoldCards(String(note.BodyMarkdown || '')).find(
+      (c) => c.front === foldFront
+    );
+    if (!card) return { ok: false, reason: 'not_found' };
+    const [vaultNotesFc] = await pool.execute<RowDataPacket[]>(
+      `SELECT Id, Title, Path, Kind FROM Notes WHERE VaultId = ? AND DeletedAt IS NULL`,
+      [vaultId]
+    );
+    const noteIndexFc = vaultNotesFc.map((n) => ({
+      id: Number(n.Id),
+      title: String(n.Title),
+      path: String(n.Path || ''),
+      kind: String(n.Kind || 'note'),
+    }));
+    const [guestPeekNoteIdsFc, linkableVaultsFc] = await Promise.all([
+      listGuestPeekableNoteIds(),
+      listLinkableVaultNotesForGuestShare(),
+    ]);
+    const backHtml = rewriteShareMediaUrls(
+      markdownToSafeHtml(card.backMarkdown, noteIndexFc, linkableVaultsFc, noteId, {
+        guestPeekNoteIds: guestPeekNoteIdsFc,
+      }),
+      vaultId,
+      token
+    );
+    return {
+      ok: true,
+      title: card.front,
+      kind: 'flashcard',
+      noteId,
+      vaultId,
+      html: '',
+      boardJson: null,
+      embeddedBoards: {},
+      askAnswers: {},
+      decisions: {},
+      expiresAt: toIso(found.share.ExpiresAt),
+      shareLinkId,
+      flashcard: { front: card.front, backHtml },
+    };
+  }
+
+  if (noteKind === 'whiteboard') {
     return {
       ok: true,
       title: String(note.Title || 'Whiteboard'),
-      kind,
+      kind: 'whiteboard',
       noteId,
       vaultId,
       html: '',
@@ -358,11 +520,12 @@ export async function getShareContent(params: {
       decisions: {},
       expiresAt: toIso(found.share.ExpiresAt),
       shareLinkId,
+      flashcard: null,
     };
   }
 
   const [vaultNotes] = await pool.execute<RowDataPacket[]>(
-    `SELECT Id, Title, Path, Kind, BoardJson FROM Notes WHERE VaultId = ? AND DeletedAt IS NULL`,
+    `SELECT Id, Title, Path, Kind, BoardJson, Visibility FROM Notes WHERE VaultId = ? AND DeletedAt IS NULL`,
     [vaultId]
   );
   const noteIndex = vaultNotes.map((n) => ({
@@ -371,17 +534,17 @@ export async function getShareContent(params: {
     path: String(n.Path || ''),
     kind: String(n.Kind || 'note'),
   }));
+  const [guestPeekNoteIds, linkableVaults] = await Promise.all([
+    listGuestPeekableNoteIds(),
+    listLinkableVaultNotesForGuestShare(),
+  ]);
 
   const body = String(note.BodyMarkdown || '');
-  const html = markdownToSafeHtml(body, noteIndex, [], noteId, { wikilinks: false })
-    .replace(
-      new RegExp(`/api/vaults/${vaultId}/media/(\\d+)`, 'g'),
-      `/api/shares/${encodeURIComponent(token)}/media/$1`
-    )
-    .replace(
-      new RegExp(`/api/public/[^/"'\\s]+/media/(\\d+)`, 'g'),
-      `/api/shares/${encodeURIComponent(token)}/media/$1`
-    );
+  const html = rewriteShareMediaUrls(
+    markdownToSafeHtml(body, noteIndex, linkableVaults, noteId, { guestPeekNoteIds }),
+    vaultId,
+    token
+  );
 
   const embeddedBoards: Record<string, string> = {};
   const byId = new Map(vaultNotes.map((n) => [Number(n.Id), n]));
@@ -391,6 +554,7 @@ export async function getShareContent(params: {
     if (id == null) continue;
     const row = byId.get(id);
     if (!row || String(row.Kind || 'note') !== 'whiteboard') continue;
+    // Shared note may embed any vault board; linked peeks stay visibility-gated.
     const bj = boardJsonToString(row.BoardJson);
     if (bj != null) embeddedBoards[String(id)] = bj;
   }
@@ -421,7 +585,7 @@ export async function getShareContent(params: {
   return {
     ok: true,
     title: String(note.Title || 'Note'),
-    kind,
+    kind: 'note',
     noteId,
     vaultId,
     html,
@@ -431,6 +595,7 @@ export async function getShareContent(params: {
     decisions,
     expiresAt: toIso(found.share.ExpiresAt),
     shareLinkId,
+    flashcard: null,
   };
 }
 
@@ -454,7 +619,10 @@ export async function submitShareAskAnswerForToken(params: {
   }
   if (found.state === 'expired') return { ok: false, reason: 'expired' };
   if (found.state === 'revoked') return { ok: false, reason: 'revoked' };
-  if (!readShareCookie(params.shareCookie, found.share)) {
+  if (rowShareKind(found.share.ShareKind) === 'flashcard') {
+    return { ok: false, reason: 'not_found' };
+  }
+  if (!shareUnlocked(found.share, params.shareCookie)) {
     return { ok: false, reason: 'locked' };
   }
 
@@ -507,7 +675,10 @@ async function gateShareNoteForAsk(params: {
   }
   if (found.state === 'expired') return { ok: false, reason: 'expired' };
   if (found.state === 'revoked') return { ok: false, reason: 'revoked' };
-  if (!readShareCookie(params.shareCookie, found.share)) {
+  if (rowShareKind(found.share.ShareKind) === 'flashcard') {
+    return { ok: false, reason: 'not_found' };
+  }
+  if (!shareUnlocked(found.share, params.shareCookie)) {
     return { ok: false, reason: 'locked' };
   }
 
@@ -622,7 +793,10 @@ export async function setShareDecisionForToken(params: {
   }
   if (found.state === 'expired') return { ok: false, reason: 'expired' };
   if (found.state === 'revoked') return { ok: false, reason: 'revoked' };
-  if (!readShareCookie(params.shareCookie, found.share)) {
+  if (rowShareKind(found.share.ShareKind) === 'flashcard') {
+    return { ok: false, reason: 'not_found' };
+  }
+  if (!shareUnlocked(found.share, params.shareCookie)) {
     return { ok: false, reason: 'locked' };
   }
 
@@ -654,7 +828,16 @@ export async function setShareDecisionForToken(params: {
   return result;
 }
 
-/** Allow media only if referenced by the shared note body. */
+function bodyReferencesMedia(body: string, vaultId: number, mediaId: number): boolean {
+  return (
+    body.includes(`/api/vaults/${vaultId}/media/${mediaId}`) ||
+    body.includes(`/media/${mediaId}`) ||
+    new RegExp(`/api/shares/[^/"'\\s]+/media/${mediaId}`).test(body) ||
+    new RegExp(`/api/public/[^/"'\\s]+/media/${mediaId}`).test(body)
+  );
+}
+
+/** Allow media if referenced by the shared note or any public/unlisted note (any vault). */
 export async function shareMediaAllowed(params: {
   rawToken: string;
   shareCookie?: string;
@@ -662,27 +845,145 @@ export async function shareMediaAllowed(params: {
 }): Promise<{ ok: true; vaultId: number } | { ok: false }> {
   const found = await findActiveShareByToken(params.rawToken);
   if (found.state !== 'ok' || !found.share) return { ok: false };
-  if (!readShareCookie(params.shareCookie, found.share)) return { ok: false };
+  if (!shareUnlocked(found.share, params.shareCookie)) return { ok: false };
 
-  const vaultId = Number(found.share.VaultId);
   const mediaId = params.mediaId;
-  const needles = [
-    `/api/vaults/${vaultId}/media/${mediaId}`,
-    `/api/shares/`,
-  ];
-  const [notes] = await pool.execute<RowDataPacket[]>(
-    `SELECT BodyMarkdown FROM Notes WHERE Id = ? AND VaultId = ? AND DeletedAt IS NULL LIMIT 1`,
-    [found.share.NoteId, vaultId]
+  const [mediaRows] = await pool.execute<RowDataPacket[]>(
+    `SELECT VaultId FROM VaultMedia WHERE Id = ? LIMIT 1`,
+    [mediaId]
   );
-  if (!notes.length) return { ok: false };
-  const body = String(notes[0].BodyMarkdown || '');
-  if (
-    body.includes(needles[0]) ||
-    body.includes(`/media/${mediaId}`) ||
-    new RegExp(`/api/shares/[^/"'\\s]+/media/${mediaId}`).test(body) ||
-    new RegExp(`/api/public/[^/"'\\s]+/media/${mediaId}`).test(body)
-  ) {
-    return { ok: true, vaultId };
+  if (!mediaRows.length) return { ok: false };
+  const mediaVaultId = Number(mediaRows[0].VaultId);
+  if (!Number.isFinite(mediaVaultId) || mediaVaultId <= 0) return { ok: false };
+
+  const shareVaultId = Number(found.share.VaultId);
+  const [vaultRows] = await pool.execute<RowDataPacket[]>(
+    `SELECT DefaultVisibility FROM Vaults WHERE Id = ? LIMIT 1`,
+    [mediaVaultId]
+  );
+  const vaultDefault = vaultRows[0]?.DefaultVisibility;
+  const [notes] = await pool.execute<RowDataPacket[]>(
+    `SELECT Id, BodyMarkdown, Visibility FROM Notes WHERE VaultId = ? AND DeletedAt IS NULL`,
+    [mediaVaultId]
+  );
+  for (const row of notes) {
+    const isSharedRoot =
+      mediaVaultId === shareVaultId && Number(row.Id) === Number(found.share.NoteId);
+    const peekable = isGuestPeekVisibility(row.Visibility, vaultDefault);
+    if (!isSharedRoot && !peekable) continue;
+    if (bodyReferencesMedia(String(row.BodyMarkdown || ''), mediaVaultId, mediaId)) {
+      return { ok: true, vaultId: mediaVaultId };
+    }
   }
   return { ok: false };
+}
+
+/**
+ * Peek a public/unlisted note from an unlocked share (same or other vault).
+ * Gated by the target note's effective visibility — not vault AllowPublicPages.
+ */
+export async function getShareLinkedNote(params: {
+  rawToken: string;
+  shareCookie?: string;
+  noteId: number;
+}): Promise<
+  | { ok: false; reason: 'not_found' | 'expired' | 'revoked' | 'locked' | 'forbidden' }
+  | {
+      ok: true;
+      title: string;
+      kind: 'note' | 'whiteboard';
+      noteId: number;
+      vaultId: number;
+      html: string;
+      boardJson: string | null;
+      embeddedBoards: Record<string, string>;
+    }
+> {
+  const found = await findActiveShareByToken(params.rawToken);
+  if (found.state === 'not_found' || !found.share) return { ok: false, reason: 'not_found' };
+  if (found.state === 'expired') return { ok: false, reason: 'expired' };
+  if (found.state === 'revoked') return { ok: false, reason: 'revoked' };
+  if (!shareUnlocked(found.share, params.shareCookie)) {
+    return { ok: false, reason: 'locked' };
+  }
+
+  const noteId = Number(params.noteId);
+  if (!Number.isFinite(noteId) || noteId <= 0) return { ok: false, reason: 'not_found' };
+
+  const [notes] = await pool.execute<RowDataPacket[]>(
+    `SELECT n.Id, n.Title, n.Path, n.BodyMarkdown, n.Kind, n.BoardJson, n.Visibility, n.VaultId,
+            v.DefaultVisibility
+     FROM Notes n
+     INNER JOIN Vaults v ON v.Id = n.VaultId
+     WHERE n.Id = ? AND n.DeletedAt IS NULL
+     LIMIT 1`,
+    [noteId]
+  );
+  if (!notes.length) return { ok: false, reason: 'not_found' };
+  const note = notes[0];
+  const vaultId = Number(note.VaultId);
+  if (!isGuestPeekVisibility(note.Visibility, note.DefaultVisibility)) {
+    return { ok: false, reason: 'forbidden' };
+  }
+
+  const [vaultNotes] = await pool.execute<RowDataPacket[]>(
+    `SELECT Id, Title, Path, Kind, BoardJson FROM Notes WHERE VaultId = ? AND DeletedAt IS NULL`,
+    [vaultId]
+  );
+  const noteIndex = vaultNotes.map((n) => ({
+    id: Number(n.Id),
+    title: String(n.Title),
+    path: String(n.Path || ''),
+    kind: String(n.Kind || 'note'),
+  }));
+  const [guestPeekNoteIds, linkableVaults] = await Promise.all([
+    listGuestPeekableNoteIds(),
+    listLinkableVaultNotesForGuestShare(),
+  ]);
+  const peekable = new Set(guestPeekNoteIds);
+  const token = params.rawToken;
+  const kind = String(note.Kind || 'note') === 'whiteboard' ? 'whiteboard' : 'note';
+
+  if (kind === 'whiteboard') {
+    return {
+      ok: true,
+      title: String(note.Title || 'Whiteboard'),
+      kind,
+      noteId,
+      vaultId,
+      html: '',
+      boardJson: boardJsonToString(note.BoardJson),
+      embeddedBoards: {},
+    };
+  }
+
+  const body = String(note.BodyMarkdown || '');
+  const html = rewriteShareMediaUrls(
+    markdownToSafeHtml(body, noteIndex, linkableVaults, noteId, { guestPeekNoteIds }),
+    vaultId,
+    token
+  );
+
+  const embeddedBoards: Record<string, string> = {};
+  const byId = new Map(vaultNotes.map((n) => [Number(n.Id), n]));
+  for (const target of extractBoardEmbedTargets(body)) {
+    if (target.startsWith('@')) continue;
+    const id = resolveNoteId(target, noteIndex);
+    if (id == null || !peekable.has(id)) continue;
+    const row = byId.get(id);
+    if (!row || String(row.Kind || 'note') !== 'whiteboard') continue;
+    const bj = boardJsonToString(row.BoardJson);
+    if (bj != null) embeddedBoards[String(id)] = bj;
+  }
+
+  return {
+    ok: true,
+    title: String(note.Title || 'Note'),
+    kind: 'note',
+    noteId,
+    vaultId,
+    html,
+    boardJson: null,
+    embeddedBoards,
+  };
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import WhiteboardPeekCanvas from '@/components/WhiteboardPeekCanvas';
@@ -13,19 +13,22 @@ import { handleMarkdownCodeCopyClick } from '@/lib/codeCopy';
 import { renderMermaidInRoot } from '@/lib/mermaidRender';
 import { useBoardEmbedPreview } from '@/lib/useBoardEmbedPreview';
 import { noteLeafName } from '@/lib/notePaths';
+import NotePeekModal, { type NotePeekTarget } from '@/components/NotePeekModal';
 
-type ShareKind = 'note' | 'whiteboard';
+type ShareKind = 'note' | 'whiteboard' | 'flashcard';
 
 export default function SharedNotePage() {
   const params = useParams();
   const token = String(params.token || '');
   const articleRef = useRef<HTMLDivElement>(null);
+  const flashBackRef = useRef<HTMLDivElement>(null);
 
   const [phase, setPhase] = useState<'loading' | 'password' | 'content' | 'error'>('loading');
   const [error, setError] = useState('');
   const [title, setTitle] = useState('');
   const [kind, setKind] = useState<ShareKind>('note');
   const [noteId, setNoteId] = useState(0);
+  const [vaultId, setVaultId] = useState(0);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [password, setPassword] = useState('');
   const [unlockBusy, setUnlockBusy] = useState(false);
@@ -34,8 +37,11 @@ export default function SharedNotePage() {
   const [embeddedBoards, setEmbeddedBoards] = useState<Record<string, string | null>>({});
   const [askAnswers, setAskAnswers] = useState<Record<string, AskAnswerView[]>>({});
   const [decisions, setDecisions] = useState<Record<string, DecisionView>>({});
+  const [flashcard, setFlashcard] = useState<{ front: string; backHtml: string } | null>(null);
+  const [flashRevealed, setFlashRevealed] = useState(false);
   const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
   const [mermaidLightbox, setMermaidLightbox] = useState<string | null>(null);
+  const [peekTarget, setPeekTarget] = useState<NotePeekTarget | null>(null);
 
   const loadContent = useCallback(async () => {
     const res = await fetch(`/api/shares/${encodeURIComponent(token)}/content`, {
@@ -53,9 +59,13 @@ export default function SharedNotePage() {
       return;
     }
     const d = data.data || {};
+    const nextKind = String(d.kind || 'note') as ShareKind;
     setTitle(String(d.title || 'Note'));
-    setKind(String(d.kind) === 'whiteboard' ? 'whiteboard' : 'note');
+    setKind(
+      nextKind === 'whiteboard' || nextKind === 'flashcard' ? nextKind : 'note'
+    );
     setNoteId(Number(d.noteId) || 0);
+    setVaultId(Number(d.vaultId) || 0);
     setExpiresAt(d.expiresAt ? String(d.expiresAt) : null);
     setHtml(String(d.html || ''));
     setBoardJson(d.boardJson != null ? String(d.boardJson) : null);
@@ -74,6 +84,15 @@ export default function SharedNotePage() {
         ? (d.decisions as Record<string, DecisionView>)
         : {};
     setDecisions(decisionsPayload);
+    if (d.flashcard && typeof d.flashcard === 'object') {
+      setFlashcard({
+        front: String(d.flashcard.front || d.title || 'Flashcard'),
+        backHtml: String(d.flashcard.backHtml || ''),
+      });
+    } else {
+      setFlashcard(null);
+    }
+    setFlashRevealed(false);
     setPhase('content');
     setError('');
   }, [token]);
@@ -94,8 +113,11 @@ export default function SharedNotePage() {
         setError(meta.message || 'Share not found');
         return;
       }
+      const nextKind = String(meta.data?.kind || 'note') as ShareKind;
       setTitle(String(meta.data?.title || 'Note'));
-      setKind(String(meta.data?.kind) === 'whiteboard' ? 'whiteboard' : 'note');
+      setKind(
+        nextKind === 'whiteboard' || nextKind === 'flashcard' ? nextKind : 'note'
+      );
       setExpiresAt(meta.data?.expiresAt ? String(meta.data.expiresAt) : null);
       if (meta.data?.unlocked) {
         await loadContent();
@@ -111,15 +133,54 @@ export default function SharedNotePage() {
 
   const { embedMounts, askMounts, decisionMounts } = useBoardEmbedPreview(articleRef, {
     html,
-    enabled: phase === 'content' && kind !== 'whiteboard',
+    enabled: phase === 'content' && kind === 'note',
     afterWrite: afterShareWrite,
   });
 
+  useLayoutEffect(() => {
+    const root = flashBackRef.current;
+    if (!root || phase !== 'content' || kind !== 'flashcard' || !flashRevealed || !flashcard) {
+      return;
+    }
+    root.innerHTML = flashcard.backHtml || '';
+    void renderMermaidInRoot(root);
+  }, [flashcard, flashRevealed, phase, kind]);
+
   useEffect(() => {
-    const root = articleRef.current;
+    const root = kind === 'flashcard' ? flashBackRef.current : articleRef.current;
     if (!root || phase !== 'content' || kind === 'whiteboard') return;
+    if (kind === 'flashcard' && !flashRevealed) return;
     const onClick = (e: MouseEvent) => {
       if (handleMarkdownCodeCopyClick(e, root)) return;
+
+      const locked = (e.target as HTMLElement).closest('.synapse-wikilink.is-locked');
+      if (locked && root.contains(locked)) {
+        e.preventDefault();
+        return;
+      }
+
+      const goto = (e.target as HTMLElement).closest('.synapse-note-goto') as HTMLElement | null;
+      const peekBtn = (e.target as HTMLElement).closest(
+        '.synapse-note-peek'
+      ) as HTMLElement | null;
+      const hit = goto || peekBtn;
+      if (hit && root.contains(hit)) {
+        const ref = hit.closest('.synapse-note-ref') as HTMLElement | null;
+        if (ref) {
+          e.preventDefault();
+          e.stopPropagation();
+          const id = Number(ref.dataset.noteId || 0);
+          if (!id) return;
+          setPeekTarget({
+            noteId: id,
+            vaultId: Number(ref.dataset.vaultId || vaultId) || vaultId,
+            titleHint: String(ref.dataset.noteTitle || '').trim() || undefined,
+            shareToken: token,
+          });
+          return;
+        }
+      }
+
       const img = (e.target as HTMLElement).closest('img') as HTMLImageElement | null;
       if (img?.src && root.contains(img)) {
         e.preventDefault();
@@ -140,7 +201,7 @@ export default function SharedNotePage() {
     };
     root.addEventListener('click', onClick);
     return () => root.removeEventListener('click', onClick);
-  }, [html, phase, kind]);
+  }, [html, phase, kind, flashRevealed, flashcard, token, vaultId]);
 
   const onUnlock = async (e: FormEvent) => {
     e.preventDefault();
@@ -168,6 +229,9 @@ export default function SharedNotePage() {
     }
   };
 
+  const kindLabel =
+    kind === 'whiteboard' ? 'whiteboard' : kind === 'flashcard' ? 'flashcard' : 'note';
+
   return (
     <main className="flex h-dvh flex-col overflow-hidden bg-[var(--bg)] text-[var(--text)]">
       <header className="shrink-0 border-b border-[var(--border)] bg-[var(--panel)]/95 px-4 py-2.5 backdrop-blur-md sm:px-5">
@@ -181,7 +245,7 @@ export default function SharedNotePage() {
             </Link>
             {phase === 'content' && title ? (
               <h1 className="truncate text-sm font-medium text-[var(--muted)]">
-                {noteLeafName(title)}
+                {kind === 'flashcard' ? title : noteLeafName(title)}
               </h1>
             ) : null}
           </div>
@@ -189,6 +253,8 @@ export default function SharedNotePage() {
             <p className="shrink-0 truncate text-[11px] text-[var(--muted)]">
               Expires {new Date(expiresAt).toLocaleString()}
             </p>
+          ) : phase === 'content' || phase === 'password' ? (
+            <p className="shrink-0 truncate text-[11px] text-[var(--muted)]">No expiry</p>
           ) : null}
         </div>
       </header>
@@ -218,10 +284,10 @@ export default function SharedNotePage() {
             className="w-full max-w-sm rounded-xl border border-[var(--border)] bg-[var(--panel)] p-6 shadow-lg"
           >
             <h1 className="text-lg font-semibold tracking-tight">
-              {noteLeafName(title) || 'Shared note'}
+              {kind === 'flashcard' ? title || 'Shared flashcard' : noteLeafName(title) || 'Shared note'}
             </h1>
             <p className="mt-1 text-sm text-[var(--muted)]">
-              Enter the password to view this {kind === 'whiteboard' ? 'whiteboard' : 'note'}.
+              Enter the password to view this {kindLabel}.
             </p>
             <label className="mt-4 block text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
               Password
@@ -255,6 +321,43 @@ export default function SharedNotePage() {
               boardJson={boardJson}
               className="synapse-whiteboard synapse-whiteboard-viewer synapse-whiteboard-fill w-full overflow-hidden"
             />
+          ) : kind === 'flashcard' && flashcard ? (
+            <div className="flex min-h-0 flex-1 items-start justify-center overflow-auto px-4 py-8 sm:px-8">
+              <div className="w-full max-w-xl rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-6 shadow-lg">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+                  Flashcard
+                </p>
+                <h2 className="mt-2 text-xl font-semibold tracking-tight text-[var(--text)]">
+                  {flashcard.front}
+                </h2>
+                {!flashRevealed ? (
+                  <button
+                    type="button"
+                    className="btn-primary mt-6 w-full"
+                    onClick={() => setFlashRevealed(true)}
+                  >
+                    Reveal answer
+                  </button>
+                ) : (
+                  <div className="mt-5 border-t border-[var(--border)] pt-4">
+                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+                      Answer
+                    </p>
+                    <div
+                      ref={flashBackRef}
+                      className="synapse-md-preview prose-synapse text-[15px] leading-7"
+                    />
+                    <button
+                      type="button"
+                      className="btn-ghost mt-4 text-xs"
+                      onClick={() => setFlashRevealed(false)}
+                    >
+                      Hide answer
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           ) : (
             <div className="min-h-0 flex-1 overflow-auto px-4 py-6 sm:px-8 lg:px-12">
               <div ref={articleRef} className="synapse-md-preview w-full" />
@@ -284,6 +387,26 @@ export default function SharedNotePage() {
       {mermaidLightbox ? (
         <MermaidLightbox svgHtml={mermaidLightbox} onClose={() => setMermaidLightbox(null)} />
       ) : null}
+
+      <NotePeekModal
+        open={Boolean(peekTarget)}
+        target={peekTarget}
+        onClose={() => setPeekTarget(null)}
+        onOpenNote={(id) =>
+          setPeekTarget({
+            noteId: id,
+            vaultId: vaultId || peekTarget?.vaultId || 0,
+            shareToken: token,
+          })
+        }
+        onPeekNote={(next) =>
+          setPeekTarget({
+            ...next,
+            shareToken: token,
+            vaultId: next.vaultId || vaultId,
+          })
+        }
+      />
     </main>
   );
 }

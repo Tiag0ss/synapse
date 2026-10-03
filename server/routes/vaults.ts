@@ -1397,7 +1397,15 @@ router.get('/:vaultId/notes/:noteId/shares', async (req: AuthRequest, res: Respo
   if (!Number.isFinite(noteId) || noteId <= 0) {
     return res.status(404).json({ success: false, message: 'Note not found' });
   }
-  const list = await listNoteShares(Number(vault.Id), noteId);
+  const kindRaw = String(req.query.kind || '').trim();
+  const shareKind =
+    kindRaw === 'flashcard' ? ('flashcard' as const) : kindRaw === 'note' ? ('note' as const) : undefined;
+  const foldFront =
+    req.query.foldFront != null ? String(req.query.foldFront).trim() : undefined;
+  const list = await listNoteShares(Number(vault.Id), noteId, {
+    shareKind,
+    foldFront: foldFront || null,
+  });
   if (!list) return res.status(404).json({ success: false, message: 'Note not found' });
   res.json({ success: true, data: list });
 });
@@ -1638,13 +1646,26 @@ router.post('/:vaultId/notes/:noteId/shares', async (req: AuthRequest, res: Resp
 
   const parsed = z
     .object({
-      expiresInSeconds: z.number().int().min(MIN_EXPIRES_SEC).max(MAX_EXPIRES_SEC),
+      /** `null` = never expires */
+      expiresInSeconds: z
+        .union([z.number().int().min(MIN_EXPIRES_SEC).max(MAX_EXPIRES_SEC), z.null()])
+        .optional()
+        .default(24 * 60 * 60),
+      requirePassword: z.boolean().optional().default(true),
+      shareKind: z.enum(['note', 'flashcard']).optional().default('note'),
+      foldFront: z.string().min(1).max(512).optional(),
     })
     .safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({
       success: false,
-      message: `expiresInSeconds must be between ${MIN_EXPIRES_SEC} and ${MAX_EXPIRES_SEC}`,
+      message: `Invalid share options (expiresInSeconds null or ${MIN_EXPIRES_SEC}–${MAX_EXPIRES_SEC})`,
+    });
+  }
+  if (parsed.data.shareKind === 'flashcard' && !parsed.data.foldFront?.trim()) {
+    return res.status(400).json({
+      success: false,
+      message: 'foldFront is required for flashcard shares',
     });
   }
 
@@ -1653,12 +1674,27 @@ router.post('/:vaultId/notes/:noteId/shares', async (req: AuthRequest, res: Resp
     noteId,
     createdByPmUserId: req.user!.userId,
     expiresInSeconds: parsed.data.expiresInSeconds,
+    requirePassword: parsed.data.requirePassword,
+    shareKind: parsed.data.shareKind,
+    foldFront: parsed.data.foldFront,
   });
   if (!created.ok) {
     if (created.reason === 'hub_note') {
       return res.status(403).json({
         success: false,
         message: 'The My work overview note cannot be shared with a password link',
+      });
+    }
+    if (created.reason === 'fold_not_found') {
+      return res.status(404).json({
+        success: false,
+        message: 'Flashcard not found in this note',
+      });
+    }
+    if (created.reason === 'whiteboard') {
+      return res.status(400).json({
+        success: false,
+        message: 'Whiteboard notes cannot share flashcards',
       });
     }
     return res.status(404).json({ success: false, message: 'Note not found' });
@@ -1671,6 +1707,8 @@ router.post('/:vaultId/notes/:noteId/shares', async (req: AuthRequest, res: Resp
       url: created.url,
       password: created.password,
       expiresAt: created.expiresAt,
+      shareKind: created.shareKind,
+      foldFront: created.foldFront,
     },
   });
 });

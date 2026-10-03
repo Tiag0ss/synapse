@@ -7,6 +7,7 @@ const DURATIONS = [
   { label: '24 hours', seconds: 24 * 60 * 60 },
   { label: '7 days', seconds: 7 * 24 * 60 * 60 },
   { label: '30 days', seconds: 30 * 24 * 60 * 60 },
+  { label: 'Never', seconds: null },
 ] as const;
 
 type TabId = 'share' | 'send';
@@ -14,17 +15,20 @@ type TransferMode = 'copy' | 'move';
 
 type ShareRow = {
   id: number;
-  expiresAt: string;
+  expiresAt: string | null;
   revokedAt: string | null;
   createdAt: string;
   status: 'active' | 'expired' | 'revoked';
+  hasPassword?: boolean;
+  shareKind?: 'note' | 'flashcard';
+  foldFront?: string | null;
 };
 
 type CreatedShare = {
   id: number;
   url: string;
-  password: string;
-  expiresAt: string;
+  password: string | null;
+  expiresAt: string | null;
 };
 
 interface VaultOption {
@@ -38,6 +42,10 @@ type NoteShareModalProps = {
   vaultId: string;
   noteId: number | null;
   noteTitle: string;
+  /** When set, creates a flashcard share (hides Send tab). */
+  foldFront?: string | null;
+  /** Used to default require-password off for public/unlisted notes. */
+  noteVisibility?: string | null;
   onClose: () => void;
   onStatus?: (message: string) => void;
   onTransferDone?: (result: {
@@ -48,19 +56,28 @@ type NoteShareModalProps = {
   }) => void;
 };
 
+function isOpenVisibility(vis: string | null | undefined): boolean {
+  const v = String(vis || '').toLowerCase();
+  return v === 'public' || v === 'unlisted';
+}
+
 export default function NoteShareModal({
   open,
   vaultId,
   noteId,
   noteTitle,
+  foldFront = null,
+  noteVisibility = null,
   onClose,
   onStatus,
   onTransferDone,
 }: NoteShareModalProps) {
+  const isFlashcard = Boolean(foldFront && String(foldFront).trim());
   const [tab, setTab] = useState<TabId>('share');
 
   // Share tab
-  const [expiresInSeconds, setExpiresInSeconds] = useState<number>(DURATIONS[1].seconds);
+  const [expiresInSeconds, setExpiresInSeconds] = useState<number | null>(DURATIONS[1].seconds);
+  const [requirePassword, setRequirePassword] = useState(true);
   const [list, setList] = useState<ShareRow[]>([]);
   const [shareLoading, setShareLoading] = useState(false);
   const [shareBusy, setShareBusy] = useState(false);
@@ -83,9 +100,17 @@ export default function NoteShareModal({
     setShareLoading(true);
     setShareError('');
     try {
-      const res = await fetch(`/api/vaults/${vaultId}/notes/${noteId}/shares`, {
-        credentials: 'include',
-      });
+      const qs = new URLSearchParams();
+      if (isFlashcard) {
+        qs.set('kind', 'flashcard');
+        qs.set('foldFront', String(foldFront).trim());
+      } else {
+        qs.set('kind', 'note');
+      }
+      const res = await fetch(
+        `/api/vaults/${vaultId}/notes/${noteId}/shares?${qs.toString()}`,
+        { credentials: 'include' }
+      );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setShareError(data.message || 'Failed to load shares');
@@ -99,7 +124,7 @@ export default function NoteShareModal({
     } finally {
       setShareLoading(false);
     }
-  }, [vaultId, noteId]);
+  }, [vaultId, noteId, isFlashcard, foldFront]);
 
   useEffect(() => {
     if (!open) return;
@@ -108,6 +133,7 @@ export default function NoteShareModal({
     setCopied(null);
     setShareError('');
     setExpiresInSeconds(DURATIONS[1].seconds);
+    setRequirePassword(!isOpenVisibility(noteVisibility));
     setMode('copy');
     setQuery('');
     setTargetVaultId(null);
@@ -115,6 +141,7 @@ export default function NoteShareModal({
     setNewVaultName(noteTitle ? `${noteTitle} vault` : '');
     setSendError('');
     void loadList();
+    if (isFlashcard) return;
     void (async () => {
       const res = await fetch('/api/vaults', { credentials: 'include' });
       const data = await res.json();
@@ -125,7 +152,7 @@ export default function NoteShareModal({
         setVaults(listVaults);
       }
     })();
-  }, [open, loadList, vaultId, noteTitle]);
+  }, [open, loadList, vaultId, noteTitle, noteVisibility, isFlashcard]);
 
   const filteredVaults = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -161,7 +188,12 @@ export default function NoteShareModal({
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ expiresInSeconds }),
+        body: JSON.stringify({
+          expiresInSeconds,
+          requirePassword,
+          shareKind: isFlashcard ? 'flashcard' : 'note',
+          ...(isFlashcard ? { foldFront: String(foldFront).trim() } : {}),
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -169,7 +201,7 @@ export default function NoteShareModal({
         return;
       }
       setCreated(data.data as CreatedShare);
-      onStatus?.('Share link created');
+      onStatus?.(isFlashcard ? 'Flashcard share link created' : 'Share link created');
       await loadList();
     } catch {
       setShareError('Network error');
@@ -237,78 +269,107 @@ export default function NoteShareModal({
 
   const active = list.filter((s) => s.status === 'active');
   const inactive = list.filter((s) => s.status !== 'active').slice(0, 8);
+  const subtitle = isFlashcard ? String(foldFront).trim() : noteTitle;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Share or send note"
+        aria-label={isFlashcard ? 'Share flashcard' : 'Share or send note'}
         className="flex max-h-[min(90dvh,40rem)] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-2xl shadow-black/40"
       >
         <div className="flex items-start justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
           <div className="min-w-0">
-            <h2 className="text-base font-semibold tracking-tight text-[var(--text)]">Share</h2>
-            <p className="mt-0.5 truncate text-xs text-[var(--muted)]">{noteTitle}</p>
+            <h2 className="text-base font-semibold tracking-tight text-[var(--text)]">
+              {isFlashcard ? 'Share flashcard' : 'Share'}
+            </h2>
+            <p className="mt-0.5 truncate text-xs text-[var(--muted)]">{subtitle}</p>
           </div>
           <button type="button" className="btn-ghost py-1 text-xs" onClick={onClose}>
             Close
           </button>
         </div>
 
-        <div role="tablist" aria-label="Share mode" className="flex shrink-0 gap-1 border-b border-[var(--border)] px-3 pt-2">
-          <button
-            type="button"
-            role="tab"
-            className={`rounded-t-lg px-3 py-2 text-sm font-medium transition ${
-              tab === 'share'
-                ? 'bg-[var(--surface-2)] text-[var(--text)]'
-                : 'text-[var(--muted)] hover:text-[var(--text)]'
-            }`}
-            aria-selected={tab === 'share'}
-            onClick={() => setTab('share')}
+        {!isFlashcard ? (
+          <div
+            role="tablist"
+            aria-label="Share mode"
+            className="flex shrink-0 gap-1 border-b border-[var(--border)] px-3 pt-2"
           >
-            Link
-          </button>
-          <button
-            type="button"
-            role="tab"
-            className={`rounded-t-lg px-3 py-2 text-sm font-medium transition ${
-              tab === 'send'
-                ? 'bg-[var(--surface-2)] text-[var(--text)]'
-                : 'text-[var(--muted)] hover:text-[var(--text)]'
-            }`}
-            aria-selected={tab === 'send'}
-            onClick={() => setTab('send')}
-          >
-            Send
-          </button>
-        </div>
+            <button
+              type="button"
+              role="tab"
+              className={`rounded-t-lg px-3 py-2 text-sm font-medium transition ${
+                tab === 'share'
+                  ? 'bg-[var(--surface-2)] text-[var(--text)]'
+                  : 'text-[var(--muted)] hover:text-[var(--text)]'
+              }`}
+              aria-selected={tab === 'share'}
+              onClick={() => setTab('share')}
+            >
+              Link
+            </button>
+            <button
+              type="button"
+              role="tab"
+              className={`rounded-t-lg px-3 py-2 text-sm font-medium transition ${
+                tab === 'send'
+                  ? 'bg-[var(--surface-2)] text-[var(--text)]'
+                  : 'text-[var(--muted)] hover:text-[var(--text)]'
+              }`}
+              aria-selected={tab === 'send'}
+              onClick={() => setTab('send')}
+            >
+              Send
+            </button>
+          </div>
+        ) : null}
 
-        {tab === 'share' ? (
+        {tab === 'share' || isFlashcard ? (
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4">
             <section>
               <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-                Temporary password link
+                Temporary link
               </p>
               <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">
-                Anyone with the link and password can view this note until it expires. Password is
-                shown once.
+                {isFlashcard
+                  ? 'Anyone with the link can study this flashcard until it expires (or indefinitely).'
+                  : 'Anyone with the link can view this note until it expires (or indefinitely).'}
+                {requirePassword
+                  ? ' Password is shown once.'
+                  : ' No password — the link alone is enough.'}
               </p>
               <label className="mt-3 block text-xs text-[var(--muted)]">
-                Expires in
+                Expires
                 <select
                   className="input mt-1 w-full"
-                  value={expiresInSeconds}
-                  onChange={(e) => setExpiresInSeconds(Number(e.target.value))}
+                  value={expiresInSeconds == null ? 'never' : String(expiresInSeconds)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setExpiresInSeconds(v === 'never' ? null : Number(v));
+                  }}
                   disabled={shareBusy}
                 >
                   {DURATIONS.map((d) => (
-                    <option key={d.seconds} value={d.seconds}>
+                    <option
+                      key={d.label}
+                      value={d.seconds == null ? 'never' : String(d.seconds)}
+                    >
                       {d.label}
                     </option>
                   ))}
                 </select>
+              </label>
+              <label className="mt-3 flex items-center gap-2 text-sm text-[var(--text)]">
+                <input
+                  type="checkbox"
+                  className="accent-[var(--accent)]"
+                  checked={requirePassword}
+                  onChange={(e) => setRequirePassword(e.target.checked)}
+                  disabled={shareBusy}
+                />
+                Require password
               </label>
               <button
                 type="button"
@@ -323,7 +384,9 @@ export default function NoteShareModal({
             {created ? (
               <section className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)]/40 p-3">
                 <p className="text-xs font-medium text-[var(--accent-soft)]">
-                  Copy now — the password will not be shown again.
+                  {created.password
+                    ? 'Copy now — the password will not be shown again.'
+                    : 'Copy the link — no password required.'}
                 </p>
                 <label className="mt-3 block text-[11px] uppercase tracking-wider text-[var(--muted)]">
                   Link
@@ -342,25 +405,29 @@ export default function NoteShareModal({
                     </button>
                   </div>
                 </label>
-                <label className="mt-3 block text-[11px] uppercase tracking-wider text-[var(--muted)]">
-                  Password
-                  <div className="mt-1 flex gap-2">
-                    <input
-                      className="input min-w-0 flex-1 font-mono text-xs"
-                      readOnly
-                      value={created.password}
-                    />
-                    <button
-                      type="button"
-                      className="btn-ghost shrink-0 text-xs"
-                      onClick={() => void copyText(created.password, 'password')}
-                    >
-                      {copied === 'password' ? 'Copied' : 'Copy'}
-                    </button>
-                  </div>
-                </label>
+                {created.password ? (
+                  <label className="mt-3 block text-[11px] uppercase tracking-wider text-[var(--muted)]">
+                    Password
+                    <div className="mt-1 flex gap-2">
+                      <input
+                        className="input min-w-0 flex-1 font-mono text-xs"
+                        readOnly
+                        value={created.password}
+                      />
+                      <button
+                        type="button"
+                        className="btn-ghost shrink-0 text-xs"
+                        onClick={() => void copyText(created.password!, 'password')}
+                      >
+                        {copied === 'password' ? 'Copied' : 'Copy'}
+                      </button>
+                    </div>
+                  </label>
+                ) : null}
                 <p className="mt-2 text-[11px] text-[var(--muted)]">
-                  Expires {new Date(created.expiresAt).toLocaleString()}
+                  {created.expiresAt
+                    ? `Expires ${new Date(created.expiresAt).toLocaleString()}`
+                    : 'No expiry'}
                 </p>
               </section>
             ) : null}
@@ -382,7 +449,10 @@ export default function NoteShareModal({
                     >
                       <div className="min-w-0 text-xs">
                         <p className="text-[var(--text)]">
-                          Expires {new Date(s.expiresAt).toLocaleString()}
+                          {s.expiresAt
+                            ? `Expires ${new Date(s.expiresAt).toLocaleString()}`
+                            : 'No expiry'}
+                          {s.hasPassword === false ? ' · open link' : ' · password'}
                         </p>
                         <p className="text-[var(--muted)]">
                           Created {new Date(s.createdAt).toLocaleString()}
@@ -410,7 +480,8 @@ export default function NoteShareModal({
                 <ul className="mt-2 space-y-1 text-xs text-[var(--muted)]">
                   {inactive.map((s) => (
                     <li key={s.id}>
-                      #{s.id} · {s.status} · {new Date(s.expiresAt).toLocaleString()}
+                      #{s.id} · {s.status} ·{' '}
+                      {s.expiresAt ? new Date(s.expiresAt).toLocaleString() : 'no expiry'}
                     </li>
                   ))}
                 </ul>

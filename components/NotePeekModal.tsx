@@ -26,6 +26,8 @@ export type NotePeekTarget = {
   titleHint?: string;
   /** When set, fetch from public wiki API instead of vault notes API. */
   wikiSlug?: string;
+  /** When set, fetch from an unlocked note share (public/unlisted targets only). */
+  shareToken?: string;
 };
 
 type NotePeekModalProps = {
@@ -61,15 +63,38 @@ export default function NotePeekModal({
   const [bodyMarkdown, setBodyMarkdown] = useState('');
   /** Public wiki API returns sanitized HTML (media URLs rewritten); prefer over re-render. */
   const [bodyHtml, setBodyHtml] = useState<string | null>(null);
+  const [embeddedBoards, setEmbeddedBoards] = useState<Record<string, string | null>>({});
   const [itemKind, setItemKind] = useState<'note' | 'whiteboard'>('note');
   const [boardJson, setBoardJson] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [matchIndex, setMatchIndex] = useState(0);
   const [matchCount, setMatchCount] = useState(0);
+  const [maximized, setMaximized] = useState(false);
   const onOpenNoteRef = useRef(onOpenNote);
   onOpenNoteRef.current = onOpenNote;
 
   const isWhiteboard = itemKind === 'whiteboard';
+
+  useEffect(() => {
+    if (!open) setMaximized(false);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (query.trim()) return;
+      if (maximized) {
+        e.preventDefault();
+        setMaximized(false);
+        return;
+      }
+      e.preventDefault();
+      onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, maximized, query, onClose]);
 
   useEffect(() => {
     if (!open || !target) return;
@@ -78,6 +103,7 @@ export default function NotePeekModal({
     setError(null);
     setBodyMarkdown('');
     setBodyHtml(null);
+    setEmbeddedBoards({});
     setBoardJson(null);
     setItemKind('note');
     setTitle(target.titleHint || '');
@@ -86,9 +112,11 @@ export default function NotePeekModal({
     setMatchCount(0);
     hitsRef.current = [];
 
-    const url = target.wikiSlug
-      ? `/api/public/${encodeURIComponent(target.wikiSlug)}/notes/${target.noteId}`
-      : `/api/vaults/${target.vaultId}/notes/${target.noteId}`;
+    const url = target.shareToken
+      ? `/api/shares/${encodeURIComponent(target.shareToken)}/notes/${target.noteId}`
+      : target.wikiSlug
+        ? `/api/public/${encodeURIComponent(target.wikiSlug)}/notes/${target.noteId}`
+        : `/api/vaults/${target.vaultId}/notes/${target.noteId}`;
 
     void (async () => {
       try {
@@ -106,15 +134,31 @@ export default function NotePeekModal({
           String(n.Kind || n.kind || 'note') === 'whiteboard' ? 'whiteboard' : 'note';
         setItemKind(kind);
         if (kind === 'whiteboard') {
-          setBoardJson(n.BoardJson != null ? String(n.BoardJson) : null);
+          setBoardJson(
+            n.BoardJson != null
+              ? String(n.BoardJson)
+              : n.boardJson != null
+                ? String(n.boardJson)
+                : null
+          );
           setBodyHtml(null);
           setBodyMarkdown('');
-        } else if (target.wikiSlug && typeof n.html === 'string') {
+          setEmbeddedBoards({});
+        } else if (
+          (target.wikiSlug || target.shareToken) &&
+          typeof n.html === 'string'
+        ) {
           setBodyHtml(n.html);
           setBodyMarkdown('');
+          const boards =
+            n.embeddedBoards && typeof n.embeddedBoards === 'object'
+              ? (n.embeddedBoards as Record<string, string | null>)
+              : {};
+          setEmbeddedBoards(boards);
         } else {
           setBodyHtml(null);
           setBodyMarkdown(String(n.BodyMarkdown || n.bodyMarkdown || ''));
+          setEmbeddedBoards({});
         }
         setLoading(false);
       } catch {
@@ -154,13 +198,30 @@ export default function NotePeekModal({
 
   const fetchEmbedBoard = useCallback(
     async (embedNoteId: number, embedVaultId: number | null) => {
+      if (target?.shareToken) {
+        const fromMap = embeddedBoards[String(embedNoteId)];
+        if (fromMap != null) return fromMap;
+        try {
+          const res = await fetch(
+            `/api/shares/${encodeURIComponent(target.shareToken)}/notes/${embedNoteId}`,
+            { credentials: 'include' }
+          );
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok) return null;
+          const kind = String(json.data?.kind || 'note');
+          if (kind !== 'whiteboard') return null;
+          return json.data?.boardJson != null ? String(json.data.boardJson) : null;
+        } catch {
+          return null;
+        }
+      }
       const wikiSlug = target?.wikiSlug;
       if (wikiSlug) return fetchWikiBoardJson(wikiSlug, embedNoteId);
       const vid = embedVaultId || target?.vaultId || 0;
       if (!vid) return null;
       return fetchVaultBoardJson(vid, embedNoteId);
     },
-    [target?.wikiSlug, target?.vaultId]
+    [target?.shareToken, target?.wikiSlug, target?.vaultId, embeddedBoards]
   );
 
   const onEmbedOpenNote = useCallback((id: number, embedVaultId?: number) => {
@@ -217,6 +278,7 @@ export default function NotePeekModal({
       const isMissing = ref.classList.contains('is-missing') || !id;
 
       if (isMissing) {
+        if (target.shareToken) return;
         if (!missingTitle) return;
         const external =
           vaultId > 0 && target.vaultId > 0 && vaultId !== target.vaultId;
@@ -225,6 +287,17 @@ export default function NotePeekModal({
           return;
         }
         onCreateNoteFromWikilink?.(missingTitle);
+        return;
+      }
+
+      // Guest share: label + peek both open nested peek (no vault navigation).
+      if (target.shareToken) {
+        onPeekNote({
+          noteId: id,
+          vaultId: vaultId > 0 ? vaultId : target.vaultId,
+          titleHint: missingTitle || undefined,
+          shareToken: target.shareToken,
+        });
         return;
       }
 
@@ -269,15 +342,21 @@ export default function NotePeekModal({
   const canSearch = !loading && !error && !isWhiteboard;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+    <div
+      className={`fixed inset-0 z-[60] flex bg-black/60 backdrop-blur-sm ${
+        maximized ? 'items-stretch justify-stretch p-0' : 'items-center justify-center p-4'
+      }`}
+    >
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title || (isWhiteboard ? 'Whiteboard preview' : 'Note preview')}
-        className={`flex w-full flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-2xl shadow-black/40 ${
-          isWhiteboard
-            ? 'h-[min(90dvh,52rem)] max-w-5xl'
-            : 'max-h-[min(90dvh,48rem)] max-w-3xl'
+        className={`flex flex-col overflow-hidden border border-[var(--border)] bg-[var(--panel)] shadow-2xl shadow-black/40 ${
+          maximized
+            ? 'h-dvh w-full max-h-dvh max-w-none rounded-none border-0'
+            : isWhiteboard
+              ? 'h-[min(90dvh,52rem)] w-full max-w-5xl rounded-xl'
+              : 'max-h-[min(90dvh,48rem)] w-full max-w-3xl rounded-xl'
         }`}
       >
         <div className="flex shrink-0 items-center gap-2 border-b border-[var(--border)] px-3 py-2 sm:gap-3 sm:px-4">
@@ -343,15 +422,26 @@ export default function NotePeekModal({
           <div className="flex shrink-0 items-center gap-1.5">
             <button
               type="button"
-              className="btn-primary py-1 text-xs sm:text-sm"
-              disabled={loading || Boolean(error)}
-              onClick={() => {
-                onOpenNote(target.noteId, target.vaultId);
-                onClose();
-              }}
+              className="btn-ghost py-1 text-xs sm:text-sm"
+              aria-pressed={maximized}
+              title={maximized ? 'Exit full screen (Esc)' : 'Expand to full screen'}
+              onClick={() => setMaximized((v) => !v)}
             >
-              {isWhiteboard ? 'Open board' : 'Open note'}
+              {maximized ? 'Exit full screen' : 'Expand'}
             </button>
+            {!target.shareToken ? (
+              <button
+                type="button"
+                className="btn-primary py-1 text-xs sm:text-sm"
+                disabled={loading || Boolean(error)}
+                onClick={() => {
+                  onOpenNote(target.noteId, target.vaultId);
+                  onClose();
+                }}
+              >
+                {isWhiteboard ? 'Open board' : 'Open note'}
+              </button>
+            ) : null}
             <button type="button" className="btn-ghost text-xs sm:text-sm" onClick={onClose}>
               Close
             </button>

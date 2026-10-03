@@ -230,6 +230,15 @@ function renderBoardEmbedHtml(params: {
   );
 }
 
+function renderLockedNoteHtml(label: string): string {
+  return (
+    `<span class="synapse-wikilink is-locked" title="You don't have access to this note" aria-label="${escapeAttr(label)} (no access)">` +
+    `${escapeHtml(label)}` +
+    `<span class="synapse-wikilink-lock" aria-hidden="true">no access</span>` +
+    `</span>`
+  );
+}
+
 /** Convert [[wikilinks]] / ![[board embeds]] and #tags before marked. */
 export type SynapseMarkdownOptions = {
   /**
@@ -238,6 +247,11 @@ export type SynapseMarkdownOptions = {
    * Default true.
    */
   wikilinks?: boolean;
+  /**
+   * Guest share mode: interactive peek only for these note ids (public/unlisted).
+   * Other resolved notes render locked; missing targets stay plain text. Mentions off.
+   */
+  guestPeekNoteIds?: number[];
 };
 
 export function preprocessSynapseMarkdown(
@@ -247,7 +261,11 @@ export function preprocessSynapseMarkdown(
   excludeNoteId?: number | null,
   options?: SynapseMarkdownOptions
 ): string {
-  const enableWikilinks = options?.wikilinks !== false;
+  const guestPeekIds = Array.isArray(options?.guestPeekNoteIds)
+    ? new Set(options!.guestPeekNoteIds!.filter((id) => Number.isFinite(id) && id > 0))
+    : null;
+  const guestShare = guestPeekIds != null;
+  const enableWikilinks = guestShare || options?.wikilinks !== false;
   return mapProtected(md || '', (chunk) => {
     // Protect existing HTML (TOC, callouts, math, …) so # inside href="#…" is not treated as a tag
     const htmlSlots: string[] = [];
@@ -330,15 +348,37 @@ export function preprocessSynapseMarkdown(
         return escapeHtml(aliasLabel || t);
       }
 
+      if (guestShare) {
+        if (t.startsWith('@')) {
+          const r = resolveCrossVaultWikilink(t, linkableVaults, aliasLabel || undefined);
+          const label = aliasLabel || r.label || t;
+          if (r.status !== 'ok') return renderLockedNoteHtml(label);
+          if (!guestPeekIds!.has(r.noteId)) return renderLockedNoteHtml(label);
+          return renderNoteRefHtml({
+            kind: 'wikilink',
+            label,
+            noteId: r.noteId,
+            noteTitle: r.label,
+            vaultId: r.vaultId,
+            vaultSlug: r.vaultSlug,
+          });
+        }
+        const label = aliasLabel || t;
+        const id = resolveNoteId(t, notes);
+        if (id == null) return escapeHtml(label);
+        if (!guestPeekIds!.has(id)) return renderLockedNoteHtml(label);
+        return renderNoteRefHtml({
+          kind: 'wikilink',
+          label,
+          noteId: id,
+          noteTitle: t,
+        });
+      }
+
       if (t.startsWith('@')) {
         const r = resolveCrossVaultWikilink(t, linkableVaults, aliasLabel || undefined);
         if (r.status === 'locked') {
-          return (
-            `<span class="synapse-wikilink is-locked" title="You don't have access to this note" aria-label="${escapeAttr(r.label)} (no access)">` +
-            `${escapeHtml(r.label)}` +
-            `<span class="synapse-wikilink-lock" aria-hidden="true">no access</span>` +
-            `</span>`
-          );
+          return renderLockedNoteHtml(r.label);
         }
         if (r.status === 'missing') {
           return renderNoteRefHtml({
@@ -372,7 +412,7 @@ export function preprocessSynapseMarkdown(
       });
     });
 
-    if (enableWikilinks) {
+    if (enableWikilinks && !guestShare) {
       next = linkifyUnlinkedMentions(next, notes, excludeNoteId);
     }
     return next.replace(/\u0000HT(\d+)\u0000/g, (_, i) => htmlSlots[Number(i)] ?? '');
@@ -387,13 +427,14 @@ export function renderSynapseMarkdown(
   options?: SynapseMarkdownOptions
 ): string {
   try {
-    const enableWikilinks = options?.wikilinks !== false;
+    const guestShare = Array.isArray(options?.guestPeekNoteIds);
+    const enableWikilinks = guestShare || options?.wikilinks !== false;
     const fm = parseFrontmatter(md);
     const props = fm.hasFrontmatter
       ? renderFrontmatterHtml(
           fm.data,
-          enableWikilinks ? notes : [],
-          enableWikilinks ? linkableVaults : []
+          guestShare || !enableWikilinks ? [] : notes,
+          guestShare || !enableWikilinks ? [] : linkableVaults
         )
       : '';
     const withExtras = preprocessMarkdownExtras(fm.body);

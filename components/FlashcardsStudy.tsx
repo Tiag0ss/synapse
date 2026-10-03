@@ -24,6 +24,8 @@ type FlashcardsStudyProps = {
   onPeekNote?: (target: NotePeekTarget) => void;
   onCreateNoteFromWikilink?: (title: string) => void;
   onCreateCrossVaultNote?: (vaultId: number, title: string) => void;
+  /** Share a single flashcard (password / temporary link). */
+  onShareCard?: (card: FoldCard) => void;
   emptyHint?: string;
 };
 
@@ -185,6 +187,7 @@ export default function FlashcardsStudy({
   onPeekNote,
   onCreateNoteFromWikilink,
   onCreateCrossVaultNote,
+  onShareCard,
   emptyHint = 'No fold cards in this vault. Use :::fold- Question … ::: with the answer in the body.',
 }: FlashcardsStudyProps) {
   const searchRef = useRef<HTMLInputElement>(null);
@@ -312,19 +315,34 @@ export default function FlashcardsStudy({
                         ) : null}
                       </span>
                     </button>
-                    {card.sourceNoteId && onOpenNote ? (
-                      <button
-                        type="button"
-                        className="btn-ghost shrink-0 py-1 text-xs"
-                        title="Open source note"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onOpenNote(card.sourceNoteId!);
-                        }}
-                      >
-                        Open note
-                      </button>
-                    ) : null}
+                    <div className="flex shrink-0 items-center gap-1">
+                      {card.sourceNoteId && onShareCard ? (
+                        <button
+                          type="button"
+                          className="btn-ghost py-1 text-xs"
+                          title="Share this flashcard"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onShareCard(card);
+                          }}
+                        >
+                          Share
+                        </button>
+                      ) : null}
+                      {card.sourceNoteId && onOpenNote ? (
+                        <button
+                          type="button"
+                          className="btn-ghost py-1 text-xs"
+                          title="Open source note"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenNote(card.sourceNoteId!);
+                          }}
+                        >
+                          Open note
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
                   {open && (
                     <div className="border-t border-[var(--border)] px-4 py-3 pl-10">

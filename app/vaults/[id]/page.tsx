@@ -185,6 +185,12 @@ export default function VaultWorkspacePage() {
   const [pmTasksOpen, setPmTasksOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [flashShare, setFlashShare] = useState<{
+    noteId: number;
+    foldFront: string;
+    title: string;
+    visibility: string | null;
+  } | null>(null);
   const [vaultOptionsTab, setVaultOptionsTab] = useState<
     'links' | 'share' | 'pm' | 'vault' | 'trash' | undefined
   >(undefined);
@@ -1470,6 +1476,20 @@ export default function VaultWorkspacePage() {
                       })
                   : undefined
               }
+              onShareCard={
+                canEdit
+                  ? (card) => {
+                      if (!card.sourceNoteId) return;
+                      const source = notes.find((n) => n.Id === card.sourceNoteId);
+                      setFlashShare({
+                        noteId: card.sourceNoteId,
+                        foldFront: card.front,
+                        title: card.sourceTitle || card.front,
+                        visibility: source?.Visibility ?? null,
+                      });
+                    }
+                  : undefined
+              }
               emptyHint="No fold cards in this vault. Use :::fold- Question … ::: with the answer in the body."
             />
           ) : selectedId ? (
@@ -2280,6 +2300,7 @@ export default function VaultWorkspacePage() {
         vaultId={vaultId}
         noteId={selectedId}
         noteTitle={title}
+        noteVisibility={visibility || vaultMeta.DefaultVisibility || null}
         onClose={() => setShareOpen(false)}
         onStatus={setStatus}
         onTransferDone={(result) => {
@@ -2298,6 +2319,17 @@ export default function VaultWorkspacePage() {
           }
           router.push(`/vaults/${result.vaultId}?note=${result.noteId}`);
         }}
+      />
+
+      <NoteShareModal
+        open={Boolean(flashShare)}
+        vaultId={vaultId}
+        noteId={flashShare?.noteId ?? null}
+        noteTitle={flashShare?.title || ''}
+        foldFront={flashShare?.foldFront || null}
+        noteVisibility={flashShare?.visibility ?? null}
+        onClose={() => setFlashShare(null)}
+        onStatus={setStatus}
       />
 
       <NotePeekModal

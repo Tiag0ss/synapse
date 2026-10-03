@@ -13,6 +13,54 @@ import type { LinkableVaultNotes } from './notePaths';
 
 const ACTIVE_NOTE = 'DeletedAt IS NULL';
 
+/**
+ * Guest password-share catalog: every vault with all active notes for `[[@slug/…]]`
+ * resolution. Callers must gate peek with note-level public/unlisted checks — this
+ * does not enforce wiki AllowPublicPages (share peek is note-scoped).
+ */
+export async function listLinkableVaultNotesForGuestShare(): Promise<LinkableVaultNotes[]> {
+  const [vaultRows] = await pool.execute<RowDataPacket[]>(
+    `SELECT Id, Name, slug FROM Vaults ORDER BY Name ASC`
+  );
+  const out: LinkableVaultNotes[] = [];
+  for (const v of vaultRows) {
+    const vaultId = Number(v.Id);
+    const [notes] = await pool.execute<RowDataPacket[]>(
+      `SELECT Id, Title, Path, Kind FROM Notes WHERE VaultId = ? AND ${ACTIVE_NOTE} ORDER BY Path ASC`,
+      [vaultId]
+    );
+    out.push({
+      vaultId,
+      vaultSlug: String(v.slug || ''),
+      vaultName: String(v.Name || ''),
+      notes: notes.map((n) => ({
+        id: Number(n.Id),
+        title: String(n.Title),
+        path: String(n.Path || ''),
+        kind: String(n.Kind || 'note'),
+      })),
+    });
+  }
+  return out.filter((v) => v.vaultSlug);
+}
+
+/** Note ids whose effective visibility is public or unlisted (any vault). */
+export async function listGuestPeekableNoteIds(): Promise<number[]> {
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    `SELECT n.Id, n.Visibility, v.DefaultVisibility
+     FROM Notes n
+     INNER JOIN Vaults v ON v.Id = n.VaultId
+     WHERE n.DeletedAt IS NULL`
+  );
+  return rows
+    .filter((n) => {
+      const vis = effectiveVisibility(n.Visibility, n.DefaultVisibility);
+      return vis === 'public' || vis === 'unlisted';
+    })
+    .map((n) => Number(n.Id))
+    .filter((id) => Number.isFinite(id) && id > 0);
+}
+
 /** Editable vaults (vault app) with all active notes (including whiteboards). */
 export async function listLinkableVaultNotesForApp(
   pmUserId: number
