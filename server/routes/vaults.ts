@@ -12,6 +12,8 @@ import {
   fetchPmProjectStatuses,
   normalizeOrganizationList,
   normalizePmProjectList,
+  pmProjectDisplayName,
+  resolvePmProjectName,
   resolveTaskStatusId,
   resolveTaskStatusIdWithName,
   updatePmTask,
@@ -219,10 +221,49 @@ router.get('/pm/projects', async (req: AuthRequest, res: Response) => {
 
   const projects = normalizePmProjectList(result.data).map((p) => ({
     Id: p.Id,
-    Name: String(p.ProjectName || p.Name || `Project #${p.Id}`),
+    Name: pmProjectDisplayName(p),
   }));
   res.json({ success: true, data: projects });
 });
+
+/** Fill missing Vaults.PmProjectName from Myelin (best-effort; never fails the request). */
+async function enrichVaultPmProjectNames(
+  userId: number,
+  vaults: RowDataPacket[]
+): Promise<void> {
+  const missing = vaults.filter((v) => {
+    const id = Number(v.PmProjectId);
+    const name = String(v.PmProjectName || '').trim();
+    return Number.isFinite(id) && id > 0 && !name;
+  });
+  if (!missing.length) return;
+
+  const result = await fetchPmProjects(userId);
+  if (!result.ok) return;
+  const byId = new Map(
+    normalizePmProjectList(result.data).map((p) => [p.Id, pmProjectDisplayName(p)] as const)
+  );
+  for (const v of missing) {
+    const projectId = Number(v.PmProjectId);
+    const name = byId.get(projectId);
+    if (!name) continue;
+    v.PmProjectName = name;
+    try {
+      await pool.execute(
+        `UPDATE Vaults SET PmProjectName = ?
+         WHERE Id = ? AND PmProjectId = ?
+           AND (PmProjectName IS NULL OR PmProjectName = '')`,
+        [name, Number(v.Id), projectId]
+      );
+    } catch (error) {
+      logger.warn('Failed to cache Myelin project name on vault', {
+        error,
+        vaultId: Number(v.Id),
+        projectId,
+      });
+    }
+  }
+}
 
 function effectiveVisibility(noteVis: string | null, vaultDefault: string): string {
   return (noteVis || vaultDefault || 'private').toLowerCase();
@@ -375,7 +416,7 @@ async function syncCheckboxRows(noteId: number, bodyMarkdown: string): Promise<v
 }
 
 function overviewPullOnlyMessage(): string {
-  return 'The My work overview is pull-only from Planner. Use Refresh tasks.';
+  return 'The My work overview is pull-only from Myelin. Use Refresh tasks.';
 }
 
 router.get('/', async (req: AuthRequest, res: Response) => {
@@ -385,6 +426,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
     logger.error('Ensure personal work vault failed', { error, userId: req.user!.userId });
   }
   const rows = await listAccessibleVaults(req.user!.userId);
+  await enrichVaultPmProjectNames(req.user!.userId, rows);
   res.json({ success: true, data: rows });
 });
 
@@ -771,6 +813,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
 router.get('/:vaultId', async (req: AuthRequest, res: Response) => {
   const vault = await readableVault(Number(req.params.vaultId), req.user!.userId);
   if (!vault) return res.status(404).json({ success: false, message: 'Vault not found' });
+  await enrichVaultPmProjectNames(req.user!.userId, [vault]);
   let hubNoteId: number | null = null;
   if (isPersonalWorkVault(vault as Record<string, unknown>)) {
     try {
@@ -2005,8 +2048,12 @@ router.post('/:vaultId/push-project', async (req: AuthRequest, res: Response) =>
   if (vault.PmProjectId) {
     return res.status(409).json({
       success: false,
-      message: 'Vault already linked to a PM project',
-      data: { pmProjectId: vault.PmProjectId, openUrl: `${PM_BASE_URL}/projects/${vault.PmProjectId}` },
+      message: 'Vault already linked to a Myelin project',
+      data: {
+        pmProjectId: vault.PmProjectId,
+        pmProjectName: vault.PmProjectName ? String(vault.PmProjectName) : null,
+        openUrl: `${PM_BASE_URL}/projects/${vault.PmProjectId}`,
+      },
     });
   }
   const schema = z.object({
@@ -2025,32 +2072,40 @@ router.post('/:vaultId/push-project', async (req: AuthRequest, res: Response) =>
     || (Array.isArray(statusesRes.data) ? (statusesRes.data as Array<{ Id: number; IsDefault?: number }>) : []);
   const defaultStatus = statusList.find((s) => Number(s.IsDefault) === 1) || statusList[0];
   if (!defaultStatus?.Id) {
-    return res.status(400).json({ success: false, message: 'Could not resolve a PM project status for this organization' });
+    return res.status(400).json({
+      success: false,
+      message: 'Could not resolve a Myelin project status for this organization',
+    });
   }
 
+  const projectName = parsed.data.projectName || String(vault.Name);
   const result = await createPmProject(req.user!.userId, {
     organizationId: parsed.data.organizationId,
-    projectName: parsed.data.projectName || String(vault.Name),
+    projectName,
     description: parsed.data.description || vault.Description || undefined,
     status: Number(defaultStatus.Id),
   });
   if (!result.ok) {
-    return pmFail(res, result.status, result.data.message || 'Failed to create PM project');
+    return pmFail(res, result.status, result.data.message || 'Failed to create Myelin project');
   }
   const projectId =
     result.data.projectId ||
     result.data.id ||
     (result.data as { data?: { Id?: number } }).data?.Id;
   if (!projectId) {
-    return res.status(500).json({ success: false, message: 'PM did not return project id' });
+    return res.status(500).json({ success: false, message: 'Myelin did not return project id' });
   }
   await pool.execute(
-    `UPDATE Vaults SET PmOrganizationId = ?, PmProjectId = ?, PmProjectLinkedAt = CURRENT_TIMESTAMP WHERE Id = ?`,
-    [parsed.data.organizationId, projectId, vault.Id]
+    `UPDATE Vaults SET PmOrganizationId = ?, PmProjectId = ?, PmProjectName = ?, PmProjectLinkedAt = CURRENT_TIMESTAMP WHERE Id = ?`,
+    [parsed.data.organizationId, projectId, projectName, vault.Id]
   );
   res.json({
     success: true,
-    data: { pmProjectId: projectId, openUrl: `${PM_BASE_URL}/projects/${projectId}` },
+    data: {
+      pmProjectId: projectId,
+      pmProjectName: projectName,
+      openUrl: `${PM_BASE_URL}/projects/${projectId}`,
+    },
   });
 });
 
@@ -2065,14 +2120,21 @@ router.post('/:vaultId/link-project', async (req: AuthRequest, res: Response) =>
   if (!parsed.success) {
     return res.status(400).json({ success: false, message: 'organizationId and projectId required' });
   }
+  const pmProjectName =
+    (await resolvePmProjectName(
+      req.user!.userId,
+      parsed.data.projectId,
+      parsed.data.organizationId
+    )) || `Project #${parsed.data.projectId}`;
   await pool.execute(
-    `UPDATE Vaults SET PmOrganizationId = ?, PmProjectId = ?, PmProjectLinkedAt = CURRENT_TIMESTAMP WHERE Id = ?`,
-    [parsed.data.organizationId, parsed.data.projectId, vault.Id]
+    `UPDATE Vaults SET PmOrganizationId = ?, PmProjectId = ?, PmProjectName = ?, PmProjectLinkedAt = CURRENT_TIMESTAMP WHERE Id = ?`,
+    [parsed.data.organizationId, parsed.data.projectId, pmProjectName, vault.Id]
   );
   res.json({
     success: true,
     data: {
       pmProjectId: parsed.data.projectId,
+      pmProjectName,
       openUrl: `${PM_BASE_URL}/projects/${parsed.data.projectId}`,
     },
   });
@@ -2354,7 +2416,7 @@ router.post('/:vaultId/checkboxes/push-missing', async (req: AuthRequest, res: R
   if (!projectId || !orgId) {
     return res.status(400).json({
       success: false,
-      message: 'Link or create a PM project on this vault first',
+      message: 'Link or create a Myelin project on this vault first',
     });
   }
 
@@ -2458,7 +2520,7 @@ router.post('/:vaultId/checkboxes/auto-link', async (req: AuthRequest, res: Resp
   if (!defaultProjectId || !orgId) {
     return res.status(400).json({
       success: false,
-      message: 'Link or create a PM project on this vault first',
+      message: 'Link or create a Myelin project on this vault first',
     });
   }
 
@@ -2504,7 +2566,7 @@ router.post('/:vaultId/notes/:noteId/checkboxes/push', async (req: AuthRequest, 
   if (!projectId || !orgId) {
     return res.status(400).json({
       success: false,
-      message: 'Link or create a PM project on this vault first',
+      message: 'Link or create a Myelin project on this vault first',
     });
   }
 
@@ -2520,7 +2582,7 @@ router.post('/:vaultId/notes/:noteId/checkboxes/push', async (req: AuthRequest, 
     if (data.alreadyLinked) {
       return res.status(200).json({
         success: true,
-        message: 'Checkbox already linked to a PM task',
+        message: 'Checkbox already linked to a Myelin task',
         data,
       });
     }
@@ -2529,7 +2591,7 @@ router.post('/:vaultId/notes/:noteId/checkboxes/push', async (req: AuthRequest, 
     const err = error as { status?: number; message?: string };
     const status = err.status || 500;
     if (status >= 500) logger.error('Checkbox push failed', { error });
-    return pmFail(res, status, err.message || 'Failed to create PM task');
+    return pmFail(res, status, err.message || 'Failed to create Myelin task');
   }
 });
 
@@ -2543,7 +2605,7 @@ router.get('/:vaultId/pm-tasks/linkable', async (req: AuthRequest, res: Response
   if (!defaultProjectId || !orgId) {
     return res.status(400).json({
       success: false,
-      message: 'Link or create a PM project on this vault first',
+      message: 'Link or create a Myelin project on this vault first',
     });
   }
 
@@ -2594,7 +2656,7 @@ router.post('/:vaultId/notes/:noteId/checkboxes/link', async (req: AuthRequest, 
   if (!defaultProjectId || !orgId) {
     return res.status(400).json({
       success: false,
-      message: 'Link or create a PM project on this vault first',
+      message: 'Link or create a Myelin project on this vault first',
     });
   }
 
@@ -2618,7 +2680,7 @@ router.post('/:vaultId/notes/:noteId/checkboxes/link', async (req: AuthRequest, 
     if (status >= 500) logger.error('Checkbox link failed', { error });
     return res.status(status).json({
       success: false,
-      message: err.message || 'Failed to link PM task',
+      message: err.message || 'Failed to link Myelin task',
       ...(status === 401 ? { reauth: true } : {}),
       ...(err.data ? { data: err.data } : {}),
     });
@@ -2654,7 +2716,7 @@ router.post('/:vaultId/notes/:noteId/checkboxes/unlink', async (req: AuthRequest
   if (!projectId) {
     return res.status(400).json({
       success: false,
-      message: 'Link or create a PM project on this vault first',
+      message: 'Link or create a Myelin project on this vault first',
     });
   }
 
@@ -2672,7 +2734,7 @@ router.post('/:vaultId/notes/:noteId/checkboxes/unlink', async (req: AuthRequest
     const err = error as { status?: number; message?: string };
     const status = err.status || 500;
     if (status >= 500) logger.error('Checkbox unlink failed', { error });
-    return pmFail(res, status, err.message || 'Failed to unlink PM task');
+    return pmFail(res, status, err.message || 'Failed to unlink Myelin task');
   }
 });
 
@@ -2686,7 +2748,7 @@ router.post('/:vaultId/notes/:noteId/push-task', async (req: AuthRequest, res: R
   if (!projectId || !orgId) {
     return res.status(400).json({
       success: false,
-      message: 'Link or create a PM project on this vault first',
+      message: 'Link or create a Myelin project on this vault first',
     });
   }
 
@@ -2745,7 +2807,7 @@ router.post(
     if (!projectId || !orgId) {
       return res.status(400).json({
         success: false,
-        message: 'Link or create a PM project on this vault first',
+        message: 'Link or create a Myelin project on this vault first',
       });
     }
 
@@ -3011,7 +3073,7 @@ router.post('/:vaultId/unlink-pm', async (req: AuthRequest, res: Response) => {
   const vault = await ownedVault(Number(req.params.vaultId), req.user!.userId);
   if (!vault) return res.status(404).json({ success: false, message: 'Vault not found' });
   await pool.execute(
-    `UPDATE Vaults SET PmOrganizationId = NULL, PmProjectId = NULL, PmProjectLinkedAt = NULL WHERE Id = ?`,
+    `UPDATE Vaults SET PmOrganizationId = NULL, PmProjectId = NULL, PmProjectName = NULL, PmProjectLinkedAt = NULL WHERE Id = ?`,
     [vault.Id]
   );
   res.json({ success: true });

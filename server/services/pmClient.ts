@@ -472,6 +472,26 @@ export function normalizePmProjectList(data: unknown): PmProjectSummary[] {
   return out;
 }
 
+/** Display label for a Myelin project row (name preferred over bare id). */
+export function pmProjectDisplayName(p: PmProjectSummary): string {
+  const name = String(p.ProjectName || p.Name || '').trim();
+  return name || `Project #${p.Id}`;
+}
+
+/** Look up a project display name in an org (or all orgs if organizationId omitted). */
+export async function resolvePmProjectName(
+  userId: number,
+  projectId: number,
+  organizationId?: number | null
+): Promise<string | null> {
+  const result = await fetchPmProjects(userId, organizationId);
+  if (!result.ok) return null;
+  const match = normalizePmProjectList(result.data).find((p) => p.Id === projectId);
+  if (!match) return null;
+  const name = String(match.ProjectName || match.Name || '').trim();
+  return name || null;
+}
+
 export async function fetchPmProjectStatuses(userId: number, organizationId: number) {
   return pmFetch<{ statuses?: Array<{ Id: number }>; data?: Array<{ Id: number }> }>(
     userId,

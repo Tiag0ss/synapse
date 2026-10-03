@@ -35,6 +35,7 @@ interface VaultPmSettingsModalProps {
   vaultId: string;
   vaultName: string;
   pmProjectId?: number | null;
+  pmProjectName?: string | null;
   pmOrganizationId?: number | null;
   onClose: () => void;
   onChanged: () => void;
@@ -51,6 +52,7 @@ export default function VaultPmSettingsModal({
   vaultId,
   vaultName,
   pmProjectId,
+  pmProjectName,
   pmOrganizationId,
   onClose,
   onChanged,
@@ -66,6 +68,9 @@ export default function VaultPmSettingsModal({
   const [linkProjectId, setLinkProjectId] = useState('');
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [linkedProjectId, setLinkedProjectId] = useState<number | null>(pmProjectId ?? null);
+  const [linkedProjectName, setLinkedProjectName] = useState<string | null>(
+    pmProjectName?.trim() || null
+  );
   const [items, setItems] = useState<VaultCheckboxItem[]>([]);
   const [status, setStatusState] = useState('');
   const setStatus = (msg: string) => {
@@ -101,7 +106,7 @@ export default function VaultPmSettingsModal({
           }))
         );
         if (list.length === 0) {
-          setOrgError('No organizations returned for your PM account.');
+          setOrgError('No organizations returned for your Myelin account.');
         }
       } else {
         setOrgs([]);
@@ -125,11 +130,11 @@ export default function VaultPmSettingsModal({
     if (!open) return;
     setOrgId(pmOrganizationId ? String(pmOrganizationId) : '');
     setLinkedProjectId(pmProjectId ?? null);
+    setLinkedProjectName(pmProjectName?.trim() || null);
     setLinkProjectId('');
     setProjectQuery('');
     void load();
-     
-  }, [open, vaultId, pmOrganizationId, pmProjectId]);
+  }, [open, vaultId, pmOrganizationId, pmProjectId, pmProjectName]);
 
   useEffect(() => {
     if (!open || !orgId) {
@@ -152,12 +157,17 @@ export default function VaultPmSettingsModal({
           return;
         }
         const list = Array.isArray(json.data) ? json.data : [];
-        setProjects(
-          list.map((p: { Id?: number; id?: number; Name?: string; name?: string }) => ({
+        const mapped = list
+          .map((p: { Id?: number; id?: number; Name?: string; name?: string }) => ({
             Id: Number(p.Id ?? p.id),
             Name: String(p.Name ?? p.name ?? `Project #${p.Id ?? p.id}`),
-          })).filter((p: { Id: number }) => Number.isFinite(p.Id) && p.Id > 0)
-        );
+          }))
+          .filter((p: { Id: number }) => Number.isFinite(p.Id) && p.Id > 0);
+        setProjects(mapped);
+        if (linkedProjectId) {
+          const match = mapped.find((p: { Id: number }) => p.Id === linkedProjectId);
+          if (match?.Name) setLinkedProjectName(match.Name);
+        }
         setNeedsReauth(false);
       } catch {
         if (!cancelled) setProjects([]);
@@ -168,7 +178,7 @@ export default function VaultPmSettingsModal({
     return () => {
       cancelled = true;
     };
-  }, [open, orgId]);
+  }, [open, orgId, linkedProjectId]);
 
   const filteredProjects = useMemo(() => {
     const q = projectQuery.trim().toLowerCase();
@@ -225,12 +235,16 @@ export default function VaultPmSettingsModal({
       const data = await res.json();
       if (res.ok) {
         const id = Number(data.data.pmProjectId);
+        const name = String(data.data.pmProjectName || vaultName || '').trim() || null;
         setLinkedProjectId(id);
-        setStatus(`Linked PM project #${id}`);
+        setLinkedProjectName(name);
+        setStatus(name ? `Linked Myelin project “${name}”` : `Linked Myelin project #${id}`);
         onChanged();
         await load();
       } else if (res.status === 409 && data.data?.pmProjectId) {
         setLinkedProjectId(Number(data.data.pmProjectId));
+        const name = String(data.data.pmProjectName || '').trim();
+        if (name) setLinkedProjectName(name);
         setStatus('Already linked');
         if (data.data.openUrl) window.open(data.data.openUrl, '_blank');
         onChanged();
@@ -258,8 +272,11 @@ export default function VaultPmSettingsModal({
       const data = await res.json();
       if (res.ok) {
         const id = Number(data.data.pmProjectId);
+        const name =
+          String(data.data.pmProjectName || selectedProjectName || '').trim() || null;
         setLinkedProjectId(id);
-        setStatus(`Linked project #${id}`);
+        setLinkedProjectName(name);
+        setStatus(name ? `Linked Myelin project “${name}”` : `Linked Myelin project #${id}`);
         onChanged();
         await load();
       } else {
@@ -280,6 +297,7 @@ export default function VaultPmSettingsModal({
       setStatus(res.ok ? 'Project unlinked from vault' : 'Unlink failed');
       if (res.ok) {
         setLinkedProjectId(null);
+        setLinkedProjectName(null);
         onChanged();
         await load();
       }
@@ -290,7 +308,7 @@ export default function VaultPmSettingsModal({
 
   const pushCheckbox = async (item: VaultCheckboxItem) => {
     if (!linkedProjectId) {
-      setStatus('Link a PM project first');
+      setStatus('Link a Myelin project first');
       return;
     }
     setBusy(true);
@@ -306,8 +324,8 @@ export default function VaultPmSettingsModal({
       if (res.ok || (res.status === 409 && data.data?.pmTaskId)) {
         setStatus(
           data.data?.alreadyLinked
-            ? `Already linked as PM #${data.data.pmTaskId}`
-            : `Created PM task #${data.data.pmTaskId}`
+            ? `Already linked as Myelin #${data.data.pmTaskId}`
+            : `Created Myelin task #${data.data.pmTaskId}`
         );
         if (!data.data?.alreadyLinked && data.data?.openUrl) {
           window.open(data.data.openUrl, '_blank');
@@ -326,7 +344,7 @@ export default function VaultPmSettingsModal({
 
   const linkCheckbox = async (item: VaultCheckboxItem, pmTaskId: number, pmProjectId: number) => {
     if (!linkedProjectId) {
-      setStatus('Link a PM project first');
+      setStatus('Link a Myelin project first');
       return;
     }
     setBusy(true);
@@ -340,7 +358,7 @@ export default function VaultPmSettingsModal({
       });
       const data = await res.json();
       if (res.ok) {
-        setStatus(`Linked to PM #${data.data?.pmTaskId ?? pmTaskId}`);
+        setStatus(`Linked to Myelin #${data.data?.pmTaskId ?? pmTaskId}`);
         setChooserItem(null);
         onChanged();
         await load();
@@ -370,7 +388,7 @@ export default function VaultPmSettingsModal({
       });
       const data = await res.json();
       if (res.ok) {
-        setStatus(`Unlinked from PM #${data.data?.clearedPmTaskId ?? item.pmTaskId}`);
+        setStatus(`Unlinked from Myelin #${data.data?.clearedPmTaskId ?? item.pmTaskId}`);
         setUnlinkItem(null);
         onChanged();
         await load();
@@ -385,7 +403,7 @@ export default function VaultPmSettingsModal({
 
   const pushAllMissing = async () => {
     if (!linkedProjectId) {
-      setStatus('Link a PM project first');
+      setStatus('Link a Myelin project first');
       return;
     }
     const missing = items.filter((i) => !i.pmTaskId).length;
@@ -517,7 +535,7 @@ export default function VaultPmSettingsModal({
 
   const autoLinkByDescription = async () => {
     if (!linkedProjectId) {
-      setStatus('Link a PM project first');
+      setStatus('Link a Myelin project first');
       return;
     }
     if (!autoLinkNoteId) {
@@ -529,7 +547,7 @@ export default function VaultPmSettingsModal({
       return;
     }
     setBusy(true);
-    setStatus('Matching Planner tasks by description…');
+    setStatus('Matching Myelin tasks by description…');
     try {
       const res = await fetch(`/api/vaults/${vaultId}/checkboxes/auto-link`, {
         method: 'POST',
@@ -565,7 +583,7 @@ export default function VaultPmSettingsModal({
           <div>
             <h2 className="text-lg font-semibold tracking-tight">Vault · Myelin</h2>
             <p className="mt-1 text-sm text-[var(--muted)]">
-              Link one PM project to this vault, then create tasks from note checkboxes.
+              Link one Myelin project to this vault, then create tasks from note checkboxes.
             </p>
           </div>
           <button type="button" className="btn-ghost" onClick={onClose}>
@@ -577,22 +595,26 @@ export default function VaultPmSettingsModal({
         <div className="min-h-0 flex-1 space-y-5 overflow-auto p-5">
           {embedded && (
             <p className="text-sm text-[var(--muted)]">
-              Link one PM project to this vault, then create tasks from note checkboxes.
+              Link one Myelin project to this vault, then create tasks from note checkboxes.
             </p>
           )}
           <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)]/50 p-4">
-            <h3 className="text-sm font-semibold">PM project</h3>
+            <h3 className="text-sm font-semibold">Myelin project</h3>
             {linkedProjectId ? (
               <p className="mt-2 text-sm text-[var(--muted)]">
-                Linked to project{' '}
+                Linked to{' '}
                 <a
                   className="text-[var(--accent-soft)]"
                   href={`${process.env.NEXT_PUBLIC_PM_BASE_URL || 'http://localhost:3000'}/projects/${linkedProjectId}`}
                   target="_blank"
                   rel="noreferrer"
+                  title={`Myelin project #${linkedProjectId}`}
                 >
-                  #{linkedProjectId}
+                  {linkedProjectName?.trim() || `Project #${linkedProjectId}`}
                 </a>
+                {linkedProjectName?.trim() ? (
+                  <span className="text-[var(--muted)]"> #{linkedProjectId}</span>
+                ) : null}
               </p>
             ) : (
               <p className="mt-2 text-sm text-[var(--muted)]">No project linked yet.</p>
@@ -769,8 +791,8 @@ export default function VaultPmSettingsModal({
                     !linkedProjectId
                       ? 'Link a project first'
                       : missingCount === 0
-                        ? 'All checkboxes already have PM tasks'
-                        : `Create ${missingCount} missing PM task${missingCount === 1 ? '' : 's'}`
+                        ? 'All checkboxes already have Myelin tasks'
+                        : `Create ${missingCount} missing Myelin task${missingCount === 1 ? '' : 's'}`
                   }
                   onClick={() => void pushAllMissing()}
                 >
@@ -780,8 +802,8 @@ export default function VaultPmSettingsModal({
             </div>
             <p className="mb-3 text-xs text-[var(--muted)]">
               From notes with <code className="text-[var(--accent-soft)]">- [ ]</code> lines. Create a
-              new Planner task or link an existing one (no Synapse reference). Unlink keeps the
-              Planner task. Indented checkboxes become Planner subtasks when created.
+              new Myelin task or link an existing one (no Synapse reference). Unlink keeps the
+              Myelin task. Indented checkboxes become Myelin subtasks when created.
             </p>
             {notesWithUnlinked.length > 0 && (
               <div className="mb-3 flex flex-wrap items-end gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)]/40 p-3">
@@ -811,7 +833,7 @@ export default function VaultPmSettingsModal({
                       ? 'Select a note with unlinked checkboxes'
                       : autoLinkCandidates === 0
                         ? 'No unlinked checkboxes in this note'
-                        : `Match ${autoLinkCandidates} checkbox${autoLinkCandidates === 1 ? '' : 'es'} to Planner tasks by name / description`
+                        : `Match ${autoLinkCandidates} checkbox${autoLinkCandidates === 1 ? '' : 'es'} to Myelin tasks by name / description`
                   }
                   onClick={() => void autoLinkByDescription()}
                 >
@@ -952,13 +974,13 @@ export default function VaultPmSettingsModal({
                           target="_blank"
                           rel="noreferrer"
                         >
-                          PM #{item.pmTaskId}
+                          Myelin #{item.pmTaskId}
                         </a>
                         <button
                           type="button"
                           className="btn-ghost py-1 text-xs text-red-300"
                           disabled={busy || !linkedProjectId}
-                          title="Remove Synapse link; keep the Planner task"
+                          title="Remove Synapse link; keep the Myelin task"
                           onClick={() => setUnlinkItem(item)}
                         >
                           Unlink
@@ -971,7 +993,7 @@ export default function VaultPmSettingsModal({
                         disabled={busy || !linkedProjectId}
                         title={
                           linkedProjectId
-                            ? 'Create a new Planner task or link an existing one'
+                            ? 'Create a new Myelin task or link an existing one'
                             : 'Link a project first'
                         }
                         onClick={() => setChooserItem(item)}
@@ -1010,8 +1032,8 @@ export default function VaultPmSettingsModal({
 
       <ConfirmModal
         open={unlinkItem != null}
-        title="Unlink from Planner?"
-        message="This removes the Synapse association. The Planner task is kept and can be linked again later."
+        title="Unlink from Myelin?"
+        message="This removes the Synapse association. The Myelin task is kept and can be linked again later."
         confirmLabel={busy ? 'Unlinking…' : 'Unlink'}
         danger
         onCancel={() => {

@@ -19,6 +19,7 @@ interface Vault {
   slug: string;
   Description?: string;
   PmProjectId?: number | null;
+  PmProjectName?: string | null;
   AccessRole?: 'owner' | 'edit' | 'read';
   IsPersonalWork?: number | boolean;
 }
@@ -253,7 +254,7 @@ export default function HomePage() {
               Knowledge that stays connected
             </h1>
             <p className="mt-5 max-w-md text-[15px] leading-relaxed text-[var(--muted)]">
-              Markdown vaults with wikilinks, tasks, and optional Planner sync — built for teams that
+              Markdown vaults with wikilinks, tasks, and optional Myelin sync — built for teams that
               think in notes.
             </p>
             <Link
@@ -603,8 +604,17 @@ export default function HomePage() {
                                   My work
                                 </span>
                               ) : v.PmProjectId ? (
-                                <span className="rounded border border-[color-mix(in_srgb,var(--accent)_35%,var(--border))] px-1.5 py-0.5 text-[10px] font-medium text-[var(--accent-soft)]">
-                                  Planner #{v.PmProjectId}
+                                <span
+                                  className="max-w-[12rem] truncate rounded border border-[color-mix(in_srgb,var(--accent)_35%,var(--border))] px-1.5 py-0.5 text-[10px] font-medium text-[var(--accent-soft)]"
+                                  title={
+                                    v.PmProjectName
+                                      ? `${v.PmProjectName} (#${v.PmProjectId})`
+                                      : `Myelin project #${v.PmProjectId}`
+                                  }
+                                >
+                                  {v.PmProjectName?.trim()
+                                    ? v.PmProjectName.trim()
+                                    : `Myelin #${v.PmProjectId}`}
                                 </span>
                               ) : null}
                               {shared ? (

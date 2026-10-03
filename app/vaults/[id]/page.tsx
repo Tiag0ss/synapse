@@ -145,6 +145,7 @@ export default function VaultWorkspacePage() {
   const [vaultMeta, setVaultMeta] = useState<{
     Name?: string;
     PmProjectId?: number | null;
+    PmProjectName?: string | null;
     PmOrganizationId?: number | null;
     slug?: string;
     AllowPublicPages?: number | boolean;
@@ -742,7 +743,7 @@ export default function VaultWorkspacePage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setStatus(data.message || 'Could not refresh Planner tasks');
+        setStatus(data.message || 'Could not refresh Myelin tasks');
         return;
       }
       const added = Number(data.data?.added || 0);
@@ -757,7 +758,7 @@ export default function VaultWorkspacePage() {
         await openNote(selectedId, { force: true });
       }
     } catch {
-      setStatus('Could not refresh Planner tasks');
+      setStatus('Could not refresh Myelin tasks');
     } finally {
       setHubRefreshing(false);
     }
@@ -920,7 +921,7 @@ export default function VaultWorkspacePage() {
 
   const openPmTasks = () => {
     if (!vaultMeta.PmProjectId) {
-      setStatus('Link a PM project in Vault options first');
+      setStatus('Link a Myelin project in Vault options first');
       setVaultOptionsTab('pm');
       setVaultOptionsOpen(true);
       return;
@@ -1151,7 +1152,7 @@ export default function VaultWorkspacePage() {
                         openPmTasks();
                       }}
                     >
-                      PM tasks
+                      Myelin tasks
                     </button>
                   )}
                 </div>
@@ -1334,7 +1335,7 @@ export default function VaultWorkspacePage() {
             )}
             {canEdit && (
               <button type="button" className="btn-ghost py-1.5" onClick={() => openPmTasks()}>
-                PM tasks
+                Myelin tasks
               </button>
             )}
             {(status || saveState === 'dirty' || saveState === 'saving' || saveState === 'saved') && (
@@ -1714,7 +1715,7 @@ export default function VaultWorkspacePage() {
               )}
               {isHubNote && !boardFull && (
                 <p className="shrink-0 rounded-lg border border-[var(--border)] bg-[var(--surface-2)]/50 px-3 py-2 text-xs text-[var(--muted)]">
-                  Pull-only from Planner. Use <span className="text-[var(--text)]">Refresh tasks</span>{' '}
+                  Pull-only from Myelin. Use <span className="text-[var(--text)]">Refresh tasks</span>{' '}
                   in the tasks panel (right sidebar) to update work assigned to you. Linked notes below
                   the task block are kept.
                 </p>
@@ -2242,6 +2243,7 @@ export default function VaultWorkspacePage() {
         canEdit={canEdit}
         defaultVisibility={vaultMeta.DefaultVisibility || 'private'}
         pmProjectId={vaultMeta.PmProjectId}
+        pmProjectName={vaultMeta.PmProjectName}
         pmOrganizationId={vaultMeta.PmOrganizationId}
         initialTab={vaultOptionsTab || 'links'}
         notes={noteIndex}
@@ -2271,6 +2273,7 @@ export default function VaultWorkspacePage() {
         vaultId={vaultId}
         vaultName={vaultMeta.Name || `Vault #${vaultId}`}
         pmProjectId={vaultMeta.PmProjectId}
+        pmProjectName={vaultMeta.PmProjectName}
         pmOrganizationId={vaultMeta.PmOrganizationId}
         onClose={() => setPmTasksOpen(false)}
         onChanged={() => {

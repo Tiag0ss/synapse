@@ -46,7 +46,7 @@ export default function PmSsoBanner({ className = '' }: { className?: string }) 
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2">
         <p className="min-w-0 leading-snug">
           Myelin credentials missing — reconnect SSO or add a personal API token in
-          Profile to create and sync Planner tasks.
+          Profile to create and sync Myelin tasks.
         </p>
         <div className="flex shrink-0 flex-wrap items-center gap-3">
           <a

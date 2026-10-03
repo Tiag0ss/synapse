@@ -66,7 +66,7 @@ interface NoteTasksPanelProps {
   onOpenPmSettings?: () => void;
   /** Hub overview: checkboxes are pull-only (no toggle / push). */
   pullOnly?: boolean;
-  /** Pull Planner tasks into the hub overview (My work vault only). */
+  /** Pull Myelin tasks into the hub overview (My work vault only). */
   onRefreshPlanner?: () => void | Promise<void>;
   refreshingPlanner?: boolean;
   /** Share Planner links with the editor so it does not re-fetch /checkboxes. */
@@ -201,8 +201,8 @@ export default function NoteTasksPanel({
         } else if (payload.clearedStale > 0) {
           onStatus?.(
             payload.clearedStale === 1
-              ? 'Cleared 1 stale Planner link'
-              : `Cleared ${payload.clearedStale} stale Planner links`
+              ? 'Cleared 1 stale Myelin link'
+              : `Cleared ${payload.clearedStale} stale Myelin links`
           );
         }
       }
@@ -326,7 +326,7 @@ export default function NoteTasksPanel({
 
   const createTask = async (item: NoteTaskItem) => {
     if (!hasProject) {
-      onStatus?.('Link a PM project in Vault settings first');
+      onStatus?.('Link a Myelin project in Vault settings first');
       return;
     }
     if (!(await ensureSaved())) {
@@ -346,8 +346,8 @@ export default function NoteTasksPanel({
         applyBodyFromServer(data.data?.bodyMarkdown);
         onStatus?.(
           res.ok && !data.data?.alreadyLinked
-            ? `Created PM task #${data.data.pmTaskId}`
-            : `Already linked as PM #${data.data.pmTaskId}`
+            ? `Created Myelin task #${data.data.pmTaskId}`
+            : `Already linked as Myelin #${data.data.pmTaskId}`
         );
         setChooserItem(null);
         await load();
@@ -362,7 +362,7 @@ export default function NoteTasksPanel({
 
   const linkTask = async (item: NoteTaskItem, pmTaskId: number, pmProjectId: number) => {
     if (!hasProject) {
-      onStatus?.('Link a PM project in Vault settings first');
+      onStatus?.('Link a Myelin project in Vault settings first');
       return;
     }
     if (!(await ensureSaved())) {
@@ -380,7 +380,7 @@ export default function NoteTasksPanel({
       const data = await res.json();
       if (res.ok) {
         applyBodyFromServer(data.data?.bodyMarkdown);
-        onStatus?.(`Linked to PM #${data.data?.pmTaskId ?? pmTaskId}`);
+        onStatus?.(`Linked to Myelin #${data.data?.pmTaskId ?? pmTaskId}`);
         setChooserItem(null);
         await load();
       } else {
@@ -519,7 +519,7 @@ export default function NoteTasksPanel({
       )}
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-          {pullOnly ? 'Planner tasks' : `Tasks · ${items.length}`}
+          {pullOnly ? 'Myelin tasks' : `Tasks · ${items.length}`}
           {totalHours > 0 ? (
             <>
               {' · '}
@@ -562,7 +562,7 @@ export default function NoteTasksPanel({
               type="button"
               className="btn-primary py-1 text-[11px]"
               disabled={busy || refreshingPlanner}
-              title="Refresh tasks from Planner"
+              title="Refresh tasks from Myelin"
               onClick={() => void refreshPlanner()}
             >
               {refreshingPlanner || busy ? 'Refreshing…' : 'Refresh tasks'}
@@ -578,7 +578,7 @@ export default function NoteTasksPanel({
 
       {pullOnly && (
         <p className="mb-3 text-[11px] text-[var(--muted)]">
-          Pull-only from Planner — adds, removes, and updates tasks assigned to you. Linked notes on
+          Pull-only from Myelin — adds, removes, and updates tasks assigned to you. Linked notes on
           the overview are kept.
         </p>
       )}
@@ -624,10 +624,10 @@ export default function NoteTasksPanel({
               className="btn-ghost py-1 text-[11px] no-underline"
               title="Open note task in Myelin"
             >
-              Planner #{notePmTaskId}
+              Myelin #{notePmTaskId}
             </a>
           ) : (
-            <span className="text-[11px] text-[var(--muted)]">No note-level Planner task</span>
+            <span className="text-[11px] text-[var(--muted)]">No note-level Myelin task</span>
           )}
         </div>
         {!readOnly && !pullOnly && hasProject && missingCount > 0 && (
@@ -640,10 +640,10 @@ export default function NoteTasksPanel({
                 className="font-medium text-[var(--accent-soft)] underline-offset-2 hover:underline"
                 onClick={() => onOpenPmSettings()}
               >
-                Vault → Planner settings
+                Vault → Myelin settings
               </button>
             ) : (
-              <span className="text-[var(--text)]">Vault → Planner settings</span>
+              <span className="text-[var(--text)]">Vault → Myelin settings</span>
             )}{' '}
             for bulk actions.
           </p>
@@ -654,14 +654,14 @@ export default function NoteTasksPanel({
       {items.length === 0 ? (
         <p className="text-[11px] text-[var(--muted)]">
           {pullOnly
-            ? 'No Planner tasks assigned to you right now. Use Refresh tasks when work is assigned in Planner.'
+            ? 'No Myelin tasks assigned to you right now. Use Refresh tasks when work is assigned in Myelin.'
             : (
               <>
           Add <code className="text-[var(--accent-soft)]">- [ ]</code> /{' '}
           <code className="text-[var(--accent-soft)]">[-]</code> /{' '}
           <code className="text-[var(--accent-soft)]">[x]</code> lines or YAML{' '}
           <code className="text-[var(--accent-soft)]">todos:</code> for tasks. Indent nested
-          checkboxes to create Planner subtasks.
+          checkboxes to create Myelin subtasks.
               </>
             )}
         </p>
@@ -687,7 +687,7 @@ export default function NoteTasksPanel({
                 title={
                   toggleLocked
                     ? pullOnly
-                      ? 'Pull-only — refresh from Planner to update'
+                      ? 'Pull-only — refresh from Myelin to update'
                       : item.checked
                       ? 'Done'
                       : item.partial
@@ -851,7 +851,7 @@ export default function NoteTasksPanel({
                   className="shrink-0 text-[10px] text-[var(--accent-soft)] no-underline"
                   title="Open in Myelin"
                 >
-                  Planner #{item.pmTaskId}
+                  Myelin #{item.pmTaskId}
                 </a>
               ) : (
                 !readOnly &&
@@ -861,7 +861,7 @@ export default function NoteTasksPanel({
                     type="button"
                     className="shrink-0 text-[10px] font-medium text-[var(--accent-soft)] disabled:opacity-40"
                     disabled={busy}
-                    title="Create a new Planner task or link an existing one"
+                    title="Create a new Myelin task or link an existing one"
                     onClick={() => setChooserItem(item)}
                   >
                     Link / create

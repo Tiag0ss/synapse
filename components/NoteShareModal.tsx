@@ -494,7 +494,7 @@ export default function NoteShareModal({
           <>
             <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
               <p className="text-xs leading-relaxed text-[var(--muted)]">
-                Copy or move this note to another vault. Media in the note is included; Planner links
+                Copy or move this note to another vault. Media in the note is included; Myelin links
                 are not.
               </p>
               <fieldset>

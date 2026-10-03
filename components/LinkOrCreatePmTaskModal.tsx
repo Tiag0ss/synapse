@@ -82,7 +82,7 @@ export default function LinkOrCreatePmTaskModal({
           if (json.reauth || res.status === 401) setNeedsReauth(true);
           setTasks([]);
           setProjects([]);
-          setError(json.message || 'Failed to load Planner tasks');
+          setError(json.message || 'Failed to load Myelin tasks');
           return;
         }
         const payload = json.data;
@@ -114,7 +114,7 @@ export default function LinkOrCreatePmTaskModal({
         if (!cancelled) {
           setTasks([]);
           setProjects([]);
-          setError('Network error loading Planner tasks');
+          setError('Network error loading Myelin tasks');
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -166,7 +166,7 @@ export default function LinkOrCreatePmTaskModal({
       >
         <header className="shrink-0 border-b border-[var(--border)] px-5 py-4">
           <h2 id="link-or-create-pm-title" className="text-lg font-semibold text-[var(--text)]">
-            Link or create Planner task
+            Link or create Myelin task
           </h2>
           <p className="mt-1 text-sm text-[var(--muted)]">
             For{' '}
@@ -180,7 +180,7 @@ export default function LinkOrCreatePmTaskModal({
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-5 py-4">
           {needsReauth && (
             <p className="shrink-0 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
-              Reconnect SSO or add a personal API token in Profile to load Planner tasks.
+              Reconnect SSO or add a personal API token in Profile to load Myelin tasks.
             </p>
           )}
           {error && !needsReauth && (
@@ -243,7 +243,7 @@ export default function LinkOrCreatePmTaskModal({
             ) : filtered.length === 0 ? (
               <p className="px-3 py-6 text-center text-sm text-[var(--muted)]">
                 {tasks.length === 0
-                  ? 'No linkable Planner tasks in this organization.'
+                  ? 'No linkable Myelin tasks in this organization.'
                   : 'No tasks match this filter.'}
               </p>
             ) : (

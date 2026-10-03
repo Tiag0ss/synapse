@@ -151,7 +151,7 @@ const LEGEND_SECTIONS: LegendSection[] = [
       { syntax: '- item', meaning: 'Bullet list' },
       { syntax: '1. item', meaning: 'Numbered list' },
       { syntax: '- [ ] task', meaning: 'Checklist (pushable task)' },
-      { syntax: '- [ ] task (2h)', meaning: 'Estimate hours on create in Planner' },
+      { syntax: '- [ ] task (2h)', meaning: 'Estimate hours on create in Myelin' },
       {
         syntax: '- [ ] task (1.5h, Design)',
         meaning: 'Hours + category for Recalculate estimates (missing category → Other)',
@@ -186,11 +186,11 @@ const LEGEND_SECTIONS: LegendSection[] = [
   },
   {
     title: 'Checkboxes',
-    blurb: 'Task list markers in the note body. Linked Planner tasks sync status into these marks.',
+    blurb: 'Task list markers in the note body. Linked Myelin tasks sync status into these marks.',
     items: [
-      { syntax: '- [x]', meaning: 'Done (closed in Planner)' },
-      { syntax: '- [x] ~~task~~', meaning: 'Cancelled in Planner (checked + strike)' },
-      { syntax: '- [-]', meaning: 'Partial / stub — In Progress in Planner' },
+      { syntax: '- [x]', meaning: 'Done (closed in Myelin)' },
+      { syntax: '- [x] ~~task~~', meaning: 'Cancelled in Myelin (checked + strike)' },
+      { syntax: '- [-]', meaning: 'Partial / stub — In Progress in Myelin' },
       { syntax: '- [ ]', meaning: 'Not started (open)' },
     ],
   },
@@ -204,9 +204,9 @@ const LEGEND_SECTIONS: LegendSection[] = [
       {
         syntax: 'todos: …',
         meaning:
-          'id, status, content → Properties + note tasks; push to Planner. hours / unscheduled on create; note: links to another note; when linked, status follows Planner status names. Suggest todos with AI (Tasks panel) proposes items via external Ollama — review before save',
+          'id, status, content → Properties + note tasks; push to Myelin. hours / unscheduled on create; note: links to another note; when linked, status follows Myelin status names. Suggest todos with AI (Tasks panel) proposes items via external Ollama — review before save',
       },
-      { syntax: 'hours: 2.5', meaning: 'Under a todo → estimatedHours on Planner create' },
+      { syntax: 'hours: 2.5', meaning: 'Under a todo → estimatedHours on Myelin create' },
       {
         syntax: 'category: Design',
         meaning:

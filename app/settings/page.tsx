@@ -673,7 +673,7 @@ export default function SettingsPage() {
             <input className="input mt-1 w-full opacity-70" readOnly value={data?.projectManagement.pmBaseUrl || ''} />
           </label>
           <p className="text-xs leading-relaxed text-[var(--muted)]">
-            Planner calls use each user&apos;s SSO token, or their personal{' '}
+            Myelin calls use each user&apos;s SSO token, or their personal{' '}
             <code className="text-[var(--accent-soft)]">pt_…</code> token from{' '}
             <Link href="/profile" className="text-[var(--accent-soft)]">
               Profile
@@ -999,7 +999,7 @@ export default function SettingsPage() {
                       {u.isAdmin ? 'admin · ' : ''}
                       {u.isActive ? 'active' : 'disabled'}
                       {u.hasPassword ? '' : ' · SSO-only'}
-                      {u.pmUserId != null ? ` · PM #${u.pmUserId}` : ''}
+                      {u.pmUserId != null ? ` · Myelin #${u.pmUserId}` : ''}
                     </td>
                     <td className="px-3 py-2">
                       <div className="flex flex-wrap gap-1">
@@ -1250,7 +1250,7 @@ export default function SettingsPage() {
       <ConfirmModal
         open={syncConfirmOpen}
         title="Sync users from Myelin"
-        message="Import PM users into Synapse. Matched by PM user id or email. New accounts are SSO-ready (no local password). Existing Synapse-only users are not deleted. Requires your admin SSO session or personal API token in Profile."
+        message="Import Myelin users into Synapse. Matched by Myelin user id or email. New accounts are SSO-ready (no local password). Existing Synapse-only users are not deleted. Requires your admin SSO session or personal API token in Profile."
         confirmLabel={syncBusy ? 'Syncing…' : 'Sync now'}
         cancelLabel="Cancel"
         onCancel={() => {

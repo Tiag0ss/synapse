@@ -33,6 +33,7 @@ interface VaultOptionsModalProps {
   canEdit: boolean;
   defaultVisibility?: string;
   pmProjectId?: number | null;
+  pmProjectName?: string | null;
   pmOrganizationId?: number | null;
   initialTab?: OptionsTab;
   notes?: NoteResolveEntry[];
@@ -53,6 +54,7 @@ export default function VaultOptionsModal({
   canEdit,
   defaultVisibility = 'private',
   pmProjectId,
+  pmProjectName,
   pmOrganizationId,
   initialTab = 'links',
   notes = [],
@@ -555,6 +557,7 @@ export default function VaultOptionsModal({
               vaultId={vaultId}
               vaultName={vaultName}
               pmProjectId={pmProjectId}
+              pmProjectName={pmProjectName}
               pmOrganizationId={pmOrganizationId}
               onClose={onClose}
               onChanged={onChanged}

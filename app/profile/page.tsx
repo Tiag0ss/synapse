@@ -121,8 +121,8 @@ export default function ProfilePage() {
       }
       setStatus(
         next
-          ? 'New Planner tasks will be assigned to you'
-          : 'New Planner tasks stay unassigned'
+          ? 'New Myelin tasks will be assigned to you'
+          : 'New Myelin tasks stay unassigned'
       );
       await load();
     } finally {
@@ -277,7 +277,7 @@ export default function ProfilePage() {
             </p>
             {profile.pmUserId != null && (
               <p className="mt-2 font-mono text-[11px] text-[var(--muted)]">
-                PM user #{profile.pmUserId}
+                Myelin user #{profile.pmUserId}
               </p>
             )}
           </div>
@@ -325,7 +325,7 @@ export default function ProfilePage() {
             <h2 className="text-sm font-semibold text-[var(--text)]">Myelin API token</h2>
             <p className="text-xs leading-relaxed text-[var(--muted)]">
               Personal <code className="text-[var(--accent-soft)]">pt_…</code> token from Project
-              Management → Administration → API Tokens. Used for Planner calls when you have no
+              Management → Administration → API Tokens. Used for Myelin calls when you have no
               valid SSO session. Attribution and permissions follow this token.
             </p>
             <div className="flex flex-wrap gap-3 text-[12px] text-[var(--muted)]">
@@ -394,11 +394,11 @@ export default function ProfilePage() {
               <span>
                 <span className="text-[var(--text)]">Auto-assign me on create</span>
                 <span className="mt-0.5 block text-xs text-[var(--muted)]">
-                  When enabled, tasks created from Synapse are assigned to your linked Planner
-                  user (SSO / PM user id). Off = leave Unassigned.
+                  When enabled, tasks created from Synapse are assigned to your linked Myelin
+                  user (SSO / Myelin user id). Off = leave Unassigned.
                   {profile.pmUserId == null ? (
                     <span className="mt-1 block text-amber-200/90">
-                      No linked Planner user id yet — reconnect SSO (or ask an admin to sync PM
+                      No linked Myelin user id yet — reconnect SSO (or ask an admin to sync Myelin
                       users) so assignment can resolve.
                     </span>
                   ) : null}

@@ -52,6 +52,7 @@ const STATEMENTS = [
     AllowPublicPages TINYINT NOT NULL DEFAULT 0,
     PmOrganizationId INT NULL,
     PmProjectId INT NULL,
+    PmProjectName VARCHAR(512) NULL,
     PmProjectLinkedAt DATETIME NULL,
     IsPersonalWork TINYINT NOT NULL DEFAULT 0,
     PersonalWorkOwnerId INT GENERATED ALWAYS AS (IF(IsPersonalWork = 1, OwnerPmUserId, NULL)) STORED,
@@ -329,6 +330,7 @@ const ALTERS = [
   'ALTER TABLE NoteShareLinks MODIFY COLUMN ExpiresAt DATETIME NULL',
   "ALTER TABLE NoteShareLinks ADD COLUMN ShareKind VARCHAR(16) NOT NULL DEFAULT 'note'",
   'ALTER TABLE NoteShareLinks ADD COLUMN FoldFront VARCHAR(512) NULL',
+  'ALTER TABLE Vaults ADD COLUMN PmProjectName VARCHAR(512) NULL',
 ];
 
 /** Legacy SsoTokens used PmUserId PK — migrate rows into UserId-keyed table after Users exist. */

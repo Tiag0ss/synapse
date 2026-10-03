@@ -104,7 +104,7 @@ export async function listLinkablePmTasksForVault(params: {
 }> {
   const projectsRes = await fetchPmProjects(params.pmUserId, params.organizationId);
   if (!projectsRes.ok) {
-    throw Object.assign(new Error(projectsRes.data.message || 'Failed to fetch PM projects'), {
+    throw Object.assign(new Error(projectsRes.data.message || 'Failed to fetch Myelin projects'), {
       status: projectsRes.status || 502,
     });
   }
@@ -281,7 +281,7 @@ export async function linkCheckboxToPmTask(params: {
     checkboxIndex: params.checkboxIndex,
   });
   if (prepared.alreadyPmTaskId) {
-    throw Object.assign(new Error('Checkbox already linked to a PM task'), {
+    throw Object.assign(new Error('Checkbox already linked to a Myelin task'), {
       status: 409,
       data: {
         pmTaskId: prepared.alreadyPmTaskId,
@@ -303,17 +303,17 @@ export async function linkCheckboxToPmTask(params: {
       defaultProjectId: params.defaultProjectId,
     });
     if (!resolved) {
-      throw Object.assign(new Error('PM task not found in the selected project'), { status: 404 });
+      throw Object.assign(new Error('Myelin task not found in the selected project'), { status: 404 });
     }
     linkedProjectId = resolved.projectId;
 
     if (isPmTaskSynapseLinked(resolved.task)) {
-      throw Object.assign(new Error('PM task already has a Synapse reference'), { status: 409 });
+      throw Object.assign(new Error('Myelin task already has a Synapse reference'), { status: 409 });
     }
 
     const exclude = await linkedPmTaskIdsInSynapse();
     if (exclude.has(params.pmTaskId)) {
-      throw Object.assign(new Error('PM task is already linked in Synapse'), { status: 409 });
+      throw Object.assign(new Error('Myelin task is already linked in Synapse'), { status: 409 });
     }
 
     const synapseNoteUrl = buildSynapseNoteUrl(params.vaultId, params.noteId);
@@ -324,7 +324,7 @@ export async function linkCheckboxToPmTask(params: {
       synapseNoteUrl,
     });
     if (!upd.ok) {
-      throw Object.assign(new Error(upd.data.message || 'Failed to set Synapse refs on PM task'), {
+      throw Object.assign(new Error(upd.data.message || 'Failed to set Synapse refs on Myelin task'), {
         status: upd.status || 502,
       });
     }
@@ -404,7 +404,7 @@ export async function unlinkCheckboxFromPmTask(params: {
   const pmTaskId =
     linkRows.length && linkRows[0].PmTaskId != null ? Number(linkRows[0].PmTaskId) : null;
   if (pmTaskId == null || !Number.isFinite(pmTaskId) || pmTaskId <= 0) {
-    throw Object.assign(new Error('Checkbox is not linked to a PM task'), { status: 400 });
+    throw Object.assign(new Error('Checkbox is not linked to a Myelin task'), { status: 400 });
   }
 
   await clearCheckboxPmLink(params.noteId, markerId);
@@ -861,7 +861,7 @@ export async function autoLinkCheckboxesByDescription(params: {
           failed.push({
             index: box.index,
             text: box.text,
-            message: 'PM task is already linked in Synapse',
+            message: 'Myelin task is already linked in Synapse',
           });
           continue;
         }
@@ -876,7 +876,7 @@ export async function autoLinkCheckboxesByDescription(params: {
           failed.push({
             index: box.index,
             text: box.text,
-            message: upd.data.message || 'Failed to set Synapse refs on PM task',
+            message: upd.data.message || 'Failed to set Synapse refs on Myelin task',
           });
           continue;
         }

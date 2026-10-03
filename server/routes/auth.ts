@@ -674,7 +674,7 @@ router.post('/me/pm-test', authenticateSession, async (req: AuthRequest, res: Re
     if (!orgs.ok) {
       return res.status(orgs.status).json({
         success: false,
-        message: orgs.data.message || 'PM credentials rejected',
+        message: orgs.data.message || 'Myelin credentials rejected',
         reauth: orgs.status === 401,
         data: { source: resolved.source },
       });
@@ -686,7 +686,7 @@ router.post('/me/pm-test', authenticateSession, async (req: AuthRequest, res: Re
     });
   } catch (error) {
     logger.error('POST /me/pm-test failed', { error });
-    res.status(500).json({ success: false, message: 'Failed to test PM credentials' });
+    res.status(500).json({ success: false, message: 'Failed to test Myelin credentials' });
   }
 });
 
