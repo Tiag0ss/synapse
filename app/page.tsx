@@ -23,6 +23,15 @@ interface Vault {
   IsPersonalWork?: number | boolean;
 }
 
+interface HomeWikiItem {
+  id: number;
+  name: string;
+  slug: string;
+  description: string | null;
+  noteCount: number;
+  visibilityHint: 'public' | 'authenticated' | 'private' | 'access';
+}
+
 interface Providers {
   siteName: string;
   allowPublicRegistration: boolean;
@@ -37,6 +46,19 @@ function roleLabel(role?: string) {
   if (role === 'edit') return 'Can edit';
   if (role === 'read') return 'Read only';
   return role;
+}
+
+function wikiHintLabel(hint: HomeWikiItem['visibilityHint']): string {
+  switch (hint) {
+    case 'access':
+      return 'Shared with you';
+    case 'authenticated':
+      return 'Signed-in users';
+    case 'private':
+      return 'Private';
+    default:
+      return 'Public';
+  }
 }
 
 export default function HomePage() {
@@ -57,6 +79,9 @@ export default function HomePage() {
   const [createBusy, setCreateBusy] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [vaultQuery, setVaultQuery] = useState('');
+  const [wikis, setWikis] = useState<HomeWikiItem[]>([]);
+  const [wikiQuery, setWikiQuery] = useState('');
+  const [homeTab, setHomeTab] = useState<'vaults' | 'wikis'>('vaults');
 
   const load = async () => {
     setLoading(true);
@@ -69,14 +94,24 @@ export default function HomePage() {
       const meRes = await fetch('/api/auth/me', { credentials: 'include' });
       if (!meRes.ok) {
         setMe(null);
+        setWikis([]);
         setLoading(false);
         return;
       }
       const meJson = await meRes.json();
       setMe(meJson.data);
-      const vRes = await fetch('/api/vaults', { credentials: 'include' });
+      const [vRes, wRes] = await Promise.all([
+        fetch('/api/vaults', { credentials: 'include' }),
+        fetch('/api/public', { credentials: 'include' }),
+      ]);
       const vJson = await vRes.json();
       setVaults(vJson.data || []);
+      if (wRes.ok) {
+        const wJson = await wRes.json();
+        setWikis((wJson.data?.wikis || []) as HomeWikiItem[]);
+      } else {
+        setWikis([]);
+      }
     } catch {
       setError('Failed to load');
     } finally {
@@ -98,6 +133,18 @@ export default function HomePage() {
       return name.includes(q) || slug.includes(q) || desc.includes(q);
     });
   }, [vaults, vaultQuery]);
+
+  const filteredWikis = useMemo(() => {
+    const q = wikiQuery.trim().toLowerCase();
+    if (!q) return wikis;
+    return wikis.filter((w) => {
+      return (
+        w.name.toLowerCase().includes(q) ||
+        w.slug.toLowerCase().includes(q) ||
+        (w.description || '').toLowerCase().includes(q)
+      );
+    });
+  }, [wikis, wikiQuery]);
 
   const createVault = async () => {
     if (!name.trim()) return;
@@ -355,49 +402,23 @@ export default function HomePage() {
             <p className="truncate text-[11px] text-[var(--muted)]">Knowledge vaults</p>
           </div>
           <div className="flex items-center gap-3">
-            <Link
-              href="/w"
-              className="hidden text-xs text-[var(--muted)] no-underline hover:text-[var(--accent-soft)] hover:no-underline sm:inline"
+            <button
+              type="button"
+              className="btn-ghost py-1.5 text-sm"
+              onClick={() => {
+                setHomeTab('wikis');
+                setCreateOpen(false);
+              }}
             >
               Wikis
-            </Link>
+            </button>
             <AppUserMenu user={me} />
           </div>
         </div>
       </header>
       <PmSsoBanner />
 
-      <div className="relative overflow-hidden border-b border-[var(--border)]">
-        <div className="pointer-events-none absolute inset-0" aria-hidden>
-          <div className="absolute -left-24 top-0 h-64 w-64 rounded-full bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] blur-3xl" />
-          <div className="absolute right-0 top-0 h-48 w-80 rounded-full bg-sky-950/30 blur-3xl" />
-        </div>
-        <div className="relative mx-auto flex max-w-6xl flex-col gap-6 px-6 py-10 sm:flex-row sm:items-end sm:justify-between sm:py-12">
-          <div className="max-w-xl">
-            <h1
-              className="text-3xl tracking-tight text-[var(--text)] sm:text-4xl"
-              style={{ fontFamily: 'var(--font-serif)' }}
-            >
-              Your vaults
-            </h1>
-            <p className="mt-2 text-[15px] leading-relaxed text-[var(--muted)]">
-              Open a vault to write, link notes, and push tasks to Planner.
-            </p>
-          </div>
-          <button
-            type="button"
-            className="btn-primary shrink-0 self-start sm:self-auto"
-            onClick={() => {
-              setCreateOpen((o) => !o);
-              setError('');
-            }}
-          >
-            {createOpen ? 'Cancel' : 'New vault'}
-          </button>
-        </div>
-      </div>
-
-      <div className="mx-auto max-w-6xl px-6 py-8">
+      <div className="mx-auto max-w-6xl px-6 py-6">
         <InstallAppPrompt variant="banner" className="mb-6" />
         {error && (
           <p className="mb-6 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
@@ -405,148 +426,312 @@ export default function HomePage() {
           </p>
         )}
 
-        {createOpen && (
-          <section className="mb-8 rounded-2xl border border-[var(--border)] bg-[var(--panel)]/80 p-5 shadow-lg shadow-black/20">
-            <h2 className="text-sm font-semibold tracking-tight text-[var(--text)]">Create vault</h2>
-            <p className="mt-1 text-xs text-[var(--muted)]">
-              A vault is a collection of Markdown notes. Wiki visibility can be changed later.
-            </p>
-            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-              <input
-                autoFocus
-                className="input min-w-[12rem] flex-1"
-                placeholder="Vault name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') void createVault();
-                }}
-              />
-              <select
-                className="input w-full sm:w-auto"
-                value={defaultVisibility}
-                onChange={(e) => setDefaultVisibility(e.target.value)}
-                title="Wiki audience when public pages are enabled; also default for notes"
-                aria-label="Default wiki visibility"
-              >
-                <option value="private">Wiki: Private (Share only)</option>
-                <option value="authenticated">Wiki: Authenticated</option>
-                <option value="unlisted">Wiki: Unlisted</option>
-                <option value="public">Wiki: Public</option>
-              </select>
-              <button
-                type="button"
-                onClick={() => void createVault()}
-                className="btn-primary"
-                disabled={createBusy || !name.trim()}
-              >
-                {createBusy ? 'Creating…' : 'Create'}
-              </button>
-            </div>
-          </section>
-        )}
+        <div
+          className="mb-5 flex rounded-lg border border-[var(--border)] bg-[var(--surface)] p-0.5"
+          role="tablist"
+          aria-label="Home sections"
+        >
+          {(
+            [
+              { id: 'vaults' as const, label: `Vaults${vaults.length ? ` (${vaults.length})` : ''}` },
+              { id: 'wikis' as const, label: `Wikis${wikis.length ? ` (${wikis.length})` : ''}` },
+            ] as const
+          ).map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={homeTab === tab.id}
+              className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition ${
+                homeTab === tab.id
+                  ? 'bg-[var(--accent)] text-[var(--accent-fg)]'
+                  : 'text-[var(--muted)] hover:text-[var(--text)]'
+              }`}
+              onClick={() => {
+                setHomeTab(tab.id);
+                if (tab.id !== 'vaults') setCreateOpen(false);
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
 
-        {vaults.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--surface)]/40 px-6 py-16 text-center">
-            <p className="text-xl text-[var(--text)]" style={{ fontFamily: 'var(--font-serif)' }}>
-              No vaults yet
-            </p>
-            <p className="mx-auto mt-2 max-w-sm text-sm text-[var(--muted)]">
-              Create your first vault to start taking notes with wikilinks, tasks, and templates.
-            </p>
-            {!createOpen && (
-              <button
-                type="button"
-                className="btn-primary mt-6"
-                onClick={() => setCreateOpen(true)}
-              >
-                New vault
-              </button>
+        {homeTab === 'vaults' ? (
+          <>
+            {createOpen && (
+              <section className="mb-6 rounded-2xl border border-[var(--border)] bg-[var(--panel)]/80 p-5 shadow-lg shadow-black/20">
+                <h2 className="text-sm font-semibold tracking-tight text-[var(--text)]">
+                  Create vault
+                </h2>
+                <p className="mt-1 text-xs text-[var(--muted)]">
+                  A vault is a collection of Markdown notes. Wiki visibility can be changed later.
+                </p>
+                <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+                  <input
+                    autoFocus
+                    className="input min-w-[12rem] flex-1"
+                    placeholder="Vault name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') void createVault();
+                    }}
+                  />
+                  <select
+                    className="input w-full sm:w-auto"
+                    value={defaultVisibility}
+                    onChange={(e) => setDefaultVisibility(e.target.value)}
+                    title="Wiki audience when public pages are enabled; also default for notes"
+                    aria-label="Default wiki visibility"
+                  >
+                    <option value="private">Wiki: Private (Share only)</option>
+                    <option value="authenticated">Wiki: Authenticated</option>
+                    <option value="unlisted">Wiki: Unlisted</option>
+                    <option value="public">Wiki: Public</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => void createVault()}
+                    className="btn-primary"
+                    disabled={createBusy || !name.trim()}
+                  >
+                    {createBusy ? 'Creating…' : 'Create'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-ghost"
+                    onClick={() => setCreateOpen(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </section>
             )}
+
+            {vaults.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--surface)]/40 px-6 py-16 text-center">
+                <p
+                  className="text-xl text-[var(--text)]"
+                  style={{ fontFamily: 'var(--font-serif)' }}
+                >
+                  No vaults yet
+                </p>
+                <p className="mx-auto mt-2 max-w-sm text-sm text-[var(--muted)]">
+                  Create your first vault to start taking notes with wikilinks, tasks, and templates.
+                </p>
+                {!createOpen && (
+                  <button
+                    type="button"
+                    className="btn-primary mt-6"
+                    onClick={() => setCreateOpen(true)}
+                  >
+                    New vault
+                  </button>
+                )}
+              </div>
+            ) : (
+              <section>
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <h2 className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">
+                    {vaultQuery.trim()
+                      ? `${filteredVaults.length} of ${vaults.length} ${vaults.length === 1 ? 'vault' : 'vaults'}`
+                      : `${vaults.length} ${vaults.length === 1 ? 'vault' : 'vaults'}`}
+                  </h2>
+                  <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+                    {!createOpen && (
+                      <button
+                        type="button"
+                        className="btn-primary shrink-0"
+                        onClick={() => {
+                          setCreateOpen(true);
+                          setError('');
+                        }}
+                      >
+                        New vault
+                      </button>
+                    )}
+                    <input
+                      type="search"
+                      className="input w-full sm:max-w-xs"
+                      placeholder="Search vaults…"
+                      value={vaultQuery}
+                      onChange={(e) => setVaultQuery(e.target.value)}
+                      aria-label="Search vaults"
+                    />
+                  </div>
+                </div>
+                {filteredVaults.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)]/30 px-6 py-12 text-center">
+                    <p className="text-sm text-[var(--muted)]">
+                      No vaults match “{vaultQuery.trim()}”.
+                    </p>
+                    <button
+                      type="button"
+                      className="mt-3 text-sm text-[var(--accent-soft)] hover:underline"
+                      onClick={() => setVaultQuery('')}
+                    >
+                      Clear search
+                    </button>
+                  </div>
+                ) : (
+                  <ul className="grid gap-3 sm:grid-cols-2">
+                    {filteredVaults.map((v) => {
+                      const shared = roleLabel(v.AccessRole);
+                      return (
+                        <li key={v.Id}>
+                          <Link
+                            href={`/vaults/${v.Id}`}
+                            className="group flex h-full flex-col rounded-2xl border border-[var(--border)] bg-[var(--panel)]/60 p-5 no-underline transition duration-200 hover:border-[color-mix(in_srgb,var(--accent)_45%,var(--border))] hover:bg-[var(--surface-2)]/70 hover:no-underline hover:shadow-[0_0_0_1px_color-mix(in_srgb,var(--accent)_20%,transparent)]"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <h3 className="text-[17px] font-semibold tracking-tight text-[var(--text)] transition group-hover:text-[var(--accent-soft)]">
+                                {v.Name}
+                              </h3>
+                              <span
+                                className="mt-0.5 shrink-0 text-[var(--muted)] transition group-hover:translate-x-0.5 group-hover:text-[var(--accent-soft)]"
+                                aria-hidden
+                              >
+                                →
+                              </span>
+                            </div>
+                            {v.Description ? (
+                              <p className="mt-2 line-clamp-2 text-sm leading-snug text-[var(--muted)]">
+                                {v.Description}
+                              </p>
+                            ) : (
+                              <p className="mt-2 font-mono text-[11px] text-[var(--muted)]">
+                                /{v.slug}
+                              </p>
+                            )}
+                            <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
+                              <span className="rounded border border-[var(--border)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--muted)]">
+                                /{v.slug}
+                              </span>
+                              {Number(v.IsPersonalWork) === 1 ? (
+                                <span className="rounded border border-[color-mix(in_srgb,var(--accent)_35%,var(--border))] px-1.5 py-0.5 text-[10px] font-medium text-[var(--accent-soft)]">
+                                  My work
+                                </span>
+                              ) : v.PmProjectId ? (
+                                <span className="rounded border border-[color-mix(in_srgb,var(--accent)_35%,var(--border))] px-1.5 py-0.5 text-[10px] font-medium text-[var(--accent-soft)]">
+                                  Planner #{v.PmProjectId}
+                                </span>
+                              ) : null}
+                              {shared ? (
+                                <span className="rounded border border-[var(--border)] px-1.5 py-0.5 text-[10px] text-[var(--muted)]">
+                                  {shared}
+                                </span>
+                              ) : (
+                                <span className="rounded border border-[var(--border)] px-1.5 py-0.5 text-[10px] text-[var(--muted)]">
+                                  Owner
+                                </span>
+                              )}
+                            </div>
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </section>
+            )}
+          </>
+        ) : wikis.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)]/30 px-6 py-12 text-center">
+            <p className="text-sm text-[var(--muted)]">
+              No wikis are visible yet. Enable the public wiki on a vault and publish notes, or open
+              the full directory.
+            </p>
+            <Link href="/w" className="btn-primary mt-4 inline-flex no-underline hover:no-underline">
+              Browse wikis
+            </Link>
           </div>
         ) : (
           <section>
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">
-                {vaultQuery.trim()
-                  ? `${filteredVaults.length} of ${vaults.length} ${vaults.length === 1 ? 'vault' : 'vaults'}`
-                  : `${vaults.length} ${vaults.length === 1 ? 'vault' : 'vaults'}`}
+                {wikiQuery.trim()
+                  ? `${filteredWikis.length} of ${wikis.length} ${wikis.length === 1 ? 'wiki' : 'wikis'}`
+                  : `${wikis.length} ${wikis.length === 1 ? 'wiki' : 'wikis'}`}
               </h2>
-              <input
-                type="search"
-                className="input w-full sm:max-w-xs"
-                placeholder="Search vaults…"
-                value={vaultQuery}
-                onChange={(e) => setVaultQuery(e.target.value)}
-                aria-label="Search vaults"
-              />
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+                <Link
+                  href="/w"
+                  className="btn-primary shrink-0 no-underline hover:no-underline"
+                >
+                  Browse all
+                </Link>
+                <input
+                  type="search"
+                  className="input w-full sm:max-w-xs"
+                  placeholder="Search wikis…"
+                  value={wikiQuery}
+                  onChange={(e) => setWikiQuery(e.target.value)}
+                  aria-label="Search wikis"
+                />
+              </div>
             </div>
-            {filteredVaults.length === 0 ? (
+            {filteredWikis.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)]/30 px-6 py-12 text-center">
-                <p className="text-sm text-[var(--muted)]">No vaults match “{vaultQuery.trim()}”.</p>
+                <p className="text-sm text-[var(--muted)]">No wikis match “{wikiQuery.trim()}”.</p>
                 <button
                   type="button"
                   className="mt-3 text-sm text-[var(--accent-soft)] hover:underline"
-                  onClick={() => setVaultQuery('')}
+                  onClick={() => setWikiQuery('')}
                 >
                   Clear search
                 </button>
               </div>
             ) : (
               <ul className="grid gap-3 sm:grid-cols-2">
-                {filteredVaults.map((v) => {
-                  const shared = roleLabel(v.AccessRole);
-                  return (
-                    <li key={v.Id}>
-                      <Link
-                        href={`/vaults/${v.Id}`}
-                        className="group flex h-full flex-col rounded-2xl border border-[var(--border)] bg-[var(--panel)]/60 p-5 no-underline transition duration-200 hover:border-[color-mix(in_srgb,var(--accent)_45%,var(--border))] hover:bg-[var(--surface-2)]/70 hover:no-underline hover:shadow-[0_0_0_1px_color-mix(in_srgb,var(--accent)_20%,transparent)]"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <h3 className="text-[17px] font-semibold tracking-tight text-[var(--text)] transition group-hover:text-[var(--accent-soft)]">
-                            {v.Name}
-                          </h3>
-                          <span
-                            className="mt-0.5 shrink-0 text-[var(--muted)] transition group-hover:translate-x-0.5 group-hover:text-[var(--accent-soft)]"
-                            aria-hidden
-                          >
-                            →
-                          </span>
-                        </div>
-                        {v.Description ? (
-                          <p className="mt-2 line-clamp-2 text-sm leading-snug text-[var(--muted)]">
-                            {v.Description}
-                          </p>
-                        ) : (
-                          <p className="mt-2 font-mono text-[11px] text-[var(--muted)]">/{v.slug}</p>
-                        )}
-                        <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
-                          <span className="rounded border border-[var(--border)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--muted)]">
-                            /{v.slug}
-                          </span>
-                          {Number(v.IsPersonalWork) === 1 ? (
-                            <span className="rounded border border-[color-mix(in_srgb,var(--accent)_35%,var(--border))] px-1.5 py-0.5 text-[10px] font-medium text-[var(--accent-soft)]">
-                              My work
-                            </span>
-                          ) : v.PmProjectId ? (
-                            <span className="rounded border border-[color-mix(in_srgb,var(--accent)_35%,var(--border))] px-1.5 py-0.5 text-[10px] font-medium text-[var(--accent-soft)]">
-                              Planner #{v.PmProjectId}
-                            </span>
-                          ) : null}
-                          {shared ? (
-                            <span className="rounded border border-[var(--border)] px-1.5 py-0.5 text-[10px] text-[var(--muted)]">
-                              {shared}
-                            </span>
-                          ) : (
-                            <span className="rounded border border-[var(--border)] px-1.5 py-0.5 text-[10px] text-[var(--muted)]">
-                              Owner
-                            </span>
-                          )}
-                        </div>
-                      </Link>
-                    </li>
-                  );
-                })}
+                {filteredWikis.map((w) => (
+                  <li key={w.id}>
+                    <Link
+                      href={`/w/${w.slug}`}
+                      className="group flex h-full flex-col rounded-2xl border border-[var(--border)] bg-[var(--panel)]/60 p-5 no-underline transition duration-200 hover:border-[color-mix(in_srgb,var(--accent)_45%,var(--border))] hover:bg-[var(--surface-2)]/70 hover:no-underline hover:shadow-[0_0_0_1px_color-mix(in_srgb,var(--accent)_20%,transparent)]"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <h3 className="text-[17px] font-semibold tracking-tight text-[var(--text)] transition group-hover:text-[var(--accent-soft)]">
+                          {w.name}
+                        </h3>
+                        <span
+                          className="mt-0.5 shrink-0 text-[var(--muted)] transition group-hover:translate-x-0.5 group-hover:text-[var(--accent-soft)]"
+                          aria-hidden
+                        >
+                          →
+                        </span>
+                      </div>
+                      {w.description ? (
+                        <p className="mt-2 line-clamp-2 text-sm leading-snug text-[var(--muted)]">
+                          {w.description}
+                        </p>
+                      ) : (
+                        <p className="mt-2 font-mono text-[11px] text-[var(--muted)]">
+                          /w/{w.slug}
+                        </p>
+                      )}
+                      <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
+                        <span className="rounded border border-[var(--border)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--muted)]">
+                          /w/{w.slug}
+                        </span>
+                        <span className="rounded border border-[var(--border)] px-1.5 py-0.5 text-[10px] text-[var(--muted)]">
+                          {w.noteCount} note{w.noteCount === 1 ? '' : 's'}
+                        </span>
+                        <span
+                          className={`rounded border border-[var(--border)] px-1.5 py-0.5 text-[10px] ${
+                            w.visibilityHint === 'access'
+                              ? 'text-[var(--accent-soft)]'
+                              : w.visibilityHint === 'authenticated'
+                                ? 'text-sky-300'
+                                : 'text-[var(--muted)]'
+                          }`}
+                        >
+                          {wikiHintLabel(w.visibilityHint)}
+                        </span>
+                      </div>
+                    </Link>
+                  </li>
+                ))}
               </ul>
             )}
           </section>

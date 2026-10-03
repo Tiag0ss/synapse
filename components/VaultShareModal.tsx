@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import ConfirmModal from '@/components/ConfirmModal';
 
 interface MemberRow {
   pmUserId: number;
@@ -48,7 +49,12 @@ export default function VaultShareModal({
   const [accessRole, setAccessRole] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [hits, setHits] = useState<UserHit[]>([]);
+  const [hitsLoading, setHitsLoading] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [selected, setSelected] = useState<UserHit | null>(null);
   const [role, setRole] = useState<'read' | 'edit'>('read');
+  const [bulkRole, setBulkRole] = useState<'read' | 'edit'>('read');
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -83,7 +89,10 @@ export default function VaultShareModal({
     setStatus('');
     setQuery('');
     setHits([]);
+    setSelected(null);
+    setPickerOpen(false);
     setAccessRole(null);
+    setBulkConfirmOpen(false);
     void load();
      
   }, [open, vaultId, base]);
@@ -91,21 +100,28 @@ export default function VaultShareModal({
   useEffect(() => {
     if (!open || !manage) return;
     const q = query.trim();
-    if (q.length < 1) {
-      setHits([]);
-      return;
-    }
     const t = window.setTimeout(() => {
       void (async () => {
-        const res = await fetch(`/api/vaults/users/search?q=${encodeURIComponent(q)}`, {
-          credentials: 'include',
-        });
-        const data = await res.json();
-        if (res.ok) setHits(data.data || []);
+        setHitsLoading(true);
+        try {
+          const res = await fetch(`/api/vaults/users/search?q=${encodeURIComponent(q)}`, {
+            credentials: 'include',
+          });
+          const data = await res.json();
+          if (res.ok) setHits(data.data || []);
+        } finally {
+          setHitsLoading(false);
+        }
       })();
-    }, 250);
+    }, q.length === 0 ? 0 : 200);
     return () => window.clearTimeout(t);
   }, [query, open, manage]);
+
+  const memberIds = useMemo(() => new Set(members.map((m) => m.pmUserId)), [members]);
+
+  const pickerHits = useMemo(() => {
+    return hits.filter((u) => u.pmUserId !== owner?.pmUserId);
+  }, [hits, owner?.pmUserId]);
 
   if (!open) return null;
 
@@ -125,12 +141,9 @@ export default function VaultShareModal({
         return;
       }
       setQuery('');
-      setHits([]);
-      setStatus(
-        data.data?.pendingFirstLogin
-          ? `Invited user#${user.pmUserId} (${role}) — they get access on first Synapse sign-in`
-          : `Granted ${role} to ${user.username}`
-      );
+      setSelected(null);
+      setPickerOpen(false);
+      setStatus(`Granted ${role} to ${user.username}`);
       await load();
     } finally {
       setBusy(false);
@@ -169,11 +182,41 @@ export default function VaultShareModal({
     }
   };
 
-  const memberIds = new Set(members.map((m) => m.pmUserId));
+  const runBulkAdd = async () => {
+    setBulkConfirmOpen(false);
+    setBusy(true);
+    setStatus('');
+    try {
+      const res = await fetch(`${base}/members/bulk-all`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: bulkRole }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setStatus(data.message || 'Could not add all users');
+        return;
+      }
+      const d = data.data || {};
+      setStatus(
+        `Added ${d.added ?? 0} user(s) as ${bulkRole}` +
+          (d.skippedAlreadyMember
+            ? ` · ${d.skippedAlreadyMember} already members`
+            : '')
+      );
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const rows: Array<MemberRow & { kind: 'owner' | 'member' }> = [
     ...(owner ? [{ ...owner, kind: 'owner' as const }] : []),
     ...members.map((m) => ({ ...m, kind: 'member' as const })),
   ];
+
+  const bulkRoleLabel = bulkRole === 'edit' ? 'Edit (vault + wiki)' : 'Read (wiki only)';
 
   const body = (
     <div className="flex h-full min-h-0 flex-col">
@@ -258,83 +301,139 @@ export default function VaultShareModal({
         )}
 
         {manage && (
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)]/40 p-4">
-            <p className="text-sm font-semibold text-[var(--text)]">Add people</p>
-            <p className="mt-1 text-xs text-[var(--muted)]">
-              Search signed-in users, or invite by Myelin user id before first Synapse
-              login.
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <input
-                className="input min-w-[12rem] flex-1"
-                placeholder="Username, email, or PM user id…"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-              <select
-                className="input w-auto"
-                value={role}
-                onChange={(e) => setRole(e.target.value as 'read' | 'edit')}
-              >
-                <option value="read">Wiki only (Read)</option>
-                <option value="edit">Vault + wiki (Edit)</option>
-              </select>
-              {/^\d+$/.test(query.trim()) &&
-                !memberIds.has(Number(query.trim())) &&
-                Number(query.trim()) !== owner?.pmUserId && (
-                  <button
-                    type="button"
-                    className="btn-primary py-1.5 text-xs"
-                    disabled={busy}
-                    onClick={() =>
-                      void addMember({
-                        pmUserId: Number(query.trim()),
-                        username: `user#${query.trim()}`,
-                        email: '',
-                      })
-                    }
-                  >
-                    Invite id {query.trim()}
-                  </button>
-                )}
-            </div>
-            {hits.length > 0 && (
-              <div className="mt-3 overflow-x-auto rounded-xl border border-[var(--border)]">
-                <table className="w-full text-left text-sm">
-                  <thead className="border-b border-[var(--border)] bg-[var(--panel)]/80 text-[var(--muted)]">
-                    <tr>
-                      <th className="px-3 py-2 font-medium">User</th>
-                      <th className="px-3 py-2 font-medium">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {hits.map((u) => {
-                      const already =
-                        memberIds.has(u.pmUserId) || u.pmUserId === owner?.pmUserId;
-                      return (
-                        <tr key={u.pmUserId} className="border-b border-[var(--border)]/60">
-                          <td className="px-3 py-2">
-                            <div className="font-medium">{u.username}</div>
-                            <div className="text-xs text-[var(--muted)]">{u.email}</div>
-                          </td>
-                          <td className="px-3 py-2">
+          <>
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)]/40 p-4">
+              <p className="text-sm font-semibold text-[var(--text)]">Add people</p>
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                Search Synapse users and grant wiki Read or vault Edit access.
+              </p>
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-start">
+                <div className="relative min-w-[14rem] flex-1">
+                  <label className="sr-only" htmlFor="vault-share-user-search">
+                    Search users
+                  </label>
+                  <input
+                    id="vault-share-user-search"
+                    className="input w-full"
+                    placeholder="Search users…"
+                    value={selected ? selected.username : query}
+                    onChange={(e) => {
+                      setSelected(null);
+                      setQuery(e.target.value);
+                      setPickerOpen(true);
+                    }}
+                    onFocus={() => setPickerOpen(true)}
+                    autoComplete="off"
+                    role="combobox"
+                    aria-expanded={pickerOpen}
+                    aria-controls="vault-share-user-list"
+                    aria-autocomplete="list"
+                  />
+                  {pickerOpen && (
+                    <div
+                      id="vault-share-user-list"
+                      role="listbox"
+                      className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-xl"
+                    >
+                      {hitsLoading ? (
+                        <p className="px-3 py-2 text-xs text-[var(--muted)]">Loading…</p>
+                      ) : pickerHits.length === 0 ? (
+                        <p className="px-3 py-2 text-xs text-[var(--muted)]">No users found.</p>
+                      ) : (
+                        pickerHits.map((u) => {
+                          const already = memberIds.has(u.pmUserId);
+                          return (
                             <button
+                              key={u.pmUserId}
                               type="button"
-                              className="btn-primary py-1 text-xs"
-                              disabled={busy || already}
-                              onClick={() => void addMember(u)}
+                              role="option"
+                              aria-selected={selected?.pmUserId === u.pmUserId}
+                              disabled={already || busy}
+                              className={`flex w-full flex-col px-3 py-2 text-left text-sm transition ${
+                                already
+                                  ? 'cursor-not-allowed opacity-50'
+                                  : 'hover:bg-[var(--surface-2)]'
+                              } ${
+                                selected?.pmUserId === u.pmUserId
+                                  ? 'bg-[var(--surface-2)]'
+                                  : ''
+                              }`}
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => {
+                                if (already) return;
+                                setSelected(u);
+                                setQuery(u.username);
+                                setPickerOpen(false);
+                              }}
                             >
-                              {already ? 'Added' : 'Add'}
+                              <span className="font-medium text-[var(--text)]">{u.username}</span>
+                              <span className="text-xs text-[var(--muted)]">
+                                {already ? 'Already added' : u.email || '—'}
+                              </span>
                             </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
+                </div>
+                <select
+                  className="input w-full sm:w-auto"
+                  value={role}
+                  onChange={(e) => setRole(e.target.value as 'read' | 'edit')}
+                  aria-label="Access role for new member"
+                >
+                  <option value="read">Wiki only (Read)</option>
+                  <option value="edit">Vault + wiki (Edit)</option>
+                </select>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  disabled={busy || !selected || memberIds.has(selected.pmUserId)}
+                  onClick={() => selected && void addMember(selected)}
+                >
+                  Add
+                </button>
               </div>
-            )}
-          </div>
+              {pickerOpen && (
+                <button
+                  type="button"
+                  className="mt-2 text-xs text-[var(--muted)] hover:text-[var(--text)]"
+                  onClick={() => setPickerOpen(false)}
+                >
+                  Close list
+                </button>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)]/40 p-4">
+              <p className="text-sm font-semibold text-[var(--text)]">Add all users</p>
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                Grant access to every active Synapse user who is not already a member. Existing
+                members keep their current role.
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <select
+                  className="input w-auto"
+                  value={bulkRole}
+                  onChange={(e) => setBulkRole(e.target.value as 'read' | 'edit')}
+                  aria-label="Access role for bulk add"
+                  disabled={busy}
+                >
+                  <option value="read">Wiki only (Read)</option>
+                  <option value="edit">Vault + wiki (Edit)</option>
+                </select>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  disabled={busy}
+                  onClick={() => setBulkConfirmOpen(true)}
+                >
+                  Add all users
+                </button>
+              </div>
+            </div>
+          </>
         )}
 
         {!manage && (
@@ -350,6 +449,16 @@ export default function VaultShareModal({
           {status}
         </footer>
       )}
+
+      <ConfirmModal
+        open={bulkConfirmOpen}
+        title="Add all users?"
+        message={`Grant ${bulkRoleLabel} to all active Synapse users who are not already members of “${vaultName}”? Existing members will not be changed.`}
+        confirmLabel="Add all"
+        cancelLabel="Cancel"
+        onConfirm={() => void runBulkAdd()}
+        onCancel={() => setBulkConfirmOpen(false)}
+      />
     </div>
   );
 

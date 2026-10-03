@@ -76,6 +76,7 @@ import {
   unlinkCheckboxFromPmTask,
 } from '../services/linkCheckboxTask';
 import { normalizeNoteIcon } from '../services/noteIcons';
+import { bulkAddAllActiveUsers } from '../services/vaultMembersBulk';
 import {
   accessibleVault,
   listAccessibleVaults,
@@ -401,9 +402,38 @@ router.get('/linkable-notes', async (req: AuthRequest, res: Response) => {
 /** Search Synapse users for vault sharing. */
 router.get('/users/search', async (req: AuthRequest, res: Response) => {
   const q = String(req.query.q || '').trim();
+  const selfId = req.user!.userId;
+
+  const maskEmail = (emailRaw: unknown) => {
+    const email = String(emailRaw || '');
+    const at = email.indexOf('@');
+    if (at > 1) {
+      return `${email[0]}${'*'.repeat(Math.min(at - 1, 6))}${email.slice(at)}`;
+    }
+    return email;
+  };
+
+  const mapRows = (rows: RowDataPacket[]) =>
+    rows.map((r) => ({
+      userId: Number(r.Id),
+      pmUserId: Number(r.Id), // legacy alias for share UI
+      username: String(r.Username),
+      email: maskEmail(r.Email),
+      linkedPmUserId: r.PmUserId != null ? Number(r.PmUserId) : null,
+    }));
+
+  // Empty / short query: first page of active users for the Share picker dropdown.
   if (q.length < 2) {
-    return res.json({ success: true, data: [] });
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      `SELECT Id, Username, Email, PmUserId FROM Users
+       WHERE Id <> ? AND IsActive = 1
+       ORDER BY Username ASC
+       LIMIT 50`,
+      [selfId]
+    );
+    return res.json({ success: true, data: mapRows(rows) });
   }
+
   const escaped = q.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
   const like = `%${escaped}%`;
   const [rows] = await pool.execute<RowDataPacket[]>(
@@ -412,27 +442,10 @@ router.get('/users/search', async (req: AuthRequest, res: Response) => {
        AND IsActive = 1
        AND (Username LIKE ? OR Email LIKE ? OR CAST(Id AS CHAR) = ? OR CAST(PmUserId AS CHAR) = ?)
      ORDER BY Username ASC
-     LIMIT 20`,
-    [req.user!.userId, like, like, q, q]
+     LIMIT 50`,
+    [selfId, like, like, q, q]
   );
-  res.json({
-    success: true,
-    data: rows.map((r) => {
-      const email = String(r.Email);
-      const at = email.indexOf('@');
-      const masked =
-        at > 1
-          ? `${email[0]}${'*'.repeat(Math.min(at - 1, 6))}${email.slice(at)}`
-          : email;
-      return {
-        userId: Number(r.Id),
-        pmUserId: Number(r.Id), // legacy alias for share UI
-        username: String(r.Username),
-        email: masked,
-        linkedPmUserId: r.PmUserId != null ? Number(r.PmUserId) : null,
-      };
-    }),
-  });
+  res.json({ success: true, data: mapRows(rows) });
 });
 
 router.get('/:vaultId/members', async (req: AuthRequest, res: Response) => {
@@ -477,6 +490,33 @@ router.get('/:vaultId/members', async (req: AuthRequest, res: Response) => {
         role: String(m.Role).toLowerCase() === 'edit' ? 'edit' : 'read',
         createdAt: m.CreatedAt,
       })),
+    },
+  });
+});
+
+router.post('/:vaultId/members/bulk-all', async (req: AuthRequest, res: Response) => {
+  const vault = await ownedVault(Number(req.params.vaultId), req.user!.userId);
+  if (!vault) return res.status(404).json({ success: false, message: 'Vault not found' });
+  const schema = z.object({ role: z.enum(['read', 'edit']) });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ success: false, message: 'role must be read or edit' });
+  }
+  const result = await bulkAddAllActiveUsers({
+    vaultId: Number(vault.Id),
+    role: parsed.data.role,
+    invitedByUserId: req.user!.userId,
+  });
+  if (!result.ok) {
+    return res.status(result.status).json({ success: false, message: result.message });
+  }
+  res.status(201).json({
+    success: true,
+    data: {
+      added: result.added,
+      skippedAlreadyMember: result.skippedAlreadyMember,
+      skippedOwner: result.skippedOwner,
+      role: result.role,
     },
   });
 });

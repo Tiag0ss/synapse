@@ -21,6 +21,7 @@ import {
   listAllVaultsForAdmin,
   transferVaultOwnership,
 } from '../services/adminVaults';
+import { bulkAddAllActiveUsers } from '../services/vaultMembersBulk';
 import { OllamaError, listOllamaModels } from '../services/ollamaClient';
 import logger from '../utils/logger';
 
@@ -235,6 +236,36 @@ router.get('/vaults/:vaultId/members', async (req: AuthRequest, res: Response) =
   } catch (error) {
     logger.error('GET settings/vaults/:id/members failed', { error });
     res.status(500).json({ success: false, message: 'Failed to load members' });
+  }
+});
+
+router.post('/vaults/:vaultId/members/bulk-all', async (req: AuthRequest, res: Response) => {
+  try {
+    const schema = z.object({ role: z.enum(['read', 'edit']) });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, message: 'role must be read or edit' });
+    }
+    const result = await bulkAddAllActiveUsers({
+      vaultId: Number(req.params.vaultId),
+      role: parsed.data.role,
+      invitedByUserId: req.user!.userId,
+    });
+    if (!result.ok) {
+      return res.status(result.status).json({ success: false, message: result.message });
+    }
+    res.status(201).json({
+      success: true,
+      data: {
+        added: result.added,
+        skippedAlreadyMember: result.skippedAlreadyMember,
+        skippedOwner: result.skippedOwner,
+        role: result.role,
+      },
+    });
+  } catch (error) {
+    logger.error('POST settings/vaults/:id/members/bulk-all failed', { error });
+    res.status(500).json({ success: false, message: 'Failed to add members' });
   }
 });
 

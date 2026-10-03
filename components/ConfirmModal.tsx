@@ -27,7 +27,7 @@ export default function ConfirmModal({
 }: ConfirmModalProps) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
       <div
         role="dialog"
         aria-modal="true"
