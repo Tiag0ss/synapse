@@ -66,12 +66,12 @@ export default function NoteAttachmentsPanel({
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
-        onStatus?.(data.message || 'Failed to load attachments');
+        onStatus?.(data.message || t('status.failedToLoadAttachments'));
         return;
       }
       setItems(Array.isArray(data.data) ? data.data : []);
     } catch {
-      onStatus?.('Failed to load attachments');
+      onStatus?.(t('status.failedToLoadAttachments'));
     } finally {
       setLoading(false);
     }
@@ -104,15 +104,15 @@ export default function NoteAttachmentsPanel({
         });
         const data = await res.json();
         if (!res.ok) {
-          onStatus?.(data.message || 'Upload failed');
+          onStatus?.(data.message || t('status.uploadFailed'));
           continue;
         }
-        onStatus?.(`Uploaded ${file.name}`);
+        onStatus?.(t('status.uploadedNamed', { name: file.name }));
       }
       await load();
       onUploaded?.();
     } catch {
-      onStatus?.('Upload failed');
+      onStatus?.(t('status.uploadFailed'));
     } finally {
       setUploading(false);
     }
@@ -129,14 +129,14 @@ export default function NoteAttachmentsPanel({
       });
       const data = await res.json();
       if (!res.ok) {
-        onStatus?.(data.message || 'Delete failed');
+        onStatus?.(data.message || t('chrome.deleteFailed'));
         return;
       }
-      onStatus?.('Attachment removed');
+      onStatus?.(t('status.attachmentRemoved'));
       await load();
       onUploaded?.();
     } catch {
-      onStatus?.('Delete failed');
+      onStatus?.(t('chrome.deleteFailed'));
     }
   };
 

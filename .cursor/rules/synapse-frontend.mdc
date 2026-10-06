@@ -13,4 +13,4 @@ alwaysApply: false
 - Checkbox helpers: keep `lib/checkboxes.ts` and `server/services/checkboxes.ts` in sync.
 - Modals: `ConfirmModal`, `PromptModal`, `ImageLightbox`, `VaultOptionsModal`, `RevisionDiffModal`.
 - Theme: CSS variables (`--accent`, `--panel`, …) — do not introduce purple/Inter defaults.
-- Status messages: short English strings via page `setStatus` / `onStatus`.
+- Status / error / toast strings: route through i18n (`t('status.*')` or an existing exact `t('chrome.*')` key). See `.cursor/rules/synapse-i18n.mdc` and `lib/i18n/statusCatalog.ts`.

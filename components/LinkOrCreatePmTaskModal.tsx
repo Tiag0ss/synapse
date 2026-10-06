@@ -84,7 +84,7 @@ export default function LinkOrCreatePmTaskModal({
           if (json.reauth || res.status === 401) setNeedsReauth(true);
           setTasks([]);
           setProjects([]);
-          setError(json.message || 'Failed to load Myelin tasks');
+          setError(json.message || t('status.failedToLoadMyelinTasks'));
           return;
         }
         const payload = json.data;
@@ -116,7 +116,7 @@ export default function LinkOrCreatePmTaskModal({
         if (!cancelled) {
           setTasks([]);
           setProjects([]);
-          setError('Network error loading Myelin tasks');
+          setError(t('status.networkErrorLoadingMyelinTasks'));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -171,18 +171,16 @@ export default function LinkOrCreatePmTaskModal({
             {t('chrome.linkOrCreateTask')}
           </h2>
           <p className="mt-1 text-sm text-[var(--muted)]">
-            For{' '}
-            <span className="font-medium text-[var(--text)]">
-              {checkboxLabel.trim() || 'this checkbox'}
-            </span>
-            . Link any Synapse-free task in the organization (including other projects).
+            {t('chrome.linkOrCreateTaskHint', {
+              label: checkboxLabel.trim() || t('chrome.thisCheckboxFallback'),
+            })}
           </p>
         </header>
 
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-5 py-4">
           {needsReauth && (
             <p className="shrink-0 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
-              Reconnect SSO or add a personal API token in Profile to load Myelin tasks.
+              {t('chrome.reconnectOrTokenForTasks')}
             </p>
           )}
           {error && !needsReauth && (
@@ -194,7 +192,7 @@ export default function LinkOrCreatePmTaskModal({
           {projects.length > 0 && (
             <div className="shrink-0">
               <label className="mb-1 block text-xs font-medium text-[var(--muted)]" htmlFor="linkable-project">
-                Project
+                {t('chrome.projectLabel')}
               </label>
               <select
                 id="linkable-project"

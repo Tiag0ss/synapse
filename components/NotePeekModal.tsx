@@ -6,6 +6,7 @@ import {
   type LinkableVaultNotes,
   type NoteIndexEntry,
 } from '@/lib/renderMarkdown';
+import { synapseMarkdownUiFromT } from '@/lib/markdownUi';
 import { handleMarkdownCodeCopyClick } from '@/lib/codeCopy';
 import { renderMermaidInRoot } from '@/lib/mermaidRender';
 import { fetchVaultBoardJson, fetchWikiBoardJson } from '@/lib/hydrateBoardEmbeds';
@@ -133,12 +134,12 @@ export default function NotePeekModal({
         const data = await res.json().catch(() => ({}));
         if (cancelled) return;
         if (!res.ok) {
-          setError(data.message || 'Failed to load note');
+          setError(data.message || t('status.failedToLoadNote'));
           setLoading(false);
           return;
         }
         const n = data.data || data;
-        setTitle(String(n.Title || n.title || target.titleHint || 'Note'));
+        setTitle(String(n.Title || n.title || target.titleHint || t('chrome.note')));
         const kind =
           String(n.Kind || n.kind || 'note') === 'whiteboard' ? 'whiteboard' : 'note';
         setItemKind(kind);
@@ -172,7 +173,7 @@ export default function NotePeekModal({
         setLoading(false);
       } catch {
         if (!cancelled) {
-          setError('Failed to load note');
+          setError(t('status.failedToLoadNote'));
           setLoading(false);
         }
       }
@@ -189,11 +190,14 @@ export default function NotePeekModal({
     return () => window.clearTimeout(t);
   }, [open, loading, error, isWhiteboard, target?.noteId]);
 
+  const markdownUi = useMemo(() => synapseMarkdownUiFromT(t), [t]);
   const html = useMemo(() => {
     if (isWhiteboard) return '';
     if (bodyHtml != null) return bodyHtml;
-    return renderSynapseMarkdown(bodyMarkdown, notes, linkableVaults, target?.noteId ?? null);
-  }, [isWhiteboard, bodyHtml, bodyMarkdown, notes, linkableVaults, target?.noteId]);
+    return renderSynapseMarkdown(bodyMarkdown, notes, linkableVaults, target?.noteId ?? null, {
+      ui: markdownUi,
+    });
+  }, [isWhiteboard, bodyHtml, bodyMarkdown, notes, linkableVaults, target?.noteId, markdownUi]);
 
   const afterPeekWrite = useCallback((root: HTMLElement) => {
     void renderMermaidInRoot(root);
@@ -399,10 +403,10 @@ export default function NotePeekModal({
       >
         <div className="flex shrink-0 items-center gap-2 border-b border-[var(--border)] px-3 py-2 sm:gap-3 sm:px-4">
           <h2 className="min-w-0 max-w-[40%] shrink truncate text-sm font-semibold tracking-tight text-[var(--text)] sm:text-base">
-            {title || (isWhiteboard ? 'Whiteboard' : 'Note')}
+            {title || (isWhiteboard ? t('chrome.whiteboard') : t('chrome.note'))}
             {isWhiteboard ? (
               <span className="ml-2 text-[10px] font-medium uppercase tracking-wide text-[var(--muted)]">
-                Board
+                {t('chrome.whiteboard')}
               </span>
             ) : null}
           </h2>

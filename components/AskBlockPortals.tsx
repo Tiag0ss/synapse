@@ -156,7 +156,7 @@ function AskBlockPortalItem({
     if (!shareToken || !mount.askId || busy) return;
     const trimmed = body.trim();
     if (!trimmed) {
-      setError('Write an answer first');
+      setError(t('status.writeAnswerFirst'));
       return;
     }
     setBusy(true);
@@ -176,7 +176,7 @@ function AskBlockPortalItem({
       );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data.message || 'Failed to submit');
+        setError(data.message || t('status.failedSubmit'));
         return;
       }
       const answerId = Number(data.data?.id);
@@ -189,7 +189,7 @@ function AskBlockPortalItem({
       setReplyOpen(false);
       onAnswersChange?.();
     } catch {
-      setError('Network error');
+      setError(t('status.networkError'));
     } finally {
       setBusy(false);
     }
@@ -211,12 +211,12 @@ function AskBlockPortalItem({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data.message || 'Update failed');
+        setError(data.message || t('status.updateFailed'));
         return;
       }
       onAnswersChange?.();
     } catch {
-      setError('Network error');
+      setError(t('status.networkError'));
     } finally {
       setBusy(false);
     }
@@ -230,7 +230,7 @@ function AskBlockPortalItem({
       if (mode === 'share' && shareToken && mount.askId) {
         const guestEditToken = getAskGuestEditToken(shareToken, answerId);
         if (!guestEditToken) {
-          setError('You can only delete your own pending answers from this browser');
+          setError(t('status.onlyDeleteOwnPendingAnswers'));
           return;
         }
         const res = await fetch(
@@ -244,7 +244,7 @@ function AskBlockPortalItem({
         );
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          setError(data.message || 'Delete failed');
+          setError(data.message || t('chrome.deleteFailed'));
           return;
         }
         clearAskGuestEditToken(shareToken, answerId);
@@ -256,7 +256,7 @@ function AskBlockPortalItem({
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          setError(data.message || 'Delete failed');
+          setError(data.message || t('chrome.deleteFailed'));
           return;
         }
       } else {
@@ -266,7 +266,7 @@ function AskBlockPortalItem({
       setEditingId(null);
       onAnswersChange?.();
     } catch {
-      setError('Network error');
+      setError(t('status.networkError'));
     } finally {
       setBusy(false);
     }
@@ -296,12 +296,12 @@ function AskBlockPortalItem({
     if (!shareToken || !mount.askId || busy) return;
     const guestEditToken = getAskGuestEditToken(shareToken, answerId);
     if (!guestEditToken) {
-      setError('You can only edit your own pending answers from this browser');
+      setError(t('status.onlyEditOwnPendingAnswers'));
       return;
     }
     const trimmed = editBody.trim();
     if (!trimmed) {
-      setError('Write an answer first');
+      setError(t('status.writeAnswerFirst'));
       return;
     }
     setBusy(true);
@@ -322,34 +322,35 @@ function AskBlockPortalItem({
       );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data.message || 'Update failed');
+        setError(data.message || t('status.updateFailed'));
         return;
       }
       setEditingId(null);
       onAnswersChange?.();
     } catch {
-      setError('Network error');
+      setError(t('status.networkError'));
     } finally {
       setBusy(false);
     }
   };
 
   const eventLabel = (ev: AskAnswerEventView) => {
+    const actor = ev.actorLabel;
     switch (ev.eventType) {
       case 'submitted':
-        return `Submitted by ${ev.actorLabel}`;
+        return t('chrome.askEventSubmitted', { actor });
       case 'edited':
-        return `Edited by ${ev.actorLabel}`;
+        return t('chrome.askEventEdited', { actor });
       case 'approved':
-        return `Approved by ${ev.actorLabel}`;
+        return t('chrome.askEventApproved', { actor });
       case 'rejected':
-        return `Rejected by ${ev.actorLabel}`;
+        return t('chrome.askEventRejected', { actor });
       case 'unapproved':
-        return `Unapproved by ${ev.actorLabel}`;
+        return t('chrome.askEventUnapproved', { actor });
       case 'deleted':
-        return `Deleted by ${ev.actorLabel}`;
+        return t('chrome.askEventDeleted', { actor });
       default:
-        return `${ev.eventType} · ${ev.actorLabel}`;
+        return t('chrome.askEventGeneric', { event: ev.eventType, actor });
     }
   };
 
@@ -372,7 +373,7 @@ function AskBlockPortalItem({
         <div className="synapse-ask-hint" dangerouslySetInnerHTML={{ __html: hintHtml }} />
       ) : null}
       {!mount.askId && mode === 'editor' ? (
-        <p className="synapse-ask-hint-text">Save the note to enable answers for this question.</p>
+        <p className="synapse-ask-hint-text">{t('chrome.saveNoteBeforeAsk')}</p>
       ) : null}
 
       {mode === 'share' && mount.askId && editingId == null && replyOpen ? (
@@ -584,7 +585,7 @@ function AskBlockPortalItem({
                 <div className="mb-3 flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h2 className="text-base font-semibold tracking-tight text-[var(--text)]">
-                      Answer history
+                      {t('chrome.answerHistoryTitle')}
                     </h2>
                     <p className="mt-0.5 truncate text-sm text-[var(--muted)]">{mount.question}</p>
                   </div>
@@ -593,12 +594,12 @@ function AskBlockPortalItem({
                     className="btn-ghost shrink-0 py-1 text-xs"
                     onClick={() => setHistoryOpen(false)}
                   >
-                    Close
+                    {t('chrome.close')}
                   </button>
                 </div>
                 <ul className="synapse-ask-history min-h-0 flex-1 overflow-auto">
                   {historyEntries.length === 0 ? (
-                    <li className="synapse-ask-empty">No history yet.</li>
+                    <li className="synapse-ask-empty">{t('chrome.noHistoryYet')}</li>
                   ) : (
                     historyEntries.map((ev) => (
                       <li key={ev.id} className={`synapse-ask-history-item is-${ev.eventType}`}>

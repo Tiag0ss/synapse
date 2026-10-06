@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { LinkableVaultNotes, NoteIndexEntry } from '@/lib/renderMarkdown';
 import { openPrintWindow, printNoteDocument } from '@/lib/printNote';
+import { synapseMarkdownUiFromT } from '@/lib/markdownUi';
 import { useI18n } from '@/lib/i18n/provider';
 
 type ExportTemplate = {
@@ -74,7 +75,7 @@ export default function NoteExportModal({
         const res = await fetch('/api/export-templates', { credentials: 'include' });
         const json = await res.json();
         if (!res.ok) {
-          setError(json.message || 'Failed to load templates');
+          setError(json.message || t('status.failedToLoadTemplates'));
           setTemplates([]);
           return;
         }
@@ -82,7 +83,7 @@ export default function NoteExportModal({
         setTemplates(list);
         setSelectedId(list[0]?.id ?? null);
       } catch {
-        setError('Network error');
+        setError(t('status.networkError'));
       } finally {
         setLoading(false);
       }
@@ -99,7 +100,7 @@ export default function NoteExportModal({
       if (onBeforeExport) {
         const ok = await onBeforeExport();
         if (!ok) {
-          setError('Save failed — fix save errors before exporting');
+          setError(t('status.saveFailedBeforeExport'));
           return;
         }
       }
@@ -107,7 +108,7 @@ export default function NoteExportModal({
       downloadBlob(blob, safeMarkdownFilename(noteTitle));
       onClose();
     } catch {
-      setError('Failed to download Markdown');
+      setError(t('status.failedDownloadMarkdown'));
     } finally {
       setBusy(false);
     }
@@ -123,7 +124,7 @@ export default function NoteExportModal({
       printWindow = openPrintWindow();
     } catch (e) {
       setBusy(false);
-      setError(e instanceof Error ? e.message : 'Failed to open print window');
+      setError(e instanceof Error ? e.message : t('status.failedOpenPrintWindow'));
       return;
     }
     try {
@@ -131,7 +132,7 @@ export default function NoteExportModal({
         const ok = await onBeforeExport();
         if (!ok) {
           printWindow.close();
-          setError('Save failed — fix save errors before exporting');
+          setError(t('status.saveFailedBeforeExport'));
           return;
         }
       }
@@ -142,6 +143,7 @@ export default function NoteExportModal({
         linkableVaults,
         noteId,
         vaultId,
+        ui: synapseMarkdownUiFromT(t),
         printWindow,
       });
       onClose();
@@ -151,7 +153,7 @@ export default function NoteExportModal({
       } catch {
         /* ignore */
       }
-      setError(e instanceof Error ? e.message : 'Failed to open print dialog');
+      setError(e instanceof Error ? e.message : t('status.failedOpenPrintDialog'));
     } finally {
       setBusy(false);
     }
@@ -165,7 +167,7 @@ export default function NoteExportModal({
       if (onBeforeExport) {
         const ok = await onBeforeExport();
         if (!ok) {
-          setError('Save failed — fix save errors before exporting');
+          setError(t('status.saveFailedBeforeExport'));
           return;
         }
       }
@@ -177,7 +179,7 @@ export default function NoteExportModal({
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        setError(json.message || 'Export failed');
+        setError(json.message || t('chrome.exportFailed'));
         return;
       }
       const blob = await res.blob();
@@ -187,7 +189,7 @@ export default function NoteExportModal({
       downloadBlob(blob, name);
       onClose();
     } catch {
-      setError('Network error');
+      setError(t('status.networkError'));
     } finally {
       setBusy(false);
     }
@@ -209,7 +211,7 @@ export default function NoteExportModal({
       ? t('chrome.downloadMd')
       : format === 'pdf'
         ? t('chrome.printPdf')
-        : 'Download DOCX';
+        : t('chrome.downloadDocx');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
@@ -225,7 +227,7 @@ export default function NoteExportModal({
               {t('chrome.exportModalTitle')}
             </h2>
             <p className="mt-0.5 text-xs text-[var(--muted)]">
-              Markdown, PDF/print, or Word template
+              {t('chrome.exportFormatsHint')}
               {noteTitle ? ` · ${noteTitle}` : ''}
             </p>
           </div>
@@ -271,41 +273,35 @@ export default function NoteExportModal({
           </div>
 
           {format === 'markdown' ? (
-            <p className="text-sm text-[var(--muted)]">
-              Downloads the note body as a <code className="font-mono text-[var(--accent-soft)]">.md</code>{' '}
-              file (including frontmatter and checkboxes).
-            </p>
+            <p className="text-sm text-[var(--muted)]">{t('chrome.exportMarkdownHint')}</p>
           ) : format === 'pdf' ? (
             <p className="text-sm text-[var(--muted)]">
-              Opens the system print dialog. Choose <span className="text-[var(--text)]">Save as PDF</span>{' '}
-              or send to a printer. Layout uses the rendered note preview.
+              {t('chrome.exportPdfHintBefore')}{' '}
+              <span className="text-[var(--text)]">{t('chrome.exportPdfSaveAsPdf')}</span>{' '}
+              {t('chrome.exportPdfHintAfter')}
             </p>
           ) : loading ? (
-            <p className="text-sm text-[var(--muted)]">Loading templates…</p>
+            <p className="text-sm text-[var(--muted)]">{t('chrome.loadingWordTemplates')}</p>
           ) : templates.length === 0 ? (
             <p className="text-sm text-[var(--muted)]">{t('chrome.noWordTemplates')}</p>
           ) : (
             <>
               <label className="block text-sm">
-                Template
+                {t('chrome.wordTemplateField')}
                 <select
                   className="input mt-1 w-full"
                   value={selectedId ?? ''}
                   onChange={(e) => setSelectedId(Number(e.target.value) || null)}
                 >
-                  {templates.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.label}
-                      {t.description ? ` — ${t.description}` : ''}
+                  {templates.map((tmpl) => (
+                    <option key={tmpl.id} value={tmpl.id}>
+                      {tmpl.label}
+                      {tmpl.description ? ` — ${tmpl.description}` : ''}
                     </option>
                   ))}
                 </select>
               </label>
-              <p className="text-[11px] text-[var(--muted)]">
-                Use Carbone markers such as {'{d.title}'}, {'{d.body}'}, {'{d.fm.<key>}'}, and{' '}
-                {'{d.<list>[i].<field>}'} for grids. See Settings → Word export → How to create
-                templates.
-              </p>
+              <p className="text-[11px] text-[var(--muted)]">{t('chrome.exportDocxMarkersHint')}</p>
             </>
           )}
         </div>
@@ -320,7 +316,7 @@ export default function NoteExportModal({
             disabled={!canDownload}
             onClick={download}
           >
-            {busy ? 'Exporting…' : actionLabel}
+            {busy ? t('chrome.exporting') : actionLabel}
           </button>
         </footer>
       </div>

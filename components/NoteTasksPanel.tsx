@@ -197,14 +197,14 @@ export default function NoteTasksPanel({
         if (payload.syncedFromPm > 0) {
           onStatus?.(
             payload.syncedFromPm === 1
-              ? 'Synced 1 task from Myelin'
-              : `Synced ${payload.syncedFromPm} tasks from Myelin`
+              ? t('status.syncedOneTaskFromMyelin')
+              : t('status.syncedTasksFromMyelin', { count: payload.syncedFromPm })
           );
         } else if (payload.clearedStale > 0) {
           onStatus?.(
             payload.clearedStale === 1
-              ? 'Cleared 1 stale Myelin link'
-              : `Cleared ${payload.clearedStale} stale Myelin links`
+              ? t('status.clearedOneStaleMyelinLink')
+              : t('status.clearedStaleMyelinLinks', { count: payload.clearedStale })
           );
         }
       }
@@ -293,11 +293,11 @@ export default function NoteTasksPanel({
 
   const toggle = async (item: NoteTaskItem) => {
     if (pullOnly) {
-      onStatus?.('This overview is pull-only. Use Refresh tasks above.');
+      onStatus?.(t('status.pullOnlyOverview'));
       return;
     }
     if (!(await ensureSaved())) {
-      onStatus?.('Save the note before updating tasks');
+      onStatus?.(t('status.saveBeforeUpdatingTasks'));
       return;
     }
     setBusy(true);
@@ -315,11 +315,11 @@ export default function NoteTasksPanel({
       const data = await res.json();
       if (res.ok && data.data?.bodyMarkdown != null) {
         applyBodyFromServer(data.data.bodyMarkdown);
-        onStatus?.(item.checked ? 'Marked open' : 'Marked done');
+        onStatus?.(item.checked ? t('status.markedOpen') : t('status.markedDone'));
         await load();
       } else {
         if (data.reauth) setNeedsReauth(true);
-        onStatus?.(data.message || 'Could not update checkbox');
+        onStatus?.(data.message || t('status.couldNotUpdateCheckbox'));
       }
     } finally {
       setBusy(false);
@@ -328,11 +328,11 @@ export default function NoteTasksPanel({
 
   const createTask = async (item: NoteTaskItem) => {
     if (!hasProject) {
-      onStatus?.('Link a Myelin project in Vault settings first');
+      onStatus?.(t('status.linkMyelinInVaultSettings'));
       return;
     }
     if (!(await ensureSaved())) {
-      onStatus?.('Save the note before creating tasks');
+      onStatus?.(t('status.saveBeforeCreatingTasks'));
       return;
     }
     setBusy(true);
@@ -348,14 +348,14 @@ export default function NoteTasksPanel({
         applyBodyFromServer(data.data?.bodyMarkdown);
         onStatus?.(
           res.ok && !data.data?.alreadyLinked
-            ? `Created Myelin task #${data.data.pmTaskId}`
-            : `Already linked as Myelin #${data.data.pmTaskId}`
+            ? t('status.createdMyelinTask', { id: data.data.pmTaskId })
+            : t('status.alreadyLinkedAsMyelin', { id: data.data.pmTaskId })
         );
         setChooserItem(null);
         await load();
       } else {
         if (data.reauth) setNeedsReauth(true);
-        onStatus?.(data.message || 'Could not create task');
+        onStatus?.(data.message || t('status.couldNotCreateTask'));
       }
     } finally {
       setBusy(false);
@@ -364,11 +364,11 @@ export default function NoteTasksPanel({
 
   const linkTask = async (item: NoteTaskItem, pmTaskId: number, pmProjectId: number) => {
     if (!hasProject) {
-      onStatus?.('Link a Myelin project in Vault settings first');
+      onStatus?.(t('status.linkMyelinInVaultSettings'));
       return;
     }
     if (!(await ensureSaved())) {
-      onStatus?.('Save the note before linking tasks');
+      onStatus?.(t('status.saveBeforeLinkingTasks'));
       return;
     }
     setBusy(true);
@@ -382,12 +382,12 @@ export default function NoteTasksPanel({
       const data = await res.json();
       if (res.ok) {
         applyBodyFromServer(data.data?.bodyMarkdown);
-        onStatus?.(`Linked to Myelin #${data.data?.pmTaskId ?? pmTaskId}`);
+        onStatus?.(t('status.linkedToMyelin', { id: data.data?.pmTaskId ?? pmTaskId }));
         setChooserItem(null);
         await load();
       } else {
         if (data.reauth) setNeedsReauth(true);
-        onStatus?.(data.message || 'Could not link task');
+        onStatus?.(data.message || t('status.couldNotLinkTask'));
       }
     } finally {
       setBusy(false);
@@ -414,8 +414,8 @@ export default function NoteTasksPanel({
     if (!result.changed) {
       onStatus?.(
         result.totalHours > 0
-          ? `Estimates already up to date · ${result.totalHours}h total`
-          : 'No task hours to recalculate'
+          ? t('status.estimatesAlreadyUpToDate', { hours: result.totalHours })
+          : t('status.noTaskHoursToRecalculate')
       );
       return;
     }
@@ -425,7 +425,7 @@ export default function NoteTasksPanel({
       if (onCommitBody) {
         const ok = await onCommitBody(result.markdown);
         if (!ok) {
-          onStatus?.('Updated estimates in editor, but save failed — save before export');
+          onStatus?.(t('status.estimatesUpdatedSaveFailed'));
           return;
         }
       } else {
@@ -433,7 +433,7 @@ export default function NoteTasksPanel({
       }
       const catCount = Object.keys(result.categories).length;
       onStatus?.(
-        `Updated estimate (${catCount} tasks + Total) · ${result.totalHours}h`
+        t('status.updatedEstimate', { catCount, hours: result.totalHours })
       );
     } finally {
       setBusy(false);
@@ -456,15 +456,15 @@ export default function NoteTasksPanel({
       });
       const data = await res.json();
       if (!res.ok) {
-        setAiError(data.message || 'Failed to suggest todos');
-        onStatus?.(data.message || 'AI todo suggestions failed');
+        setAiError(data.message || t('status.failedSuggestTodos'));
+        onStatus?.(data.message || t('status.aiTodoSuggestionsFailed'));
         return;
       }
       setAiExisting((data.data?.existing || []) as ExistingTodoSuggestion[]);
       setAiProposed((data.data?.proposed || []) as ProposedTodoSuggestion[]);
     } catch {
-      setAiError('Network error talking to Synapse / Ollama');
-      onStatus?.('AI todo suggestions failed');
+      setAiError(t('status.networkErrorOllama'));
+      onStatus?.(t('status.aiTodoSuggestionsFailed'));
     } finally {
       setAiBusy(false);
     }
@@ -474,14 +474,14 @@ export default function NoteTasksPanel({
     if (onCommitBody) {
       const ok = await onCommitBody(nextMarkdown);
       if (!ok) {
-        onStatus?.('Updated todos in editor, but save failed — save manually');
+        onStatus?.(t('status.todosUpdatedSaveFailed'));
         throw new Error('save failed');
       }
     } else {
       onBodyChange(nextMarkdown);
     }
     setAiModalOpen(false);
-    onStatus?.('Frontmatter todos updated from AI suggestions');
+    onStatus?.(t('status.frontmatterTodosUpdatedAi'));
     await load();
   };
 

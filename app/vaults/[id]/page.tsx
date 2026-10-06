@@ -430,7 +430,7 @@ export default function VaultWorkspacePage() {
     const nextBoard = opts?.boardJson !== undefined ? opts.boardJson : boardJson;
     const nextVisibility = opts?.visibility ?? visibility;
     setSaveState('saving');
-    setStatus(reason === 'auto' ? 'Autosaving…' : 'Saving…');
+    setStatus(reason === 'auto' ? t('status.autosaving') : t('chrome.saving'));
     const payload =
       itemKind === 'whiteboard'
         ? {
@@ -456,7 +456,7 @@ export default function VaultWorkspacePage() {
     const data = await res.json();
     if (!res.ok) {
       setSaveState('error');
-      setStatus(data.message || 'Save failed');
+      setStatus(data.message || t('status.saveFailed'));
       return false;
     }
     const savedBody =
@@ -476,7 +476,7 @@ export default function VaultWorkspacePage() {
       icon: noteIcon,
     });
     setSaveState('saved');
-    setStatus(reason === 'auto' ? 'Autosaved' : 'Saved');
+    setStatus(reason === 'auto' ? t('status.autosaved') : t('status.saved'));
     await loadNotes();
     // Refresh revisions / references quietly without resetting editor cursor
     const [revRes, blRes] = await Promise.all([
@@ -696,8 +696,8 @@ export default function VaultWorkspacePage() {
       return existingId;
     }
     if (!res.ok) {
-      setStatus(data.message || 'Create failed');
-      throw new Error(data.message || 'Create failed');
+      setStatus(data.message || t('status.createFailed'));
+      throw new Error(data.message || t('status.createFailed'));
     }
 
     const newId = Number(data.data.id);
@@ -706,7 +706,7 @@ export default function VaultWorkspacePage() {
     const newKind = String(data.data.kind || kind);
 
     if (isCrossVault) {
-      setStatus(`Created “${trimmed}” in the other vault`);
+      setStatus(t('status.createdInOtherVault', { title: trimmed }));
       await rebuildSourceGraph();
       void loadLinkableVaults();
       await loadGraph();
@@ -730,7 +730,7 @@ export default function VaultWorkspacePage() {
       ];
     });
 
-    setStatus(`Created “${trimmed}”`);
+    setStatus(t('chrome.createdNamedNote', { title: trimmed }));
     await loadNotes();
     await loadGraph();
     if (!skipOpen) await openNote(newId, { force: true });
@@ -747,13 +747,13 @@ export default function VaultWorkspacePage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setStatus(data.message || 'Could not refresh Myelin tasks');
+        setStatus(data.message || t('chrome.toastRefreshMyelinFailed'));
         return;
       }
       const added = Number(data.data?.added || 0);
       const removed = Number(data.data?.removed || 0);
       const updated = Number(data.data?.updated || 0);
-      setStatus(`Tasks updated · ${added} added · ${removed} removed · ${updated} kept`);
+      setStatus(t('status.tasksUpdatedHub', { added, removed, updated }));
       await loadNotes();
       const noteId = Number(data.data?.noteId || hubNoteId || 0);
       if (noteId && (isHubNote || selectedId == null)) {
@@ -802,7 +802,7 @@ export default function VaultWorkspacePage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setStatus(data.message || 'Delete failed');
+        setStatus(data.message || t('chrome.deleteFailed'));
         return;
       }
       setDeleteOpen(false);
@@ -819,7 +819,7 @@ export default function VaultWorkspacePage() {
       setRevisions([]);
       setBacklinks([]);
       setReferences([]);
-      setStatus(wasWhiteboard ? 'Whiteboard moved to trash' : 'Note moved to trash');
+      setStatus(wasWhiteboard ? t('status.whiteboardMovedTrash') : t('status.noteMovedTrash'));
       await loadNotes();
       await loadGraph();
     } finally {
@@ -839,7 +839,7 @@ export default function VaultWorkspacePage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setStatus(data.message || 'Could not load revision');
+        setStatus(data.message || t('status.couldNotLoadRevision'));
         setDiffOpen(false);
         return;
       }
@@ -866,7 +866,7 @@ export default function VaultWorkspacePage() {
         credentials: 'include',
       });
       const data = await res.json();
-      setStatus(data.message || (res.ok ? 'Restored' : 'Restore failed'));
+      setStatus(data.message || (res.ok ? t('status.restored') : t('status.restoreFailed')));
       if (res.ok) {
         setDiffOpen(false);
         setDiffRevision(null);
@@ -1126,9 +1126,9 @@ aria-label={t('chrome.info')}
                         setStatus(
                           res.ok
                             ? enable
-                              ? 'Public wiki enabled'
-                              : 'Public wiki disabled'
-                            : 'Failed to update public wiki'
+                              ? t('status.publicWikiEnabled')
+                              : t('status.publicWikiDisabled')
+                            : t('status.failedUpdatePublicWiki')
                         );
                         await loadVault();
                       }}
@@ -1262,11 +1262,11 @@ aria-label={t('chrome.info')}
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ allowPublicPages: false }),
                           });
-                          setStatus(res.ok ? 'Public wiki disabled' : 'Failed to disable public wiki');
+                          setStatus(res.ok ? t('status.publicWikiDisabled') : t('status.failedDisablePublicWiki'));
                           await loadVault();
                         }}
                       >
-                        Disable
+                        {t('settings.disable')}
                       </button>
                     </>
                   )}
@@ -1283,7 +1283,7 @@ aria-label={t('chrome.info')}
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ allowPublicPages: true }),
                     });
-                    setStatus(res.ok ? 'Public wiki enabled' : 'Failed to enable public wiki');
+                    setStatus(res.ok ? t('status.publicWikiEnabled') : t('status.failedEnablePublicWiki'));
                     await loadVault();
                   }}
                 >
@@ -1856,11 +1856,11 @@ aria-label={t('chrome.info')}
             <div className="flex flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-[var(--border)] bg-[var(--panel)]/30 px-6 text-center sm:px-8">
               <p className="text-lg font-semibold tracking-tight">{t('chrome.selectNote')}</p>
               <p className="mt-2 max-w-md text-sm text-[var(--muted)]">
-                Or create one. Wikilinks like{' '}
+                {t('chrome.selectNoteHintBefore')}{' '}
                 <code className="rounded bg-[var(--surface-2)] px-1.5 py-0.5 font-mono text-[var(--accent-soft)]">
                   [[Note title]]
                 </code>{' '}
-                resolve in the live preview.
+                {t('chrome.selectNoteHintAfter')}
               </p>
               <div className="mt-5 flex flex-wrap justify-center gap-2">
                 <button
@@ -1868,7 +1868,7 @@ aria-label={t('chrome.info')}
                   className="btn-ghost lg:hidden"
                   onClick={() => setNotesOpen(true)}
                 >
-                  Browse notes
+                  {t('chrome.browseNotes')}
                 </button>
                 {canEdit && (
                   <button type="button" className="btn-primary" onClick={() => setCreateOpen(true)}>
@@ -1903,7 +1903,7 @@ aria-label={t('chrome.info')}
             <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
               {t('chrome.focusedMindmap')}
             </h2>
-            <p className="mt-0.5 text-[11px] text-[var(--muted)]">Current note + direct links</p>
+            <p className="mt-0.5 text-[11px] text-[var(--muted)]">{t('status.currentNoteDirectLinks')}</p>
             <div className="mt-2">
               {graph ? (
                 <NoteGraphMindmap
@@ -2158,7 +2158,7 @@ aria-label={t('chrome.info')}
               });
               if (newId && elementId) {
                 whiteboardRef.current?.linkElementToNote(elementId, newId, v.trim());
-                setStatus(`Created and linked “${v.trim()}”`);
+                setStatus(t('status.createdAndLinked', { title: v.trim() }));
               }
             } catch {
               // status already set in createNote
@@ -2330,8 +2330,8 @@ aria-label={t('chrome.info')}
           setShareOpen(false);
           setStatus(
             result.mode === 'move'
-              ? 'Note moved to destination vault'
-              : 'Note copied to destination vault'
+              ? t('status.noteMovedDestination')
+              : t('status.noteCopiedDestination')
           );
           if (result.mode === 'move') {
             setSelectedId(null);

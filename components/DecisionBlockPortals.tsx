@@ -174,12 +174,12 @@ function DecisionBlockPortalItem({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(String(data.message || 'Failed to save decision'));
+        setError(String(data.message || t('status.failedSaveDecision')));
         return;
       }
       onDecisionsChange?.();
     } catch {
-      setError('Failed to save decision');
+      setError(t('status.failedSaveDecision'));
     } finally {
       setBusy(false);
     }
@@ -201,12 +201,12 @@ function DecisionBlockPortalItem({
       );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(String(data.message || 'Failed to update lock'));
+        setError(String(data.message || t('status.failedUpdateLock')));
         return;
       }
       onDecisionsChange?.();
     } catch {
-      setError('Failed to update lock');
+      setError(t('status.failedUpdateLock'));
     } finally {
       setBusy(false);
     }
@@ -227,13 +227,13 @@ function DecisionBlockPortalItem({
               onClick={(e) => e.stopPropagation()}
             >
               <div className="mb-3 flex items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold text-[var(--text)]">Decision history</h3>
+                <h3 className="text-sm font-semibold text-[var(--text)]">{t('chrome.decisionHistory')}</h3>
                 <button type="button" className="btn-ghost text-sm" onClick={() => setHistoryOpen(false)}>
-                  Close
+                  {t('chrome.close')}
                 </button>
               </div>
               {historyEntries.length === 0 ? (
-                <p className="text-sm text-[var(--muted)]">No history yet.</p>
+                <p className="text-sm text-[var(--muted)]">{t('chrome.noHistoryYet')}</p>
               ) : (
                 <ul className="synapse-decision-history">
                   {historyEntries.map((ev) => (
@@ -261,16 +261,20 @@ function DecisionBlockPortalItem({
     <div className="synapse-decision-ui">
       <div className="synapse-decision-header">
         <p className="synapse-decision-title">{mount.title}</p>
-        {locked ? <span className="synapse-decision-locked-badge">Locked</span> : null}
+        {locked ? (
+          <span className="synapse-decision-locked-badge">{t('chrome.lockedBadge')}</span>
+        ) : null}
       </div>
 
       {!mount.decisionId && mode === 'editor' ? (
-        <p className="synapse-decision-hint-text">Save the note to enable this decision.</p>
+        <p className="synapse-decision-hint-text">{t('chrome.saveNoteBeforeDecision')}</p>
       ) : null}
 
       {decision?.choiceLabel ? (
         <p className="synapse-decision-current">
-          <span className="synapse-decision-current-label">Current:</span>{' '}
+          <span className="synapse-decision-current-label">
+            {t('chrome.currentLabel')}:
+          </span>{' '}
           <strong>{decision.choiceLabel}</strong>
           {decision.authorName ? (
             <span className="synapse-decision-current-meta">
@@ -281,7 +285,7 @@ function DecisionBlockPortalItem({
           ) : null}
         </p>
       ) : (
-        <p className="synapse-decision-empty">No decision yet.</p>
+        <p className="synapse-decision-empty">{t('chrome.noDecisionYet')}</p>
       )}
 
       {canMutate ? (
@@ -293,7 +297,7 @@ function DecisionBlockPortalItem({
           }}
         >
           <fieldset className="synapse-decision-options" disabled={busy}>
-            <legend className="sr-only">Choose an option</legend>
+            <legend className="sr-only">{t('chrome.chooseOption')}</legend>
             {mount.options.map((opt, i) => (
               <label key={`${i}:${opt}`} className="synapse-decision-option">
                 <input

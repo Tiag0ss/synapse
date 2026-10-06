@@ -9,7 +9,7 @@ alwaysApply: true
 
 - Reply in **English (EN)** only.
 - Understand European Portuguese; never reply in PT or PT-BR unless the user explicitly asks for Portuguese in that reply.
-- Non-English UI strings require explicit user approval first.
+- Product UI copy goes through i18n catalogs (`en` / `pt` / `es` / `fr` in `lib/i18n/`). PT-PT is **pré-AO90**. Do not invent locales. See `.cursor/rules/synapse-i18n.mdc`.
 
 ## Structure (mandatory)
 

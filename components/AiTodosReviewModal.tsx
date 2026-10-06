@@ -155,7 +155,7 @@ export default function AiTodosReviewModal({
       if (p.action === 'merge') {
         const target = byKey.get(p.mergeTargetKey);
         if (!target || !target.keep) {
-          setLocalError('Choose a kept existing todo for each merge');
+          setLocalError(t('status.chooseKeptTodoForMerge'));
           return null;
         }
         target.content = p.content.trim() || target.content;
@@ -208,7 +208,7 @@ export default function AiTodosReviewModal({
       const next = applyFrontmatterTodosList(bodyMarkdown, todos);
       await onApply(next);
     } catch {
-      setLocalError('Failed to apply todos');
+      setLocalError(t('status.failedApplyTodos'));
     } finally {
       setApplyBusy(false);
     }
@@ -227,10 +227,7 @@ export default function AiTodosReviewModal({
           <h2 className="text-lg font-semibold tracking-tight text-[var(--text)]">
             {t('chrome.reviewAiTodos')}
           </h2>
-          <p className="mt-1 text-sm text-[var(--muted)]">
-            Edit, merge into existing, or discard before updating the note. Nothing is saved until
-            you apply.
-          </p>
+          <p className="mt-1 text-sm text-[var(--muted)]">{t('chrome.reviewAiTodosIntro')}</p>
         </div>
 
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4">
@@ -250,7 +247,7 @@ export default function AiTodosReviewModal({
                   {t('chrome.existingTodos')} · {existingRows.length}
                 </h3>
                 {existingRows.length === 0 ? (
-                  <p className="text-sm text-[var(--muted)]">No frontmatter todos yet.</p>
+                  <p className="text-sm text-[var(--muted)]">{t('chrome.noFrontmatterTodosYet')}</p>
                 ) : (
                   <ul className="space-y-2">
                     {existingRows.map((row) => (
@@ -270,7 +267,7 @@ export default function AiTodosReviewModal({
                               checked={row.keep}
                               onChange={(e) => updateExisting(row.key, { keep: e.target.checked })}
                             />
-                            Keep
+                            {t('chrome.keepTodo')}
                           </label>
                         </div>
                         <input
@@ -281,7 +278,7 @@ export default function AiTodosReviewModal({
                         />
                         <div className="grid gap-2 sm:grid-cols-3">
                           <label className="block text-[11px] text-[var(--muted)]">
-                            Hours
+                            {t('chrome.hoursLabel')}
                             <input
                               className="input mt-0.5 w-full text-sm"
                               value={row.hours}
@@ -290,7 +287,7 @@ export default function AiTodosReviewModal({
                             />
                           </label>
                           <label className="block text-[11px] text-[var(--muted)]">
-                            Category
+                            {t('chrome.categoryLabel')}
                             <input
                               className="input mt-0.5 w-full text-sm"
                               value={row.category}
@@ -301,7 +298,7 @@ export default function AiTodosReviewModal({
                             />
                           </label>
                           <label className="block text-[11px] text-[var(--muted)]">
-                            Status
+                            {t('chrome.statusLabel')}
                             <input
                               className="input mt-0.5 w-full text-sm"
                               value={row.status}
@@ -321,7 +318,7 @@ export default function AiTodosReviewModal({
                   {t('chrome.proposed')} · {proposedRows.length}
                 </h3>
                 {proposedRows.length === 0 ? (
-                  <p className="text-sm text-[var(--muted)]">No suggestions returned.</p>
+                  <p className="text-sm text-[var(--muted)]">{t('chrome.noAiSuggestions')}</p>
                 ) : (
                   <ul className="space-y-2">
                     {proposedRows.map((row) => (
@@ -334,7 +331,7 @@ export default function AiTodosReviewModal({
                             {t('chrome.proposed')}
                           </span>
                           <label className="flex items-center gap-1 text-[11px] text-[var(--muted)]">
-                            Action
+                            {t('chrome.actionLabel')}
                             <select
                               className="input py-1 text-[11px]"
                               value={row.action}
@@ -358,7 +355,7 @@ export default function AiTodosReviewModal({
                           </label>
                           {row.action === 'merge' && (
                             <label className="flex items-center gap-1 text-[11px] text-[var(--muted)]">
-                              Target
+                              {t('chrome.mergeTargetLabel')}
                               <select
                                 className="input max-w-[14rem] py-1 text-[11px]"
                                 value={row.mergeTargetKey}
@@ -367,9 +364,9 @@ export default function AiTodosReviewModal({
                                 }
                               >
                                 <option value="">{t('chrome.selectEllipsis')}</option>
-                                {keepTargets.map((t) => (
-                                  <option key={t.key} value={t.key}>
-                                    {t.content || t.id || t.key}
+                                {keepTargets.map((tgt) => (
+                                  <option key={tgt.key} value={tgt.key}>
+                                    {tgt.content || tgt.id || tgt.key}
                                   </option>
                                 ))}
                               </select>
@@ -389,7 +386,7 @@ export default function AiTodosReviewModal({
                         />
                         <div className="grid gap-2 sm:grid-cols-3">
                           <label className="block text-[11px] text-[var(--muted)]">
-                            Hours
+                            {t('chrome.hoursLabel')}
                             <input
                               className="input mt-0.5 w-full text-sm"
                               value={row.hours}
@@ -398,7 +395,7 @@ export default function AiTodosReviewModal({
                             />
                           </label>
                           <label className="block text-[11px] text-[var(--muted)]">
-                            Category
+                            {t('chrome.categoryLabel')}
                             <input
                               className="input mt-0.5 w-full text-sm"
                               value={row.category}
@@ -409,7 +406,7 @@ export default function AiTodosReviewModal({
                             />
                           </label>
                           <label className="block text-[11px] text-[var(--muted)]">
-                            Status
+                            {t('chrome.statusLabel')}
                             <input
                               className="input mt-0.5 w-full text-sm"
                               value={row.status}
@@ -437,7 +434,7 @@ export default function AiTodosReviewModal({
             disabled={busy || applyBusy || Boolean(error && proposedRows.length === 0)}
             onClick={() => void handleApply()}
           >
-            {applyBusy ? 'Applying…' : t('chrome.apply')}
+            {applyBusy ? t('chrome.applying') : t('chrome.apply')}
           </button>
         </div>
       </div>

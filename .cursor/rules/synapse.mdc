@@ -11,7 +11,7 @@ Read this first. For depth use scoped rules in `.cursor/rules/` and [AGENTS.md](
 
 - **Always respond in English (EN).**
 - User may write in **European Portuguese (PT)**; understand PT but **never reply in PT or PT-BR** unless they explicitly ask for Portuguese in that reply.
-- Non-English UI copy requires explicit user approval first.
+- **Product UI** is i18n (`en` / `pt` / `es` / `fr`). New user-visible strings must be added to the right catalog in `lib/i18n/` (see `.cursor/rules/synapse-i18n.mdc`). PT UI copy is PT-PT **pré-AO90**.
 
 # Language Enforcement
 language: European Portuguese (PT-PT)
@@ -21,7 +21,7 @@ rules:
   - Never use PT-BR terms in thinking or response.
   - Replace "usuário" with "utilizador".
   - Replace "arquivo" with "ficheiro".
-  - Pre-1990 Portuguese spelling agreement preferred.
+  - Pre-1990 Portuguese spelling agreement preferred (UI catalogs + agent thinking).
 
 ## Stack
 
@@ -64,7 +64,7 @@ docs/                # PM_API_CONTRACT.md and feature docs
 ### Frontend
 - Dark teal Synapse theme via CSS variables in `app/globals.css`.
 - No `alert()` / `confirm()` — use `ConfirmModal` / `PromptModal`.
-- English UI unless user approved otherwise.
+- UI copy via i18n catalogs (`en` / `pt` / `es` / `fr`); never hardcode user-visible English — see `.cursor/rules/synapse-i18n.mdc`.
 
 ### Notes & paths
 - Title `meta/risks` → Path `meta/risks.md`; sidebar groups by folder.

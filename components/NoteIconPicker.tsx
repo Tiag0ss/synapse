@@ -49,7 +49,7 @@ export default function NoteIconPicker({ value, onChange, disabled }: NoteIconPi
         <div className="absolute left-0 top-full z-40 mt-1 w-[17.5rem] rounded-xl border border-[var(--border)] bg-[var(--panel)] p-2 shadow-2xl shadow-black/40">
           <div className="mb-2 flex items-center justify-between gap-2 px-1">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-              Note icon
+              {t('chrome.noteIcon')}
             </p>
             <button
               type="button"
@@ -59,7 +59,7 @@ export default function NoteIconPicker({ value, onChange, disabled }: NoteIconPi
                 setOpen(false);
               }}
             >
-              Default
+              {t('chrome.iconDefault')}
             </button>
           </div>
           <div className="grid max-h-56 grid-cols-6 gap-1 overflow-auto">

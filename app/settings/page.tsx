@@ -159,7 +159,7 @@ export default function SettingsPage() {
     }
     const json = await res.json();
     if (!res.ok) {
-      setError(json.message || 'Failed to load settings');
+      setError(json.message || t('status.failedToLoadSettings'));
       setLoading(false);
       return;
     }
@@ -229,7 +229,7 @@ export default function SettingsPage() {
       const json = await res.json();
       if (!res.ok) {
         setOllamaModels([]);
-        setOllamaModelsError(json.message || 'Failed to list models');
+        setOllamaModelsError(json.message || t('status.failedListModels'));
         return;
       }
       const list = (json.data?.models || []) as string[];
@@ -239,11 +239,11 @@ export default function SettingsPage() {
       }
     } catch {
       setOllamaModels([]);
-      setOllamaModelsError('Network error listing Ollama models');
+      setOllamaModelsError(t('status.networkErrorListingOllama'));
     } finally {
       setOllamaModelsBusy(false);
     }
-  }, []);
+  }, [t]);
 
   const loadOpenaiModels = useCallback(async (currentModel: string, apiKeyDraft: string) => {
     setOpenaiModelsBusy(true);
@@ -258,7 +258,7 @@ export default function SettingsPage() {
       const json = await res.json();
       if (!res.ok) {
         setOpenaiModels([]);
-        setOpenaiModelsError(json.message || 'Failed to list models');
+        setOpenaiModelsError(json.message || t('status.failedListModels'));
         return;
       }
       const list = (json.data?.models || []) as string[];
@@ -272,11 +272,11 @@ export default function SettingsPage() {
       }
     } catch {
       setOpenaiModels([]);
-      setOpenaiModelsError('Network error listing OpenAI models');
+      setOpenaiModelsError(t('status.networkErrorListingOpenai'));
     } finally {
       setOpenaiModelsBusy(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (tab === 'ai' && !forbidden && !loading && aiProvider === 'ollama') {
@@ -302,7 +302,7 @@ export default function SettingsPage() {
       });
       const json = await res.json();
       if (!res.ok) {
-        setError(json.message || 'Ownership transfer failed');
+        setError(json.message || t('status.ownershipTransferFailed'));
         return;
       }
       setStatus(t('settings.ownershipTransferred', { name: ownerVault.name }));
@@ -338,7 +338,7 @@ export default function SettingsPage() {
 
   const uploadExportTemplate = async () => {
     if (!exportLabel.trim() || !exportFileBase64) {
-      setError('Label and .docx file are required');
+      setError(t('status.labelAndDocxRequired'));
       return;
     }
     setExportBusy(true);
@@ -358,7 +358,7 @@ export default function SettingsPage() {
       });
       const json = await res.json();
       if (!res.ok) {
-        setError(json.message || 'Upload failed');
+        setError(json.message || t('status.uploadFailed'));
         return;
       }
       setStatus(t('settings.wordTemplateUploaded'));
@@ -383,7 +383,7 @@ export default function SettingsPage() {
       });
       const json = await res.json();
       if (!res.ok) {
-        setError(json.message || 'Delete failed');
+        setError(json.message || t('chrome.deleteFailed'));
         return;
       }
       setStatus(t('settings.templateDeleted'));
@@ -430,7 +430,7 @@ export default function SettingsPage() {
     });
     const json = await res.json();
     if (!res.ok) {
-      setError(json.message || 'Save failed');
+      setError(json.message || t('status.saveFailed'));
       return;
     }
     setStatus(json.message || t('settings.saved'));
@@ -452,8 +452,8 @@ export default function SettingsPage() {
       credentials: 'include',
     });
     const json = await res.json();
-    if (!res.ok) setError(json.message || 'Test failed');
-    else setStatus(json.message || 'Sent');
+    if (!res.ok) setError(json.message || t('status.testFailed'));
+    else setStatus(json.message || t('status.sent'));
   };
 
   async function toggleAdmin(u: UserRow) {
@@ -465,7 +465,7 @@ export default function SettingsPage() {
       body: JSON.stringify({ isAdmin: !u.isAdmin }),
     });
     const json = await res.json();
-    if (!res.ok) setError(json.message || 'Update failed');
+    if (!res.ok) setError(json.message || t('status.updateFailed'));
     else await loadUsers();
   }
 
@@ -478,7 +478,7 @@ export default function SettingsPage() {
       body: JSON.stringify({ isActive: !u.isActive }),
     });
     const json = await res.json();
-    if (!res.ok) setError(json.message || 'Update failed');
+    if (!res.ok) setError(json.message || t('status.updateFailed'));
     else await loadUsers();
   }
 
@@ -511,7 +511,7 @@ export default function SettingsPage() {
       });
       const json = await res.json();
       if (!res.ok) {
-        setError(json.message || 'Action failed');
+        setError(json.message || t('status.actionFailed'));
         return;
       }
       setStatus(approve ? t('settings.templatePublished') : t('settings.shareRejected'));
@@ -539,7 +539,7 @@ export default function SettingsPage() {
       });
       const json = await res.json();
       if (!res.ok) {
-        setError(json.message || 'Failed to create global template');
+        setError(json.message || t('status.failedCreateGlobalTemplate'));
         return;
       }
       setGlobalLabel('');
@@ -905,12 +905,14 @@ export default function SettingsPage() {
                           ),
                         });
                         const json = await res.json();
-                        setOpenaiPingMsg(json.message || (res.ok ? 'OK' : 'Failed'));
+                        setOpenaiPingMsg(
+                          json.message || (res.ok ? t('status.connectionOk') : t('status.genericFailed'))
+                        );
                         if (res.ok) {
                           void loadOpenaiModels(openaiModel, openaiApiKey);
                         }
                       } catch {
-                        setOpenaiPingMsg('Network error');
+                        setOpenaiPingMsg(t('status.networkError'));
                       } finally {
                         setOpenaiPingBusy(false);
                       }
@@ -1073,7 +1075,7 @@ export default function SettingsPage() {
                 className="input mt-1 w-full"
                 value={exportLabel}
                 onChange={(e) => setExportLabel(e.target.value)}
-                placeholder="Meeting minutes"
+                placeholder={t('status.meetingMinutes')}
               />
             </label>
             <label className="block text-sm">
@@ -1334,7 +1336,7 @@ export default function SettingsPage() {
                   });
                   const json = await res.json();
                   if (!res.ok) {
-                    setError(json.message || 'Create failed');
+                    setError(json.message || t('status.createFailed'));
                     return;
                   }
                   setCreateOpen(false);
@@ -1370,7 +1372,7 @@ export default function SettingsPage() {
           });
           const json = await res.json();
           if (!res.ok) {
-            setError(json.message || 'Failed');
+            setError(json.message || t('status.genericFailed'));
             return;
           }
           setStatus(t('settings.passwordUpdated'));
@@ -1394,7 +1396,7 @@ export default function SettingsPage() {
           });
           const json = await res.json();
           if (!res.ok) {
-            setError(json.message || 'Delete failed');
+            setError(json.message || t('chrome.deleteFailed'));
             setDeleteUserId(null);
             return;
           }
@@ -1425,7 +1427,7 @@ export default function SettingsPage() {
             });
             const json = await res.json();
             if (!res.ok) {
-              setError(json.message || 'Sync failed');
+              setError(json.message || t('status.syncFailed'));
               return;
             }
             const d = json.data as {
@@ -1437,7 +1439,13 @@ export default function SettingsPage() {
             };
             setStatus(
               json.message ||
-                `Created ${d.created ?? 0}, updated ${d.updated ?? 0}, linked ${d.linked ?? 0}, skipped ${d.skipped ?? 0}, failed ${d.failed ?? 0}`
+                t('status.syncUsersSummary', {
+                  created: d.created ?? 0,
+                  updated: d.updated ?? 0,
+                  linked: d.linked ?? 0,
+                  skipped: d.skipped ?? 0,
+                  failed: d.failed ?? 0,
+                })
             );
             setSyncConfirmOpen(false);
             await loadUsers();

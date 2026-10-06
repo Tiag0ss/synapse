@@ -16,8 +16,13 @@ import {
   preprocessMarkdownExtras,
 } from '@/lib/markdownEnhance';
 import { mapOverDecisionBlocks } from '@/lib/decisionBlocks';
+import {
+  resolveMarkdownUi,
+  type SynapseMarkdownUi,
+} from '@/lib/markdownUi';
 
 export type NoteIndexEntry = NoteResolveEntry;
+export type { SynapseMarkdownUi };
 
 export type { LinkableVaultNotes };
 export { resolveNoteId, resolveCrossVaultWikilink, parseCrossVaultWikilinkTarget } from '@/lib/notePaths';
@@ -202,24 +207,27 @@ function noteKindById(notes: NoteIndexEntry[], id: number): string {
   return String(notes.find((n) => n.id === id)?.kind || 'note');
 }
 
-function renderBoardEmbedHtml(params: {
-  noteId: number | '';
-  /** Path/title used to resolve or create the whiteboard (`[[target|alias]]` → target). */
-  noteTitle: string;
-  /** Chrome label; defaults to noteTitle (`alias` when present). */
-  displayTitle?: string;
-  vaultId?: number | null;
-  missing?: boolean;
-}): string {
+function renderBoardEmbedHtml(
+  params: {
+    noteId: number | '';
+    /** Path/title used to resolve or create the whiteboard (`[[target|alias]]` → target). */
+    noteTitle: string;
+    /** Chrome label; defaults to noteTitle (`alias` when present). */
+    displayTitle?: string;
+    vaultId?: number | null;
+    missing?: boolean;
+  },
+  ui: ReturnType<typeof resolveMarkdownUi>
+): string {
   const vaultId =
     params.vaultId != null && Number(params.vaultId) > 0 ? String(params.vaultId) : '';
   const missingCls = params.missing ? ' is-missing' : '';
   const noteId = params.noteId !== '' && params.noteId != null ? String(params.noteId) : '';
   const display = String(params.displayTitle || params.noteTitle).trim() || params.noteTitle;
   const label = params.missing
-    ? `Missing whiteboard: ${display}`
-    : `Whiteboard: ${display}`;
-  const body = params.missing ? 'Whiteboard not found' : 'Loading board…';
+    ? `${ui.missingWhiteboard}: ${display}`
+    : `${ui.whiteboardLabel}: ${display}`;
+  const body = params.missing ? ui.whiteboardNotFound : ui.loadingBoard;
   return (
     `\n\n<div class="synapse-board-embed${missingCls}" data-note-id="${escapeAttr(noteId)}"` +
     ` data-note-title="${escapeAttr(params.noteTitle)}"` +
@@ -230,11 +238,11 @@ function renderBoardEmbedHtml(params: {
   );
 }
 
-function renderLockedNoteHtml(label: string): string {
+function renderLockedNoteHtml(label: string, ui: ReturnType<typeof resolveMarkdownUi>): string {
   return (
-    `<span class="synapse-wikilink is-locked" title="You don't have access to this note" aria-label="${escapeAttr(label)} (no access)">` +
+    `<span class="synapse-wikilink is-locked" title="${escapeAttr(ui.noAccessTitle)}" aria-label="${escapeAttr(label)} (${escapeAttr(ui.noAccess)})">` +
     `${escapeHtml(label)}` +
-    `<span class="synapse-wikilink-lock" aria-hidden="true">no access</span>` +
+    `<span class="synapse-wikilink-lock" aria-hidden="true">${escapeHtml(ui.noAccess)}</span>` +
     `</span>`
   );
 }
@@ -252,6 +260,8 @@ export type SynapseMarkdownOptions = {
    * Other resolved notes render locked; missing targets stay plain text. Mentions off.
    */
   guestPeekNoteIds?: number[];
+  /** Localized board / locked-link chrome. Defaults to English. */
+  ui?: SynapseMarkdownUi;
 };
 
 export function preprocessSynapseMarkdown(
@@ -266,6 +276,7 @@ export function preprocessSynapseMarkdown(
     : null;
   const guestShare = guestPeekIds != null;
   const enableWikilinks = guestShare || options?.wikilinks !== false;
+  const ui = resolveMarkdownUi(options?.ui);
   return mapProtected(md || '', (chunk) => {
     // Protect existing HTML (TOC, callouts, math, …) so # inside href="#…" is not treated as a tag
     const htmlSlots: string[] = [];
@@ -293,46 +304,58 @@ export function preprocessSynapseMarkdown(
         if (r.status === 'locked') return asWikilink;
         if (r.status === 'missing') {
           return stashHtml(
-            renderBoardEmbedHtml({
-              noteId: '',
-              noteTitle: r.noteTarget,
-              displayTitle: aliasLabel || r.noteTarget,
-              vaultId: r.vaultId,
-              missing: true,
-            })
+            renderBoardEmbedHtml(
+              {
+                noteId: '',
+                noteTitle: r.noteTarget,
+                displayTitle: aliasLabel || r.noteTarget,
+                vaultId: r.vaultId,
+                missing: true,
+              },
+              ui
+            )
           );
         }
         const vault = linkableVaults.find((v) => v.vaultId === r.vaultId);
         const kind = vault ? noteKindById(vault.notes, r.noteId) : 'note';
         if (kind !== 'whiteboard') return asWikilink;
         return stashHtml(
-          renderBoardEmbedHtml({
-            noteId: r.noteId,
-            noteTitle: r.label,
-            displayTitle: aliasLabel || r.label,
-            vaultId: r.vaultId,
-          })
+          renderBoardEmbedHtml(
+            {
+              noteId: r.noteId,
+              noteTitle: r.label,
+              displayTitle: aliasLabel || r.label,
+              vaultId: r.vaultId,
+            },
+            ui
+          )
         );
       }
 
       const id = resolveNoteId(t, notes);
       if (id == null) {
         return stashHtml(
-          renderBoardEmbedHtml({
-            noteId: '',
-            noteTitle: t,
-            displayTitle: aliasLabel || t,
-            missing: true,
-          })
+          renderBoardEmbedHtml(
+            {
+              noteId: '',
+              noteTitle: t,
+              displayTitle: aliasLabel || t,
+              missing: true,
+            },
+            ui
+          )
         );
       }
       if (noteKindById(notes, id) !== 'whiteboard') return asWikilink;
       return stashHtml(
-        renderBoardEmbedHtml({
-          noteId: id,
-          noteTitle: t,
-          displayTitle: aliasLabel || t,
-        })
+        renderBoardEmbedHtml(
+          {
+            noteId: id,
+            noteTitle: t,
+            displayTitle: aliasLabel || t,
+          },
+          ui
+        )
       );
     });
 
@@ -352,8 +375,8 @@ export function preprocessSynapseMarkdown(
         if (t.startsWith('@')) {
           const r = resolveCrossVaultWikilink(t, linkableVaults, aliasLabel || undefined);
           const label = aliasLabel || r.label || t;
-          if (r.status !== 'ok') return renderLockedNoteHtml(label);
-          if (!guestPeekIds!.has(r.noteId)) return renderLockedNoteHtml(label);
+          if (r.status !== 'ok') return renderLockedNoteHtml(label, ui);
+          if (!guestPeekIds!.has(r.noteId)) return renderLockedNoteHtml(label, ui);
           return renderNoteRefHtml({
             kind: 'wikilink',
             label,
@@ -366,7 +389,7 @@ export function preprocessSynapseMarkdown(
         const label = aliasLabel || t;
         const id = resolveNoteId(t, notes);
         if (id == null) return escapeHtml(label);
-        if (!guestPeekIds!.has(id)) return renderLockedNoteHtml(label);
+        if (!guestPeekIds!.has(id)) return renderLockedNoteHtml(label, ui);
         return renderNoteRefHtml({
           kind: 'wikilink',
           label,
@@ -378,7 +401,7 @@ export function preprocessSynapseMarkdown(
       if (t.startsWith('@')) {
         const r = resolveCrossVaultWikilink(t, linkableVaults, aliasLabel || undefined);
         if (r.status === 'locked') {
-          return renderLockedNoteHtml(r.label);
+          return renderLockedNoteHtml(r.label, ui);
         }
         if (r.status === 'missing') {
           return renderNoteRefHtml({
@@ -434,7 +457,8 @@ export function renderSynapseMarkdown(
       ? renderFrontmatterHtml(
           fm.data,
           guestShare || !enableWikilinks ? [] : notes,
-          guestShare || !enableWikilinks ? [] : linkableVaults
+          guestShare || !enableWikilinks ? [] : linkableVaults,
+          options?.ui
         )
       : '';
     const withExtras = preprocessMarkdownExtras(fm.body);
@@ -451,7 +475,8 @@ export function renderSynapseMarkdown(
     const html = marked.parse(withFolds, { async: false, gfm: true, breaks: true }) as string;
     return sanitizeSynapseHtml(props + enhanceCodeCopyHtml(postprocessMarkdownHtml(html)));
   } catch {
-    return '<p class="synapse-md-error">Preview error</p>';
+    const ui = resolveMarkdownUi(options?.ui);
+    return `<p class="synapse-md-error">${escapeHtml(ui.previewError)}</p>`;
   }
 }
 

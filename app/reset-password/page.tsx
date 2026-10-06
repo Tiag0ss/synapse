@@ -31,12 +31,12 @@ function ResetForm() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.message || 'Reset failed');
+        setError(data.message || t('status.resetFailed'));
         return;
       }
       setMessage(data.message || t('settings.passwordUpdated'));
     } catch {
-      setError('Reset failed');
+      setError(t('status.resetFailed'));
     } finally {
       setBusy(false);
     }

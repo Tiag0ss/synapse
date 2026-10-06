@@ -25,7 +25,7 @@ export default function PublicGraphPage() {
       const res = await fetch(`/api/public/${slug}/graph`, { credentials: 'include' });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.message || 'Graph unavailable');
+        setError(data.message || t('status.graphUnavailable'));
         return;
       }
       setGraph(data.data);

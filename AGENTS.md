@@ -6,13 +6,14 @@ Cursor agents: read **`.cursor/rules/synapse.mdc`** (always on) plus scoped rule
 
 - **Assistant responses: English (EN) only.**
 - User messages may be in European Portuguese (PT). Understand PT; do not answer in PT or PT-BR unless explicitly requested.
-- Non-English UI strings require user approval.
+- Product UI is i18n (`en` / `pt` / `es` / `fr`); new strings go in `lib/i18n/` catalogs (PT-PT pré-AO90).
 
 ## Documentation map
 
 | Need | Read |
 |------|------|
 | Stack & non-negotiables | [`.cursor/rules/synapse.mdc`](.cursor/rules/synapse.mdc) |
+| UI i18n (catalogs, locales, PT pré-AO90) | [`.cursor/rules/synapse-i18n.mdc`](.cursor/rules/synapse-i18n.mdc) |
 | Myelin API contracts (survive repo split) | [`docs/PM_API_CONTRACT.md`](docs/PM_API_CONTRACT.md) |
 | Feature overview | [`README.md`](README.md) |
 | Prompt skills | [`.github/prompts/`](.github/prompts/) |
@@ -24,6 +25,7 @@ Cursor agents: read **`.cursor/rules/synapse.mdc`** (always on) plus scoped rule
 | `synapse.mdc` | **Always** |
 | `synapse-backend.mdc` | `server/**` |
 | `synapse-frontend.mdc` | `app/**`, `components/**`, `lib/**` |
+| `synapse-i18n.mdc` | `lib/i18n/**`, UI strings in `app/**` / `components/**` |
 | `synapse-pm-integration.mdc` | `server/services/pmClient.ts`, checkbox sync, SSO |
 
 ## Prompt skills (`.github/prompts/`)

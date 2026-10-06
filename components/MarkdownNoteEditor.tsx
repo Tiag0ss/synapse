@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { renderSynapseMarkdown, type LinkableVaultNotes, type NoteIndexEntry } from '@/lib/renderMarkdown';
+import { synapseMarkdownUiFromT } from '@/lib/markdownUi';
 import { handleMarkdownCodeCopyClick } from '@/lib/codeCopy';
 import { renderMermaidInRoot } from '@/lib/mermaidRender';
 import { fetchVaultBoardJson } from '@/lib/hydrateBoardEmbeds';
@@ -33,6 +34,7 @@ import ImageLightbox from '@/components/ImageLightbox';
 import MermaidLightbox from '@/components/MermaidLightbox';
 import NoteLinkSuggest from '@/components/NoteLinkSuggest';
 import { useI18n } from '@/lib/i18n/provider';
+import { legendSections } from '@/lib/i18n/legendCatalog';
 import NotePeekModal, { type NotePeekTarget } from '@/components/NotePeekModal';
 
 const ATTACH_ACCEPT =
@@ -152,137 +154,6 @@ const TOOLBAR_TITLE_I18N: Record<string, string> = {
   Divider: 'chrome.divider',
 };
 
-type LegendSection = {
-  title: string;
-  blurb?: string;
-  items: Array<{ syntax: string; meaning: string }>;
-};
-
-const LEGEND_SECTIONS: LegendSection[] = [
-  {
-    title: 'Basics',
-    items: [
-      { syntax: '**bold**', meaning: 'Bold' },
-      { syntax: '_italic_', meaning: 'Italic' },
-      { syntax: '~~strike~~', meaning: 'Strikethrough' },
-      { syntax: 'line ⏎ line', meaning: 'Single Enter → new line in preview' },
-      { syntax: 'line ⏎⏎ line', meaning: 'Blank line → new paragraph' },
-      { syntax: '# / ## / ###', meaning: 'Headings' },
-      { syntax: '- item', meaning: 'Bullet list' },
-      { syntax: '1. item', meaning: 'Numbered list' },
-      { syntax: '- [ ] task', meaning: 'Checklist (pushable task)' },
-      { syntax: '- [ ] task (2h)', meaning: 'Estimate hours on create in Myelin' },
-      {
-        syntax: '- [ ] task (1.5h, Design)',
-        meaning: 'Hours + category for Recalculate estimates (missing category → Other)',
-      },
-      { syntax: '- [ ] task (unscheduled)', meaning: 'Mark unscheduled work on create' },
-      { syntax: '> quote', meaning: 'Block quote' },
-      { syntax: '---', meaning: 'Horizontal rule (in the body)' },
-      { syntax: '[label](url)', meaning: 'External link' },
-      { syntax: '![alt](url)', meaning: 'Image (or paste / drop)' },
-    ],
-  },
-  {
-    title: 'Code & diagrams',
-    items: [
-      { syntax: '`code`', meaning: 'Inline code — click to copy in preview' },
-      { syntax: '```lang', meaning: 'Fenced block — highlight + Copy button' },
-      { syntax: '```mermaid', meaning: 'Diagram — Expand opens fullscreen' },
-      { syntax: '$…$ / $$…$$', meaning: 'Math (KaTeX)' },
-    ],
-  },
-  {
-    title: 'Callouts & structure',
-    items: [
-      { syntax: '> [!NOTE]', meaning: 'Callout (also tip, warning, danger, …)' },
-      { syntax: '> [!NOTE]- / +', meaning: 'Foldable callout (starts closed / open)' },
-      { syntax: ':::fold Title … :::', meaning: 'Collapsible section (starts open); title/body also work as flashcard front/back (vault Flashcards mode)' },
-      { syntax: ':::fold- Title … :::', meaning: 'Collapsible (starts closed) — preferred for flashcards' },
-      { syntax: ':::ask Question … :::', meaning: 'Q&A block — guests answer on password shares; approve answers in preview' },
-      { syntax: '[[toc]]', meaning: 'Table of contents from #–######' },
-      { syntax: '[^1] / [^1]:', meaning: 'Footnote reference + definition' },
-    ],
-  },
-  {
-    title: 'Checkboxes',
-    blurb: 'Task list markers in the note body. Linked Myelin tasks sync status into these marks.',
-    items: [
-      { syntax: '- [x]', meaning: 'Done (closed in Myelin)' },
-      { syntax: '- [x] ~~task~~', meaning: 'Cancelled in Myelin (checked + strike)' },
-      { syntax: '- [-]', meaning: 'Partial / stub — In Progress in Myelin' },
-      { syntax: '- [ ]', meaning: 'Not started (open)' },
-    ],
-  },
-  {
-    title: 'Properties (YAML)',
-    blurb: 'Optional block at the very top of the note, between --- fences. Shown as the Properties card in preview.',
-    items: [
-      { syntax: '--- … ---', meaning: 'Open/close the YAML block (must be first)' },
-      { syntax: 'title: My note', meaning: 'Simple field (string, number, true/false)' },
-      { syntax: 'tags: [a, b]', meaning: 'Scalar list → chips; used for filters' },
-      {
-        syntax: 'todos: …',
-        meaning:
-          'id, status, content → Properties + note tasks; push to Myelin. hours / unscheduled on create; note: links to another note; when linked, status follows Myelin status names. Suggest todos with AI (Tasks panel) proposes items via external Ollama — review before save',
-      },
-      { syntax: 'hours: 2.5', meaning: 'Under a todo → estimatedHours on Myelin create' },
-      {
-        syntax: 'category: Design',
-        meaning:
-          'Under a todo → groups hours; Recalculate writes estimate (indent 1), Other if missing, Task Total indent 0',
-      },
-      { syntax: 'unscheduled: true', meaning: 'Under a todo → unscheduledWork on create (not implied by missing hours)' },
-      {
-        syntax: 'related: […]',
-        meaning:
-          'Top-level list of linked notes (same vault or @vault-slug/note). Quote @… and [[…]] in YAML, or Synapse quotes them when parsing',
-      },
-      {
-        syntax: 'note: meta/risks',
-        meaning:
-          'Under a todo → link to another note (title or path; quote "@vault/note" or "[[wikilink]]" in YAML)',
-      },
-      {
-        syntax: '@ / autocomplete',
-        meaning: 'In [[…]], related:, or note: — type @ for vaults, / for notes',
-      },
-      {
-        syntax: '[[attach',
-        meaning: 'Autocomplete attachments for this note → inserts [file](url) or ![img](url)',
-      },
-    ],
-  },
-  {
-    title: 'Synapse links & tags',
-    items: [
-      {
-        syntax: '[[Note title]]',
-        meaning: 'Wikilink — text opens the note; magnifier previews it',
-      },
-      {
-        syntax: '![[Whiteboard]]',
-        meaning: 'Embed a whiteboard mid-note (preview / wiki / share)',
-      },
-      { syntax: '[[meta/risks]]', meaning: 'Link by folder path' },
-      { syntax: '[[risks]]', meaning: 'Link by unique leaf name' },
-      {
-        syntax: '[[@vault-slug/note]]',
-        meaning: 'Link to a note in another vault (shows “no access” if you lack permission)',
-      },
-      { syntax: '[[Note|label]]', meaning: 'Wikilink with custom label' },
-      {
-        syntax: 'plain Title',
-        meaning: 'Auto-mention (dashed) — text opens; magnifier previews',
-      },
-      { syntax: '#tag', meaning: 'Inline tag for filtering / graph' },
-      { syntax: '![alt](url)', meaning: 'Embedded image (paste / Img / Attach)' },
-      { syntax: '[file.pdf](url)', meaning: 'Attachment link (Attach toolbar or [[attach)' },
-    ],
-  },
-];
-
-
 function applySpec(value: string, start: number, end: number, spec: WrapSpec): { next: string; selectStart: number; selectEnd: number } {
   const selected = value.slice(start, end);
 
@@ -388,7 +259,10 @@ function applyListEnter(
 }
 
 
-function fileToBase64Payload(file: File): Promise<{ mimeType: string; dataBase64: string; fileName: string }> {
+function fileToBase64Payload(
+  file: File,
+  readErrorMessage: string
+): Promise<{ mimeType: string; dataBase64: string; fileName: string }> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -401,7 +275,7 @@ function fileToBase64Payload(file: File): Promise<{ mimeType: string; dataBase64
         fileName: file.name || 'paste.png',
       });
     };
-    reader.onerror = () => reject(new Error('Could not read image'));
+    reader.onerror = () => reject(new Error(readErrorMessage));
     reader.readAsDataURL(file);
   });
 }
@@ -428,7 +302,7 @@ export default function MarkdownNoteEditor({
   onMediaUploaded,
   attachmentsRefreshToken = 0,
 }: MarkdownNoteEditorProps) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -848,9 +722,13 @@ export default function MarkdownNoteEditor({
     if (compact && mode === 'split') setMode('edit');
   }, [compact, readOnly, mode]);
 
+  const markdownUi = useMemo(() => synapseMarkdownUiFromT(t), [t, locale]);
   const html = useMemo(
-    () => renderSynapseMarkdown(value, notes, linkableVaults, noteId ?? null),
-    [value, notes, linkableVaults, noteId]
+    () =>
+      renderSynapseMarkdown(value, notes, linkableVaults, noteId ?? null, {
+        ui: markdownUi,
+      }),
+    [value, notes, linkableVaults, noteId, markdownUi]
   );
 
   useEffect(() => {
@@ -946,12 +824,12 @@ export default function MarkdownNoteEditor({
   const uploadFiles = useCallback(
     async (files: File[]) => {
       if (!vaultId) {
-        onStatus?.('Open a vault note to upload files');
+        onStatus?.(t('status.openVaultNoteToUpload'));
         return;
       }
       const allowed = files.filter(isAllowedUploadFile);
       if (!allowed.length) {
-        onStatus?.('Unsupported file type');
+        onStatus?.(t('status.unsupportedFileType'));
         return;
       }
 
@@ -962,7 +840,7 @@ export default function MarkdownNoteEditor({
         let caret = el?.selectionStart ?? current.length;
 
         for (const file of allowed) {
-          const payload = await fileToBase64Payload(file);
+          const payload = await fileToBase64Payload(file, t('status.couldNotReadImage'));
           const res = await fetch(`/api/vaults/${vaultId}/media`, {
             method: 'POST',
             credentials: 'include',
@@ -974,7 +852,7 @@ export default function MarkdownNoteEditor({
           });
           const data = await res.json();
           if (!res.ok) {
-            onStatus?.(data.message || 'Upload failed');
+            onStatus?.(data.message || t('status.uploadFailed'));
             continue;
           }
           const url = String(data.data?.url || '');
@@ -986,7 +864,7 @@ export default function MarkdownNoteEditor({
           caret += snippet.length;
           valueRef.current = current;
           onChange(current);
-          onStatus?.(isImage ? 'Image inserted' : 'Attachment inserted');
+          onStatus?.(isImage ? t('status.imageInserted') : t('status.attachmentInserted'));
         }
         void reloadAttachments();
         onMediaUploaded?.();
@@ -996,12 +874,12 @@ export default function MarkdownNoteEditor({
           el.setSelectionRange(caret, caret);
         });
       } catch {
-        onStatus?.('Upload failed');
+        onStatus?.(t('status.uploadFailed'));
       } finally {
         setUploading(false);
       }
     },
-    [noteId, onChange, onMediaUploaded, onStatus, reloadAttachments, vaultId]
+    [noteId, onChange, onMediaUploaded, onStatus, reloadAttachments, t, vaultId]
   );
 
   const runToolbar = useCallback(
@@ -1279,7 +1157,7 @@ export default function MarkdownNoteEditor({
               disabled={!vaultId || uploading}
               onClick={() => fileInputRef.current?.click()}
             >
-              Img
+              {t('chrome.toolbarImg')}
             </button>
             <button
               type="button"
@@ -1473,12 +1351,9 @@ export default function MarkdownNoteEditor({
             <h3 className="mb-1 text-sm font-semibold text-[var(--text)]">
               {t('chrome.markdownLegend')}
             </h3>
-            <p className="mb-4 leading-relaxed text-[var(--muted)]">
-              Toolbar + Ctrl/Cmd+B, I, K. Enter continues lists and tasks. Paste or drop
-              images/files. Type [[attach to insert an attachment link.
-            </p>
+            <p className="mb-4 leading-relaxed text-[var(--muted)]">{t('chrome.legendIntro')}</p>
             <div className="space-y-4">
-              {LEGEND_SECTIONS.map((section) => (
+              {legendSections(locale).map((section) => (
                 <section key={section.title}>
                   <h4 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--accent-soft)]">
                     {section.title}

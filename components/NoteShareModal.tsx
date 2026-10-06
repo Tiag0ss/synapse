@@ -117,13 +117,13 @@ export default function NoteShareModal({
       );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setShareError(data.message || 'Failed to load shares');
+        setShareError(data.message || t('status.failedLoadShares'));
         setList([]);
         return;
       }
       setList(Array.isArray(data.data) ? data.data : []);
     } catch {
-      setShareError('Network error');
+      setShareError(t('status.networkError'));
       setList([]);
     } finally {
       setShareLoading(false);
@@ -180,7 +180,7 @@ export default function NoteShareModal({
       setCopied(which);
       window.setTimeout(() => setCopied(null), 1500);
     } catch {
-      onStatus?.('Could not copy to clipboard');
+      onStatus?.(t('status.couldNotCopyClipboard'));
     }
   };
 
@@ -201,14 +201,14 @@ export default function NoteShareModal({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setShareError(data.message || 'Failed to create share');
+        setShareError(data.message || t('status.failedCreateShare'));
         return;
       }
       setCreated(data.data as CreatedShare);
-      onStatus?.(isFlashcard ? 'Flashcard share link created' : 'Share link created');
+      onStatus?.(isFlashcard ? t('status.flashcardShareCreated') : t('status.shareLinkCreated'));
       await loadList();
     } catch {
-      setShareError('Network error');
+      setShareError(t('status.networkError'));
     } finally {
       setShareBusy(false);
     }
@@ -224,14 +224,14 @@ export default function NoteShareModal({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setShareError(data.message || 'Failed to revoke share');
+        setShareError(data.message || t('status.failedRevokeShare'));
         return;
       }
       if (created?.id === shareId) setCreated(null);
-      onStatus?.('Share revoked');
+      onStatus?.(t('status.shareRevoked'));
       await loadList();
     } catch {
-      setShareError('Network error');
+      setShareError(t('status.networkError'));
     } finally {
       setShareBusy(false);
     }
@@ -255,7 +255,7 @@ export default function NoteShareModal({
       });
       const data = await res.json();
       if (!res.ok) {
-        setSendError(data.message || 'Transfer failed');
+        setSendError(data.message || t('status.transferFailed'));
         return;
       }
       onTransferDone?.({
@@ -265,7 +265,7 @@ export default function NoteShareModal({
         createdVault: Boolean(data.data.createdVault),
       });
     } catch {
-      setSendError('Network error');
+      setSendError(t('status.networkError'));
     } finally {
       setSendBusy(false);
     }
@@ -487,7 +487,9 @@ export default function NoteShareModal({
                   {inactive.map((s) => (
                     <li key={s.id}>
                       #{s.id} · {s.status} ·{' '}
-                      {s.expiresAt ? new Date(s.expiresAt).toLocaleString() : 'no expiry'}
+                      {s.expiresAt
+                        ? new Date(s.expiresAt).toLocaleString()
+                        : t('chrome.noExpiry')}
                     </li>
                   ))}
                 </ul>
@@ -500,12 +502,11 @@ export default function NoteShareModal({
           <>
             <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
               <p className="text-xs leading-relaxed text-[var(--muted)]">
-                Copy or move this note to another vault. Media in the note is included; Myelin links
-                are not.
+                {t('chrome.transferNoteIntro')}
               </p>
               <fieldset>
                 <legend className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
-                  Action
+                  {t('chrome.actionLabel')}
                 </legend>
                 <div className="mt-2 flex gap-2">
                   <button

@@ -223,9 +223,7 @@ export default function MermaidLightbox({ svgHtml, onClose }: MermaidLightboxPro
     >
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-white/10 px-4 py-2.5">
         <p className="text-sm text-white/70">
-          {zoomEnabled
-            ? 'Drag to pan · Ctrl/Cmd+wheel to zoom · Esc to close'
-            : 'Drag to pan · Esc to close'}
+          {zoomEnabled ? t('chrome.mermaidPanZoom') : t('chrome.mermaidPanEsc')}
         </p>
         <div className="flex flex-wrap items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
           <button
@@ -237,7 +235,7 @@ export default function MermaidLightbox({ svgHtml, onClose }: MermaidLightboxPro
             title={zoomEnabled ? t('chrome.disableZoom') : t('chrome.enableZoom')}
             onClick={() => setZoomEnabled((v) => !v)}
           >
-            Zoom {zoomEnabled ? 'on' : 'off'}
+            {zoomEnabled ? t('chrome.zoomOn') : t('chrome.zoomOff')}
           </button>
           <button
             type="button"

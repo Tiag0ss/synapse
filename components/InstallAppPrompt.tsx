@@ -62,10 +62,10 @@ export default function InstallAppPrompt({ variant = 'banner', className = '' }:
   };
 
   const hint = ios
-    ? 'Tap Share, then Add to Home Screen for the app experience.'
+    ? t('chrome.installHintIosMenu')
     : deferred
-      ? 'Add Synapse to your home screen for quick access.'
-      : 'Use your browser menu to Install app or Add to Home Screen.';
+      ? t('chrome.installHintDeferredMenu')
+      : t('chrome.installHintBrowserMenu');
 
   if (variant === 'menu') {
     return (
@@ -79,11 +79,11 @@ export default function InstallAppPrompt({ variant = 'banner', className = '' }:
         <div className="mt-2 flex items-center gap-2">
           {deferred ? (
             <button type="button" className="btn-primary py-1 text-xs" onClick={() => void install()}>
-              Install
+              {t('chrome.installShort')}
             </button>
           ) : null}
           <button type="button" className="btn-ghost py-1 text-xs" onClick={dismiss}>
-            Not now
+            {t('chrome.notNow')}
           </button>
         </div>
       </div>
@@ -103,10 +103,10 @@ export default function InstallAppPrompt({ variant = 'banner', className = '' }:
           </p>
           <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">
             {ios
-              ? 'On iPhone/iPad: tap Share in Safari, then Add to Home Screen.'
+              ? t('chrome.installHintIosBanner')
               : deferred
-                ? 'Install the app on this device for a full-screen vault experience.'
-                : 'Use your browser menu to Install app or Add to Home Screen for a full-screen vault experience.'}
+                ? t('chrome.installHintDeferredBanner')
+                : t('chrome.installHintBrowserBanner')}
           </p>
         </div>
         <button
@@ -121,11 +121,11 @@ export default function InstallAppPrompt({ variant = 'banner', className = '' }:
       <div className="mt-3 flex flex-wrap gap-2">
         {deferred ? (
           <button type="button" className="btn-primary py-1.5 text-sm" onClick={() => void install()}>
-            Install app
+            {t('chrome.installAction')}
           </button>
         ) : null}
         <button type="button" className="btn-ghost py-1.5 text-sm" onClick={dismiss}>
-          Not now
+          {t('chrome.notNow')}
         </button>
       </div>
     </div>

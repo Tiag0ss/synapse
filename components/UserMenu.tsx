@@ -177,7 +177,7 @@ export default function UserMenu({ user, dense = false }: UserMenuProps) {
                     key={palette}
                     type="button"
                     title={meta.label}
-                    aria-label={`Palette ${meta.label}`}
+                    aria-label={t('chrome.paletteAria', { name: meta.label })}
                     className={`h-6 w-6 rounded-full border-2 ${
                       selected ? 'border-[var(--text)]' : 'border-transparent'
                     }`}

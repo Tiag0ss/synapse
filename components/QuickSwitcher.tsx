@@ -231,11 +231,11 @@ export default function QuickSwitcher({
                 <span className="truncate font-mono text-[11px] text-[var(--muted)]">
                   {hit.path.replace(/\.md$/i, '')}
                   {hit.matchIn === 'body'
-                    ? ' · body'
+                    ? t('common.matchInBody')
                     : hit.matchIn === 'tag'
-                      ? ' · tag'
+                      ? t('common.matchInTag')
                       : hit.matchIn === 'recent'
-                        ? ' · recent'
+                        ? t('common.matchInRecent')
                         : ''}
                 </span>
                 {hit.snippet && (
@@ -246,7 +246,7 @@ export default function QuickSwitcher({
           ))}
         </ul>
         <footer className="border-t border-[var(--border)] px-4 py-2 text-[11px] text-[var(--muted)]">
-          ↑↓ navigate · Enter open · Esc close · Ctrl/Cmd+O
+          {t('chrome.quickSwitcherFooter')}
         </footer>
       </div>
     </div>

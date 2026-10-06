@@ -48,12 +48,14 @@ function MetaChip({
   changed,
   onRestore,
   disabled,
+  t,
 }: {
   label: string;
   value: string;
   changed?: boolean;
   onRestore?: () => void;
   disabled?: boolean;
+  t: (path: string, vars?: Record<string, string | number>) => string;
 }) {
   const clickable = Boolean(changed && onRestore);
   return (
@@ -72,9 +74,9 @@ function MetaChip({
             className="text-[10px] font-medium uppercase tracking-wide text-amber-200/90 underline-offset-2 hover:underline disabled:opacity-50"
             disabled={disabled}
             onClick={onRestore}
-            title={`Restore ${label.toLowerCase()} from this revision`}
+            title={t('chrome.restoreFieldFromRevision', { field: label.toLowerCase() })}
           >
-            Restore
+            {t('chrome.restore')}
           </button>
         )}
       </div>
@@ -174,15 +176,24 @@ export default function RevisionDiffModal({
           <div>
             <h2 className="text-lg font-semibold tracking-tight">{t('chrome.compareRestore')}</h2>
             <p className="mt-1 text-sm text-[var(--muted)]">
-              Meld-style diff · left is revision #{revision?.RevisionNumber ?? '…'} · right is the
-              current note · restore individual changes or the whole revision
+              {t('chrome.revisionDiffIntro', {
+                number: revision?.RevisionNumber ?? '…',
+              })}
             </p>
             <div className="mt-2 flex flex-wrap gap-3 text-[11px]">
-              <span className="text-emerald-300">+{stats.added} added</span>
-              <span className="text-red-300">−{stats.removed} removed</span>
-              <span className="text-amber-200">~{stats.changed} changed</span>
+              <span className="text-emerald-300">
+                {t('chrome.diffAddedCount', { count: stats.added })}
+              </span>
+              <span className="text-red-300">
+                {t('chrome.diffRemovedCount', { count: stats.removed })}
+              </span>
+              <span className="text-amber-200">
+                {t('chrome.diffChangedCount', { count: stats.changed })}
+              </span>
               {stats.hunks > 0 && (
-                <span className="text-[var(--muted)]">{stats.hunks} change block{stats.hunks === 1 ? '' : 's'}</span>
+                <span className="text-[var(--muted)]">
+                  {t('chrome.diffChangeBlocks', { count: stats.hunks })}
+                </span>
               )}
             </div>
           </div>
@@ -206,7 +217,7 @@ export default function RevisionDiffModal({
               onClick={onRestore}
             >
               {restoring
-                ? 'Restoring…'
+                ? t('chrome.restoring')
                 : `${t('chrome.restoreAll')}${revision?.RevisionNumber != null ? ` #${revision.RevisionNumber}` : ''}`}
             </button>
           </div>
@@ -214,32 +225,35 @@ export default function RevisionDiffModal({
 
         {loading || !revision ? (
           <div className="flex flex-1 items-center justify-center text-sm text-[var(--muted)]">
-            Loading revision…
+            {t('chrome.loadingRevision')}
           </div>
         ) : (
           <>
             <div className="grid shrink-0 grid-cols-1 gap-3 border-b border-[var(--border)] px-5 py-3 sm:grid-cols-2">
               <div>
                 <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-                  Revision #{revision.RevisionNumber}
+                  {t('chrome.revisionLabel', { number: revision.RevisionNumber })}
                   {revision.CreatedAt ? ` · ${new Date(revision.CreatedAt).toLocaleString()}` : ''}
                 </p>
                 <div className="grid grid-cols-3 gap-2">
                   <MetaChip
-                    label="Title"
+                    t={t}
+                    label={t('chrome.noteTitle')}
                     value={revision.Title}
                     changed={revision.Title !== current.title}
                     disabled={busy}
                     onRestore={() => onApplyPartial({ title: revision.Title })}
                   />
                   <MetaChip
-                    label="Path"
+                    t={t}
+                    label={t('chrome.pathLabel')}
                     value={revision.Path}
                     changed={revision.Path !== current.path}
                   />
                   <MetaChip
-                    label="Visibility"
-                    value={revision.Visibility || 'default'}
+                    t={t}
+                    label={t('chrome.visibility')}
+                    value={revision.Visibility || t('chrome.defaultShort')}
                     changed={(revision.Visibility || '') !== (current.visibility || '')}
                     disabled={busy}
                     onRestore={() =>
@@ -250,12 +264,16 @@ export default function RevisionDiffModal({
               </div>
               <div>
                 <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-                  Current
+                  {t('chrome.currentLabel')}
                 </p>
                 <div className="grid grid-cols-3 gap-2">
-                  <MetaChip label="Title" value={current.title} />
-                  <MetaChip label="Path" value={current.path} />
-                  <MetaChip label="Visibility" value={current.visibility || 'default'} />
+                  <MetaChip t={t} label={t('chrome.noteTitle')} value={current.title} />
+                  <MetaChip t={t} label={t('chrome.pathLabel')} value={current.path} />
+                  <MetaChip
+                    t={t}
+                    label={t('chrome.visibility')}
+                    value={current.visibility || t('chrome.defaultShort')}
+                  />
                 </div>
               </div>
             </div>
@@ -263,7 +281,7 @@ export default function RevisionDiffModal({
             <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-2">
               <div className="flex min-h-0 flex-col border-b border-[var(--border)] md:border-b-0 md:border-r">
                 <div className="shrink-0 border-b border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-[11px] font-medium text-[var(--muted)]">
-                  Revision body
+                  {t('chrome.revisionBody')}
                 </div>
                 <div
                   ref={leftScroll}
@@ -311,14 +329,14 @@ export default function RevisionDiffModal({
                     );
                   })}
                   {visibleRows.length === 0 && (
-                    <p className="p-4 text-sm text-[var(--muted)]">No differences in body.</p>
+                    <p className="p-4 text-sm text-[var(--muted)]">{t('chrome.noBodyDiff')}</p>
                   )}
                 </div>
               </div>
 
               <div className="flex min-h-0 flex-col">
                 <div className="shrink-0 border-b border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-[11px] font-medium text-[var(--muted)]">
-                  Current body
+                  {t('chrome.currentBody')}
                 </div>
                 <div
                   ref={rightScroll}
@@ -353,7 +371,7 @@ export default function RevisionDiffModal({
                     );
                   })}
                   {visibleRows.length === 0 && (
-                    <p className="p-4 text-sm text-[var(--muted)]">No differences in body.</p>
+                    <p className="p-4 text-sm text-[var(--muted)]">{t('chrome.noBodyDiff')}</p>
                   )}
                 </div>
               </div>

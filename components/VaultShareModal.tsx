@@ -73,7 +73,7 @@ export default function VaultShareModal({
       const res = await fetch(`${base}/members`, { credentials: 'include' });
       const data = await res.json();
       if (!res.ok) {
-        setStatus(data.message || 'Failed to load members');
+        setStatus(data.message || t('status.failedToLoadMembers'));
         return;
       }
       setOwner(data.data.owner);
@@ -139,13 +139,13 @@ export default function VaultShareModal({
       });
       const data = await res.json();
       if (!res.ok) {
-        setStatus(data.message || 'Could not add member');
+        setStatus(data.message || t('status.couldNotAddMember'));
         return;
       }
       setQuery('');
       setSelected(null);
       setPickerOpen(false);
-      setStatus(`Granted ${role} to ${user.username}`);
+      setStatus(t('status.grantedRoleToUser', { role, username: user.username }));
       await load();
     } finally {
       setBusy(false);
@@ -162,7 +162,7 @@ export default function VaultShareModal({
         body: JSON.stringify({ role: next }),
       });
       const data = await res.json();
-      if (!res.ok) setStatus(data.message || 'Update failed');
+      if (!res.ok) setStatus(data.message || t('status.updateFailed'));
       else await load();
     } finally {
       setBusy(false);
@@ -177,7 +177,7 @@ export default function VaultShareModal({
         credentials: 'include',
       });
       const data = await res.json();
-      if (!res.ok) setStatus(data.message || 'Remove failed');
+      if (!res.ok) setStatus(data.message || t('status.removeFailed'));
       else await load();
     } finally {
       setBusy(false);
@@ -197,14 +197,14 @@ export default function VaultShareModal({
       });
       const data = await res.json();
       if (!res.ok) {
-        setStatus(data.message || 'Could not add all users');
+        setStatus(data.message || t('status.couldNotAddAllUsers'));
         return;
       }
       const d = data.data || {};
       setStatus(
-        `Added ${d.added ?? 0} user(s) as ${bulkRole}` +
+        t('status.addedUsersAsRole', { added: d.added ?? 0, role: bulkRole }) +
           (d.skippedAlreadyMember
-            ? ` · ${d.skippedAlreadyMember} already members`
+            ? t('status.alreadyMembersSuffix', { count: d.skippedAlreadyMember })
             : '')
       );
       await load();
@@ -224,8 +224,7 @@ export default function VaultShareModal({
     <div className="flex h-full min-h-0 flex-col">
       <div className="min-h-0 flex-1 space-y-4 overflow-auto p-5">
         <p className="text-sm text-[var(--muted)]">
-          {vaultName} — <strong className="font-medium text-[var(--text)]">Read</strong> = wiki only;{' '}
-          <strong className="font-medium text-[var(--text)]">Edit</strong> = vault + wiki.
+          {t('chrome.shareAccessHint', { name: vaultName })}
         </p>
 
         {loading && rows.length === 0 ? (
@@ -235,16 +234,16 @@ export default function VaultShareModal({
             <table className="w-full min-w-[28rem] text-left text-sm">
               <thead className="border-b border-[var(--border)] bg-[var(--panel)]/80 text-[var(--muted)]">
                 <tr>
-                  <th className="px-3 py-2 font-medium">Person</th>
-                  <th className="px-3 py-2 font-medium">Access</th>
-                  <th className="px-3 py-2 font-medium">Actions</th>
+                  <th className="px-3 py-2 font-medium">{t('chrome.person')}</th>
+                  <th className="px-3 py-2 font-medium">{t('chrome.access')}</th>
+                  <th className="px-3 py-2 font-medium">{t('chrome.actionsCol')}</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.length === 0 ? (
                   <tr>
                     <td colSpan={3} className="px-3 py-8 text-center text-[var(--muted)]">
-                      No people on this vault yet.
+                      {t('chrome.noPeopleOnVault')}
                     </td>
                   </tr>
                 ) : (

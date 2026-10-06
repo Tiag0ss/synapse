@@ -6,6 +6,7 @@ import {
   type LinkableVaultNotes,
   type NoteIndexEntry,
 } from '@/lib/renderMarkdown';
+import { synapseMarkdownUiFromT } from '@/lib/markdownUi';
 import type { FoldCard } from '@/lib/extractFoldCards';
 import { renderMermaidInRoot } from '@/lib/mermaidRender';
 import { handleMarkdownCodeCopyClick } from '@/lib/codeCopy';
@@ -53,10 +54,15 @@ function CardAnswer({
   onCreateCrossVaultNote?: (vaultId: number, title: string) => void;
   onExpandMermaid?: (svgHtml: string) => void;
 }) {
+  const { t } = useI18n();
   const rootRef = useRef<HTMLDivElement>(null);
+  const markdownUi = useMemo(() => synapseMarkdownUiFromT(t), [t]);
   const html = useMemo(
-    () => renderSynapseMarkdown(markdown, notes, linkableVaults, noteId ?? null),
-    [markdown, notes, linkableVaults, noteId]
+    () =>
+      renderSynapseMarkdown(markdown, notes, linkableVaults, noteId ?? null, {
+        ui: markdownUi,
+      }),
+    [markdown, notes, linkableVaults, noteId, markdownUi]
   );
 
   useLayoutEffect(() => {
@@ -166,7 +172,7 @@ function CardAnswer({
   ]);
 
   if (!markdown.trim()) {
-    return <p className="text-sm italic text-[var(--muted)]">No answer</p>;
+    return <p className="text-sm italic text-[var(--muted)]">{t('chrome.noAnswer')}</p>;
   }
 
   return (

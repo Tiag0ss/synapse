@@ -8,6 +8,7 @@ import ConfirmModal from '@/components/ConfirmModal';
 import { useI18n } from '@/lib/i18n/provider';
 import { applyNoteTemplateBody } from '@/lib/noteTemplates';
 import { renderSynapseMarkdown } from '@/lib/renderMarkdown';
+import { synapseMarkdownUiFromT } from '@/lib/markdownUi';
 
 type TemplateKind = 'system' | 'global' | 'user';
 type ShareStatus = 'private' | 'pending' | 'published';
@@ -60,7 +61,7 @@ export default function TemplatesPage() {
       const res = await fetch(`/api/templates${q}`, { credentials: 'include' });
       const json = await res.json();
       if (!res.ok) {
-        setError(json.message || 'Failed to load templates');
+        setError(json.message || t('status.failedToLoadTemplates'));
         return;
       }
       const list = (json.data || []) as Template[];
@@ -70,7 +71,7 @@ export default function TemplatesPage() {
         return list[0]?.id ?? null;
       });
     } catch {
-      setError('Failed to load templates');
+      setError(t('status.failedToLoadTemplates'));
     } finally {
       setLoading(false);
     }
@@ -132,11 +133,11 @@ export default function TemplatesPage() {
       });
       const json = await res.json();
       if (!res.ok) {
-        setError(json.message || 'Save failed');
+        setError(json.message || t('status.saveFailed'));
         return;
       }
       setEditing(false);
-      setStatus('Template saved');
+      setStatus(t('status.templateSaved'));
       await load();
     } finally {
       setBusy(false);
@@ -152,19 +153,19 @@ export default function TemplatesPage() {
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          label: 'My template',
-          description: 'Personal note template',
+          label: t('chrome.myTemplateLabel'),
+          description: t('chrome.myTemplateDescription'),
           bodyMarkdown: '# {{title}}\n\n',
           kind: 'user',
         }),
       });
       const json = await res.json();
       if (!res.ok) {
-        setError(json.message || 'Create failed');
+        setError(json.message || t('status.createFailed'));
         return;
       }
       setShowMineOnly(true);
-      setStatus('Created personal template');
+      setStatus(t('status.createdPersonalTemplate'));
       await load();
       setSelectedId(Number(json.data.id));
       setDraftLabel(json.data.label);
@@ -186,10 +187,10 @@ export default function TemplatesPage() {
       });
       const json = await res.json();
       if (!res.ok) {
-        setError(json.message || 'Share request failed');
+        setError(json.message || t('status.shareRequestFailed'));
         return;
       }
-      setStatus('Share requested — waiting for admin approval');
+      setStatus(t('status.shareRequestedPending'));
       await load();
     } finally {
       setBusy(false);
@@ -206,10 +207,10 @@ export default function TemplatesPage() {
       });
       const json = await res.json();
       if (!res.ok) {
-        setError(json.message || 'Withdraw failed');
+        setError(json.message || t('status.withdrawFailed'));
         return;
       }
-      setStatus('Template is private again');
+      setStatus(t('status.templatePrivateAgain'));
       await load();
     } finally {
       setBusy(false);
@@ -226,12 +227,12 @@ export default function TemplatesPage() {
       });
       const json = await res.json();
       if (!res.ok) {
-        setError(json.message || 'Delete failed');
+        setError(json.message || t('chrome.deleteFailed'));
         return;
       }
       setDeleteId(null);
       setEditing(false);
-      setStatus('Template deleted');
+      setStatus(t('status.templateDeleted'));
       await load();
     } finally {
       setBusy(false);
@@ -240,9 +241,11 @@ export default function TemplatesPage() {
 
   const previewHtml = useMemo(() => {
     const body = editing ? draftBody : selected?.bodyMarkdown || '';
-    if (!body) return '<p class="text-[var(--muted)]">No preview</p>';
-    return renderSynapseMarkdown(applyNoteTemplateBody(body, 'Note title'), []);
-  }, [editing, draftBody, selected]);
+    if (!body) return `<p class="text-[var(--muted)]">${t('chrome.noPreview')}</p>`;
+    return renderSynapseMarkdown(applyNoteTemplateBody(body, t('chrome.noteTitle')), [], [], null, {
+      ui: synapseMarkdownUiFromT(t),
+    });
+  }, [editing, draftBody, selected, t]);
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-10">
@@ -252,10 +255,7 @@ export default function TemplatesPage() {
             Synapse
           </p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">{t('chrome.templatesTitle')}</h1>
-          <p className="mt-1 text-sm text-[var(--muted)]">
-            Built-in and shared templates for everyone. Create your own and request admin approval to
-            share.
-          </p>
+          <p className="mt-1 text-sm text-[var(--muted)]">{t('profile.templatesHint')}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Link href="/" className="btn-ghost no-underline hover:no-underline">
@@ -302,7 +302,7 @@ export default function TemplatesPage() {
             {loading ? (
               <p className="px-2 py-3 text-xs text-[var(--muted)]">{t('common.loading')}</p>
             ) : filtered.length === 0 ? (
-              <p className="px-2 py-3 text-xs text-[var(--muted)]">No templates</p>
+              <p className="px-2 py-3 text-xs text-[var(--muted)]">{t('status.noTemplates')}</p>
             ) : (
               <ul className="space-y-1">
                 {filtered.map((t) => (
@@ -366,7 +366,7 @@ export default function TemplatesPage() {
                     disabled={busy}
                     onClick={() => void share()}
                   >
-                    Request share
+                    {t('chrome.requestShare')}
                   </button>
                 )}
                 {isOwner &&
@@ -377,7 +377,7 @@ export default function TemplatesPage() {
                       disabled={busy}
                       onClick={() => void withdraw()}
                     >
-                      Make private
+                      {t('chrome.makePrivate')}
                     </button>
                   )}
                 {canDelete && (
@@ -394,7 +394,7 @@ export default function TemplatesPage() {
               {editing ? (
                 <div className="space-y-3 overflow-y-auto p-4">
                   <label className="block text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
-                    Label
+                    {t('chrome.templateLabelField')}
                     <input
                       className="input mt-1 w-full"
                       value={draftLabel}
@@ -402,7 +402,7 @@ export default function TemplatesPage() {
                     />
                   </label>
                   <label className="block text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
-                    Description
+                    {t('chrome.templateDescriptionField')}
                     <input
                       className="input mt-1 w-full"
                       value={draftDescription}
@@ -410,7 +410,7 @@ export default function TemplatesPage() {
                     />
                   </label>
                   <label className="block text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
-                    Body (use {'{{title}}'} for the note title)
+                    {t('chrome.templateBodyField')}
                     <textarea
                       className="input mt-1 min-h-[16rem] w-full font-mono text-sm"
                       value={draftBody}
@@ -426,7 +426,7 @@ export default function TemplatesPage() {
               )}
             </>
           ) : (
-            <p className="p-6 text-sm text-[var(--muted)]">Select a template</p>
+            <p className="p-6 text-sm text-[var(--muted)]">{t('status.selectTemplate')}</p>
           )}
         </div>
       </div>

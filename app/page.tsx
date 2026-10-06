@@ -58,11 +58,11 @@ export default function HomePage() {
       case 'access':
         return t('home.roleShared');
       case 'authenticated':
-        return 'Signed-in users';
+        return t('chrome.signedInUsers');
       case 'private':
-        return 'Private';
+        return t('chrome.visPrivate');
       default:
-        return 'Public';
+        return t('chrome.visPublic');
     }
   };
 
@@ -117,7 +117,7 @@ export default function HomePage() {
         setWikis([]);
       }
     } catch {
-      setError('Failed to load');
+      setError(t('status.failedToLoad'));
     } finally {
       setLoading(false);
     }
@@ -163,7 +163,7 @@ export default function HomePage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.message || 'Failed to create vault');
+        setError(data.message || t('status.failedToCreateVault'));
         return;
       }
       setName('');
@@ -187,12 +187,12 @@ export default function HomePage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.message || 'Login failed');
+        setError(data.message || t('status.loginFailed'));
         return;
       }
       await load();
     } catch {
-      setError('Login failed');
+      setError(t('status.loginFailed'));
     } finally {
       setAuthBusy(false);
     }
@@ -214,12 +214,12 @@ export default function HomePage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.message || 'Registration failed');
+        setError(data.message || t('status.registrationFailed'));
         return;
       }
       await load();
     } catch {
-      setError('Registration failed');
+      setError(t('status.registrationFailed'));
     } finally {
       setAuthBusy(false);
     }
@@ -559,7 +559,7 @@ export default function HomePage() {
                 {filteredVaults.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)]/30 px-6 py-12 text-center">
                     <p className="text-sm text-[var(--muted)]">
-                      No vaults match “{vaultQuery.trim()}”.
+                      {t('home.noVaultsMatch', { query: vaultQuery.trim() })}
                     </p>
                     <button
                       type="button"
@@ -643,11 +643,10 @@ export default function HomePage() {
         ) : wikis.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)]/30 px-6 py-12 text-center">
             <p className="text-sm text-[var(--muted)]">
-              No wikis are visible yet. Enable the public wiki on a vault and publish notes, or open
-              the full directory.
+              {t('status.noWikisVisibleYet')}
             </p>
             <Link href="/w" className="btn-primary mt-4 inline-flex no-underline hover:no-underline">
-              Browse wikis
+              {t('home.browseWikis')}
             </Link>
           </div>
         ) : (
@@ -655,15 +654,20 @@ export default function HomePage() {
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">
                 {wikiQuery.trim()
-                  ? `${filteredWikis.length} of ${wikis.length} ${wikis.length === 1 ? 'wiki' : 'wikis'}`
-                  : `${wikis.length} ${wikis.length === 1 ? 'wiki' : 'wikis'}`}
+                  ? t('home.wikiCountOf', {
+                      filtered: filteredWikis.length,
+                      total: wikis.length,
+                    })
+                  : wikis.length === 1
+                    ? t('home.wikiCountOne', { count: wikis.length })
+                    : t('home.wikiCount', { count: wikis.length })}
               </h2>
               <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
                 <Link
                   href="/w"
                   className="btn-primary shrink-0 no-underline hover:no-underline"
                 >
-                  Browse all
+                  {t('home.browseAll')}
                 </Link>
                 <input
                   type="search"
@@ -677,13 +681,13 @@ export default function HomePage() {
             </div>
             {filteredWikis.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)]/30 px-6 py-12 text-center">
-                <p className="text-sm text-[var(--muted)]">No wikis match “{wikiQuery.trim()}”.</p>
+                <p className="text-sm text-[var(--muted)]">{t('status.noWikisMatch', { query: wikiQuery.trim() })}</p>
                 <button
                   type="button"
                   className="mt-3 text-sm text-[var(--accent-soft)] hover:underline"
                   onClick={() => setWikiQuery('')}
                 >
-                  Clear search
+                  {t('home.clearSearch')}
                 </button>
               </div>
             ) : (
@@ -719,7 +723,9 @@ export default function HomePage() {
                           /w/{w.slug}
                         </span>
                         <span className="rounded border border-[var(--border)] px-1.5 py-0.5 text-[10px] text-[var(--muted)]">
-                          {w.noteCount} note{w.noteCount === 1 ? '' : 's'}
+                          {w.noteCount === 1
+                            ? t('chrome.noteCountOne', { count: w.noteCount })
+                            : t('chrome.notesCount', { count: w.noteCount })}
                         </span>
                         <span
                           className={`rounded border border-[var(--border)] px-1.5 py-0.5 text-[10px] ${

@@ -1,0 +1,54 @@
+---
+description: Synapse UI i18n catalogs and locale rules
+globs: lib/i18n/**/*,app/**/*.{ts,tsx},components/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Synapse i18n
+
+## Locales
+
+| Code | Variant |
+|------|---------|
+| `en` | English (source / fallback) |
+| `pt` | European Portuguese (PT-PT), **pré-AO90** spelling |
+| `es` | Spanish (Spain) |
+| `fr` | French (France) |
+
+Do not invent additional locales.
+
+## Catalogs (`lib/i18n/`)
+
+| File | Contents |
+|------|----------|
+| `messages.ts` | Top-level namespaces (`nav`, `home`, `profile`, `authPages`, `common`) + wires catalogs |
+| `chromeCatalog.ts` | Vault chrome, toolbars, toasts already under `chrome.*` |
+| `settingsCatalog.ts` | Admin settings UI |
+| `legendCatalog.ts` | Markdown help legend |
+| `statusCatalog.ts` | Status / error / toast fallbacks under `status.*` |
+
+## Hard rule
+
+Never hardcode user-visible English in `app/**` or `components/**`. Add a key to the right catalog and translate **all four** locales (`en` / `pt` / `es` / `fr`). Prefer an existing exact `chrome.*` / `settings.*` key over duplicating into `status.*`.
+
+Use `useI18n().t('namespace.key', { var })` (client components). Interpolation uses `{name}` placeholders.
+
+## Portuguese (PT-PT pré-AO90)
+
+- Spelling: actual, actualizado, activo/activa, projecto, seleccionar/seleccionado, acção/acções, secção/secções, directo, objecto.
+- Do **not** hypercorrect words that already use ç: Ligações, Alterações, organizações, notificações.
+- Progressive: **A + infinitive** (A carregar…, A guardar…) — never BR gerunds (Carregando, Salvando).
+- Lexicon: utilizador, ficheiro, guardar, ecrã, palavra-passe, cofre, descarregar — never BR usuário/arquivo/salvar/tela/senha.
+
+## Spanish (Spain) / French (France)
+
+- ES: bóveda, papelera, contraseña, pulse/haga clic — not LatAm vault/computadora/celular.
+- FR: coffre, corbeille, mot de passe, vouvoiement — not Quebec courriel.
+
+## Product literals (keep in English)
+
+Myelin, Synapse, Markdown, ZIP, SSO, Wiki, Other (YAML category key), wikilink syntax (`[[…]]`, `![[…]]`).
+
+## Assistant replies
+
+Agents still reply to the user in **English**. i18n rules apply to product UI copy only.

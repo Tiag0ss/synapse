@@ -13,6 +13,13 @@ import {
   chromePt,
   type ChromeMessages,
 } from './chromeCatalog';
+import {
+  statusEn,
+  statusEs,
+  statusFr,
+  statusPt,
+  type StatusMessages,
+} from './statusCatalog';
 
 export type Messages = {
   brand: string;
@@ -72,6 +79,11 @@ export type Messages = {
     defaultWikiVisibility: string;
     wikiAudienceTitle: string;
     searchWikis: string;
+    browseAll: string;
+    wikiCount: string;
+    wikiCountOne: string;
+    wikiCountOf: string;
+    noVaultsMatch: string;
   };
   profile: {
     title: string;
@@ -90,6 +102,26 @@ export type Messages = {
     setPassword: string;
     currentPassword: string;
     templatesHint: string;
+    changePasswordHint: string;
+    linkedToMyelinSuffix: string;
+    ssoAccountTitle: string;
+    ssoAccountBody: string;
+    myelinUserId: string;
+    emailManagedBySso: string;
+    pmTokenHelp: string;
+    ssoStatusLabel: string;
+    connectionConnected: string;
+    connectionNotConnected: string;
+    personalTokenStatusLabel: string;
+    tokenConfiguredFallback: string;
+    tokenNotSet: string;
+    personalApiTokenField: string;
+    clearStoredToken: string;
+    autoAssignLabel: string;
+    autoAssignHelp: string;
+    autoAssignNoPmUser: string;
+    openAdminSettings: string;
+    setLocalPasswordHint: string;
   };
   authPages: {
     forgotTitle: string;
@@ -108,6 +140,7 @@ export type Messages = {
   };
   settings: SettingsMessages;
   chrome: ChromeMessages;
+  status: StatusMessages;
   common: {
     save: string;
     cancel: string;
@@ -123,6 +156,9 @@ export type Messages = {
     delete: string;
     create: string;
     optional: string;
+    matchInBody: string;
+    matchInTag: string;
+    matchInRecent: string;
     confirm: string;
   };
 };
@@ -186,6 +222,11 @@ const en: Messages = {
     defaultWikiVisibility: 'Default wiki visibility',
     wikiAudienceTitle: 'Wiki audience when public pages are enabled; also default for notes',
     searchWikis: 'Search wikis…',
+    browseAll: 'Browse all',
+    wikiCount: '{count} wikis',
+    wikiCountOne: '{count} wiki',
+    wikiCountOf: '{filtered} of {total} wikis',
+    noVaultsMatch: 'No vaults match “{query}”.',
   },
   profile: {
     title: 'My profile',
@@ -204,6 +245,26 @@ const en: Messages = {
     setPassword: 'Set password',
     currentPassword: 'Current password',
     templatesHint: 'Create personal templates and request admin approval to share them with everyone.',
+    changePasswordHint: 'Update the password used for username/email sign-in.',
+    linkedToMyelinSuffix: ' · linked to Myelin',
+    ssoAccountTitle: 'SSO account',
+    ssoAccountBody: 'Your email comes from Myelin and cannot be changed here. Username may be refreshed on the next SSO sign-in. You can still set a local password to sign in without SSO.',
+    myelinUserId: 'Myelin user #{id}',
+    emailManagedBySso: 'Managed by Myelin SSO',
+    pmTokenHelp: 'Personal pt_… token from Project Management → Administration → API Tokens. Used for Myelin calls when you have no valid SSO session. Attribution and permissions follow this token.',
+    ssoStatusLabel: 'SSO:',
+    connectionConnected: 'connected',
+    connectionNotConnected: 'not connected',
+    personalTokenStatusLabel: 'Personal token:',
+    tokenConfiguredFallback: 'configured',
+    tokenNotSet: 'not set',
+    personalApiTokenField: 'Personal API token',
+    clearStoredToken: 'Clear stored personal token',
+    autoAssignLabel: 'Auto-assign me on create',
+    autoAssignHelp: 'When enabled, tasks created from Synapse are assigned to your linked Myelin user (SSO / Myelin user id). Off = leave Unassigned.',
+    autoAssignNoPmUser: 'No linked Myelin user id yet — reconnect SSO (or ask an admin to sync Myelin users) so assignment can resolve.',
+    openAdminSettings: 'Open admin settings',
+    setLocalPasswordHint: 'Optional local password so you can sign in without SSO.',
   },
   authPages: {
     forgotTitle: 'Forgot password',
@@ -223,6 +284,7 @@ const en: Messages = {
   },
   settings: settingsEn,
   chrome: chromeEn,
+  status: statusEn,
   common: {
     save: 'Save',
     cancel: 'Cancel',
@@ -238,6 +300,9 @@ const en: Messages = {
     delete: 'Delete',
     create: 'Create',
     optional: 'Optional',
+    matchInBody: ' · body',
+    matchInTag: ' · tag',
+    matchInRecent: ' · recent',
     confirm: 'Confirm',
   },
 };
@@ -281,7 +346,7 @@ const pt: Messages = {
     email: 'E-mail',
     signingIn: 'A iniciar sessão…',
     creating: 'A criar…',
-    forgotPassword: 'Esqueceu a palavra-passe?',
+    forgotPassword: 'Esqueceu-se da palavra-passe?',
     needAccount: 'Precisa de uma conta? Registar',
     haveAccount: 'Já tem conta? Iniciar sessão',
     or: 'ou',
@@ -301,6 +366,11 @@ const pt: Messages = {
     defaultWikiVisibility: 'Visibilidade wiki predefinida',
     wikiAudienceTitle: 'Audiência da wiki com páginas públicas; também predefinição das notas',
     searchWikis: 'Pesquisar wikis…',
+    browseAll: 'Explorar todas',
+    wikiCount: '{count} wikis',
+    wikiCountOne: '{count} wiki',
+    wikiCountOf: '{filtered} de {total} wikis',
+    noVaultsMatch: 'Nenhum cofre corresponde a “{query}”.',
   },
   profile: {
     title: 'O meu perfil',
@@ -317,12 +387,32 @@ const pt: Messages = {
     changePassword: 'Alterar palavra-passe',
     setLocalPassword: 'Definir palavra-passe local',
     setPassword: 'Definir palavra-passe',
-    currentPassword: 'Palavra-passe atual',
+    currentPassword: 'Palavra-passe actual',
     templatesHint:
       'Crie modelos pessoais e peça aprovação de administrador para os partilhar com todos.',
+    changePasswordHint: 'Actualize a palavra-passe usada no início de sessão com nome de utilizador/e-mail.',
+    linkedToMyelinSuffix: ' · associado ao Myelin',
+    ssoAccountTitle: 'Conta SSO',
+    ssoAccountBody: 'O seu e-mail vem do Myelin e não pode ser alterado aqui. O nome de utilizador pode actualizar-se no próximo início de sessão SSO. Pode ainda definir uma palavra-passe local para entrar sem SSO.',
+    myelinUserId: 'Utilizador Myelin #{id}',
+    emailManagedBySso: 'Gerido pelo SSO Myelin',
+    pmTokenHelp: 'Token pessoal pt_… de Project Management → Administração → Tokens API. Usado nas chamadas Myelin quando não tem sessão SSO válida. A atribuição e as permissões seguem este token.',
+    ssoStatusLabel: 'SSO:',
+    connectionConnected: 'ligado',
+    connectionNotConnected: 'não ligado',
+    personalTokenStatusLabel: 'Token pessoal:',
+    tokenConfiguredFallback: 'configurado',
+    tokenNotSet: 'não definido',
+    personalApiTokenField: 'Token API pessoal',
+    clearStoredToken: 'Limpar token pessoal guardado',
+    autoAssignLabel: 'Atribuir-me automaticamente ao criar',
+    autoAssignHelp: 'Quando activo, as tarefas criadas a partir do Synapse são atribuídas ao seu utilizador Myelin associado (SSO / id Myelin). Desligado = ficam Sem atribuição.',
+    autoAssignNoPmUser: 'Ainda sem id de utilizador Myelin associado — volte a ligar o SSO (ou peça a um administrador para sincronizar utilizadores Myelin) para a atribuição funcionar.',
+    openAdminSettings: 'Abrir definições de administração',
+    setLocalPasswordHint: 'Palavra-passe local opcional para entrar sem SSO.',
   },
   authPages: {
-    forgotTitle: 'Esqueceu a palavra-passe',
+    forgotTitle: 'Esqueceu-se da palavra-passe',
     forgotHint:
       'Introduza o e-mail da conta. Se existir e o e-mail estiver configurado, receberá uma ligação de reposição.',
     forgotSent: 'Se existir uma conta para esse e-mail, foi enviada uma ligação de reposição.',
@@ -334,11 +424,12 @@ const pt: Messages = {
     missingToken: 'Falta o token de reposição. Use a ligação do seu e-mail.',
     newPassword: 'Nova palavra-passe',
     confirmPassword: 'Confirmar palavra-passe',
-    updatePassword: 'Atualizar palavra-passe',
+    updatePassword: 'Actualizar palavra-passe',
     passwordsMismatch: 'As palavras-passe não coincidem',
   },
   settings: settingsPt,
   chrome: chromePt,
+  status: statusPt,
   common: {
     save: 'Guardar',
     cancel: 'Cancelar',
@@ -354,6 +445,9 @@ const pt: Messages = {
     delete: 'Eliminar',
     create: 'Criar',
     optional: 'Opcional',
+    matchInBody: ' · corpo',
+    matchInTag: ' · etiqueta',
+    matchInRecent: ' · recente',
     confirm: 'Confirmar',
   },
 };
@@ -417,6 +511,11 @@ const es: Messages = {
     defaultWikiVisibility: 'Visibilidad wiki predeterminada',
     wikiAudienceTitle: 'Audiencia de la wiki con páginas públicas; también predeterminado de notas',
     searchWikis: 'Buscar wikis…',
+    browseAll: 'Explorar todas',
+    wikiCount: '{count} wikis',
+    wikiCountOne: '{count} wiki',
+    wikiCountOf: '{filtered} de {total} wikis',
+    noVaultsMatch: 'Ninguna bóveda coincide con “{query}”.',
   },
   profile: {
     title: 'Mi perfil',
@@ -436,6 +535,26 @@ const es: Messages = {
     currentPassword: 'Contraseña actual',
     templatesHint:
       'Crea plantillas personales y pide aprobación de administrador para compartirlas con todos.',
+    changePasswordHint: 'Actualiza la contraseña usada para iniciar sesión con usuario/correo.',
+    linkedToMyelinSuffix: ' · vinculado a Myelin',
+    ssoAccountTitle: 'Cuenta SSO',
+    ssoAccountBody: 'Su correo proviene de Myelin y no se puede cambiar aquí. El usuario puede actualizarse en el próximo inicio de sesión SSO. Aún puede establecer una contraseña local para entrar sin SSO.',
+    myelinUserId: 'Usuario Myelin #{id}',
+    emailManagedBySso: 'Gestionado por el SSO Myelin',
+    pmTokenHelp: 'Token personal pt_… de Project Management → Administración → Tokens API. Se usa para llamadas Myelin sin sesión SSO válida. La atribución y los permisos siguen este token.',
+    ssoStatusLabel: 'SSO:',
+    connectionConnected: 'conectado',
+    connectionNotConnected: 'no conectado',
+    personalTokenStatusLabel: 'Token personal:',
+    tokenConfiguredFallback: 'configurado',
+    tokenNotSet: 'no definido',
+    personalApiTokenField: 'Token API personal',
+    clearStoredToken: 'Borrar token personal almacenado',
+    autoAssignLabel: 'Asignarme automáticamente al crear',
+    autoAssignHelp: 'Si está activo, las tareas creadas desde Synapse se asignan a su usuario Myelin vinculado (SSO / id Myelin). Desactivado = quedan Sin asignar.',
+    autoAssignNoPmUser: 'Aún no hay id de usuario Myelin vinculado — reconecte el SSO (o pida a un administrador que sincronice usuarios Myelin) para que la asignación funcione.',
+    openAdminSettings: 'Abrir ajustes de administración',
+    setLocalPasswordHint: 'Contraseña local opcional para iniciar sesión sin SSO.',
   },
   authPages: {
     forgotTitle: 'Olvidé la contraseña',
@@ -455,6 +574,7 @@ const es: Messages = {
   },
   settings: settingsEs,
   chrome: chromeEs,
+  status: statusEs,
   common: {
     save: 'Guardar',
     cancel: 'Cancelar',
@@ -470,6 +590,9 @@ const es: Messages = {
     delete: 'Eliminar',
     create: 'Crear',
     optional: 'Opcional',
+    matchInBody: ' · cuerpo',
+    matchInTag: ' · etiqueta',
+    matchInRecent: ' · reciente',
     confirm: 'Confirmar',
   },
 };
@@ -534,6 +657,11 @@ const fr: Messages = {
     defaultWikiVisibility: 'Visibilité wiki par défaut',
     wikiAudienceTitle: 'Audience du wiki lorsque les pages publiques sont activées ; défaut aussi pour les notes',
     searchWikis: 'Rechercher des wikis…',
+    browseAll: 'Tout parcourir',
+    wikiCount: '{count} wikis',
+    wikiCountOne: '{count} wiki',
+    wikiCountOf: '{filtered} sur {total} wikis',
+    noVaultsMatch: 'Aucun coffre ne correspond à « {query} ».',
   },
   profile: {
     title: 'Mon profil',
@@ -554,6 +682,26 @@ const fr: Messages = {
     currentPassword: 'Mot de passe actuel',
     templatesHint:
       'Créez des modèles personnels et demandez l’approbation admin pour les partager avec tous.',
+    changePasswordHint: 'Mettez à jour le mot de passe utilisé pour la connexion nom/e-mail.',
+    linkedToMyelinSuffix: ' · lié à Myelin',
+    ssoAccountTitle: 'Compte SSO',
+    ssoAccountBody: 'Votre e-mail provient de Myelin et ne peut pas être modifié ici. Le nom d’utilisateur peut être actualisé à la prochaine connexion SSO. Vous pouvez toujours définir un mot de passe local pour vous connecter sans SSO.',
+    myelinUserId: 'Utilisateur Myelin #{id}',
+    emailManagedBySso: 'Géré par le SSO Myelin',
+    pmTokenHelp: 'Jeton personnel pt_… depuis Project Management → Administration → Jetons API. Utilisé pour les appels Myelin sans session SSO valide. L’attribution et les droits suivent ce jeton.',
+    ssoStatusLabel: 'SSO :',
+    connectionConnected: 'connecté',
+    connectionNotConnected: 'non connecté',
+    personalTokenStatusLabel: 'Jeton personnel :',
+    tokenConfiguredFallback: 'configuré',
+    tokenNotSet: 'non défini',
+    personalApiTokenField: 'Jeton API personnel',
+    clearStoredToken: 'Effacer le jeton personnel enregistré',
+    autoAssignLabel: 'M’assigner automatiquement à la création',
+    autoAssignHelp: 'Lorsqu’il est activé, les tâches créées depuis Synapse sont assignées à votre utilisateur Myelin lié (SSO / id Myelin). Désactivé = laisser Non assigné.',
+    autoAssignNoPmUser: 'Pas encore d’id utilisateur Myelin lié — reconnectez le SSO (ou demandez à un admin de synchroniser les utilisateurs Myelin) pour que l’assignation fonctionne.',
+    openAdminSettings: 'Ouvrir les paramètres admin',
+    setLocalPasswordHint: 'Mot de passe local optionnel pour vous connecter sans SSO.',
   },
   authPages: {
     forgotTitle: 'Mot de passe oublié',
@@ -573,6 +721,7 @@ const fr: Messages = {
   },
   settings: settingsFr,
   chrome: chromeFr,
+  status: statusFr,
   common: {
     save: 'Enregistrer',
     cancel: 'Annuler',
@@ -588,6 +737,9 @@ const fr: Messages = {
     delete: 'Supprimer',
     create: 'Créer',
     optional: 'Facultatif',
+    matchInBody: ' · corps',
+    matchInTag: ' · tag',
+    matchInRecent: ' · récent',
     confirm: 'Confirmer',
   },
 };

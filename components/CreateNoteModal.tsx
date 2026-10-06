@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { applyNoteTemplateBody } from '@/lib/noteTemplates';
 import { renderSynapseMarkdown } from '@/lib/renderMarkdown';
+import { synapseMarkdownUiFromT } from '@/lib/markdownUi';
 import { useI18n } from '@/lib/i18n/provider';
 
 export type CatalogTemplate = {
@@ -56,9 +57,9 @@ function badgeFor(
     return { text: tr('chrome.shared'), className: 'border-emerald-500/40 text-emerald-300/90' };
   }
   if (tpl.shareStatus === 'pending') {
-    return { text: 'Pending', className: 'border-amber-500/40 text-amber-300/90' };
+    return { text: tr('chrome.pendingStatus'), className: 'border-amber-500/40 text-amber-300/90' };
   }
-  return { text: 'Mine', className: 'border-[var(--border-strong)] text-[var(--text)]' };
+  return { text: tr('chrome.mine'), className: 'border-[var(--border-strong)] text-[var(--text)]' };
 }
 
 export default function CreateNoteModal({
@@ -96,7 +97,7 @@ export default function CreateNoteModal({
         const res = await fetch('/api/templates', { credentials: 'include' });
         const data = await res.json();
         if (!res.ok) {
-          setError(data.message || 'Failed to load templates');
+          setError(data.message || t('status.failedToLoadTemplates'));
           setTemplates([]);
           setSelectedId(null);
           return;
@@ -106,7 +107,7 @@ export default function CreateNoteModal({
         const blank = list.find((t) => t.slug === 'blank') || list[0];
         setSelectedId(blank ? blank.id : null);
       } catch {
-        setError('Failed to load templates');
+        setError(t('status.failedToLoadTemplates'));
       } finally {
         setLoading(false);
       }
@@ -121,7 +122,7 @@ export default function CreateNoteModal({
         const res = await fetch('/api/templates', { credentials: 'include' });
         const data = await res.json();
         if (!res.ok) {
-          setError(data.message || 'Failed to load templates');
+          setError(data.message || t('status.failedToLoadTemplates'));
           return;
         }
         const list = (data.data || []) as CatalogTemplate[];
@@ -129,7 +130,7 @@ export default function CreateNoteModal({
         const blank = list.find((t) => t.slug === 'blank') || list[0];
         setSelectedId(blank ? blank.id : null);
       } catch {
-        setError('Failed to load templates');
+        setError(t('status.failedToLoadTemplates'));
       } finally {
         setLoading(false);
       }
@@ -154,9 +155,9 @@ export default function CreateNoteModal({
       return `<p class="text-[var(--muted)]">${t('chrome.blankCanvasPreview')}</p>`;
     }
     if (!selected) return `<p class="text-[var(--muted)]">${t('chrome.selectTemplatePreview')}</p>`;
-    const leaf = title.trim() || 'Note title';
+    const leaf = title.trim() || t('chrome.noteTitle');
     const md = applyNoteTemplateBody(selected.bodyMarkdown, leaf);
-    return renderSynapseMarkdown(md, []);
+    return renderSynapseMarkdown(md, [], [], null, { ui: synapseMarkdownUiFromT(t) });
   }, [selected, title, itemKind, t]);
 
   if (!open) return null;
@@ -197,13 +198,8 @@ export default function CreateNoteModal({
               </h2>
               <p className="mt-0.5 text-xs text-[var(--muted)]">
                 {itemKind === 'whiteboard'
-                  ? 'Name the board. Nested paths like meta/board are supported.'
-                  : (
-                    <>
-                      Pick a template, then set the title. Nested paths like{' '}
-                      <code className="text-[var(--accent-soft)]">meta/risks</code> are supported.
-                    </>
-                  )}
+                  ? t('chrome.createWhiteboardHint')
+                  : t('chrome.createNoteHint')}
               </p>
             </div>
             {itemKind === 'note' ? (

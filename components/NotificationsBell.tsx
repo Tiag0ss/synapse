@@ -81,7 +81,11 @@ export default function NotificationsBell({ dense = false }: { dense?: boolean }
         className={`relative inline-flex items-center justify-center rounded-full border border-[var(--border)] bg-[var(--panel)]/80 text-[var(--muted)] transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-2)] hover:text-[var(--text)] ${
           dense ? 'h-9 w-9' : 'h-10 w-10'
         }`}
-        aria-label={unreadCount ? `${unreadCount} unread notifications` : 'Notifications'}
+        aria-label={
+          unreadCount
+            ? t('chrome.unreadNotifications', { count: unreadCount })
+            : t('nav.notifications')
+        }
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >

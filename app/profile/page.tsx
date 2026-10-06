@@ -60,7 +60,7 @@ export default function ProfilePage() {
       setClearPmApiKey(false);
       setAutoAssignOnCreate(Boolean(p.pmIntegration?.autoAssignOnCreate));
     } catch {
-      setError('Failed to load profile');
+      setError(t('status.failedToLoadProfile'));
     } finally {
       setLoading(false);
     }
@@ -82,7 +82,7 @@ export default function ProfilePage() {
         body.email = email.trim();
       }
       if (!Object.keys(body).length) {
-        setError('No profile changes to save');
+        setError(t('status.noProfileChanges'));
         return;
       }
       const res = await fetch('/api/auth/me', {
@@ -93,10 +93,10 @@ export default function ProfilePage() {
       });
       const json = await res.json();
       if (!res.ok) {
-        setError(json.message || 'Save failed');
+        setError(json.message || t('status.saveFailed'));
         return;
       }
-      setStatus('Profile saved');
+      setStatus(t('status.profileSaved'));
       await load();
     } finally {
       setBusy(false);
@@ -119,13 +119,13 @@ export default function ProfilePage() {
       const json = await res.json();
       if (!res.ok) {
         setAutoAssignOnCreate(Boolean(profile.pmIntegration?.autoAssignOnCreate));
-        setError(json.message || 'Failed to save auto-assign preference');
+        setError(json.message || t('status.failedSaveAutoAssign'));
         return;
       }
       setStatus(
         next
-          ? 'New Myelin tasks will be assigned to you'
-          : 'New Myelin tasks stay unassigned'
+          ? t('status.autoAssignOn')
+          : t('status.autoAssignOff')
       );
       await load();
     } finally {
@@ -140,7 +140,7 @@ export default function ProfilePage() {
     setStatus('');
     try {
       if (!clearPmApiKey && !pmApiKey.trim()) {
-        setError('Enter a personal API token or check Clear');
+        setError(t('status.enterApiTokenOrClear'));
         return;
       }
       const res = await fetch('/api/auth/me', {
@@ -153,10 +153,10 @@ export default function ProfilePage() {
       });
       const json = await res.json();
       if (!res.ok) {
-        setError(json.message || 'Could not save API token');
+        setError(json.message || t('status.couldNotSaveApiToken'));
         return;
       }
-      setStatus(clearPmApiKey ? 'Personal API token cleared' : 'Personal API token saved');
+      setStatus(clearPmApiKey ? t('status.apiTokenCleared') : t('status.apiTokenSaved'));
       await load();
     } finally {
       setBusy(false);
@@ -174,10 +174,10 @@ export default function ProfilePage() {
       });
       const json = await res.json();
       if (!res.ok) {
-        setError(json.message || 'Connection test failed');
+        setError(json.message || t('status.connectionTestFailed'));
         return;
       }
-      setStatus(json.message || 'Connected');
+      setStatus(json.message || t('status.connected'));
     } finally {
       setBusy(false);
     }
@@ -190,17 +190,17 @@ export default function ProfilePage() {
     setStatus('');
     try {
       if (!newPassword) {
-        setError('Enter a new password');
+        setError(t('status.enterNewPassword'));
         return;
       }
       if (newPassword !== confirmPassword) {
-        setError('New passwords do not match');
+        setError(t('status.passwordsDoNotMatch'));
         return;
       }
       const body: Record<string, string> = { newPassword };
       if (profile.hasPassword) {
         if (!currentPassword) {
-          setError('Current password is required');
+          setError(t('status.currentPasswordRequired'));
           return;
         }
         body.currentPassword = currentPassword;
@@ -213,13 +213,13 @@ export default function ProfilePage() {
       });
       const json = await res.json();
       if (!res.ok) {
-        setError(json.message || 'Password update failed');
+        setError(json.message || t('status.passwordUpdateFailed'));
         return;
       }
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-      setStatus(profile.hasPassword ? 'Password updated' : 'Local password set');
+      setStatus(profile.hasPassword ? t('status.passwordUpdated') : t('status.localPasswordSet'));
       await load();
     } finally {
       setBusy(false);
@@ -254,7 +254,7 @@ export default function ProfilePage() {
             <h1 className="text-2xl font-semibold tracking-tight text-[var(--text)]">{t('profile.title')}</h1>
             <p className="mt-0.5 text-sm text-[var(--muted)]">
               {t('profile.accountDetails')}
-              {sso ? ' · linked to Myelin' : ''}
+              {sso ? t('profile.linkedToMyelinSuffix') : ''}
             </p>
           </div>
         </div>
@@ -292,15 +292,11 @@ export default function ProfilePage() {
 
         {sso && (
           <div className="mt-6 rounded-xl border border-[color-mix(in_srgb,var(--accent)_30%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] px-4 py-3 text-sm text-[var(--muted)]">
-            <p className="font-medium text-[var(--accent-soft)]">SSO account</p>
-            <p className="mt-1 text-[13px] leading-relaxed">
-              Your email comes from Myelin and cannot be changed here. Username may be
-              refreshed on the next SSO sign-in. You can still set a local password to sign in
-              without SSO.
-            </p>
+            <p className="font-medium text-[var(--accent-soft)]">{t('profile.ssoAccountTitle')}</p>
+            <p className="mt-1 text-[13px] leading-relaxed">{t('profile.ssoAccountBody')}</p>
             {profile.pmUserId != null && (
               <p className="mt-2 font-mono text-[11px] text-[var(--muted)]">
-                Myelin user #{profile.pmUserId}
+                {t('profile.myelinUserId', { id: profile.pmUserId })}
               </p>
             )}
           </div>
@@ -329,7 +325,7 @@ export default function ProfilePage() {
             />
             {sso && (
               <span className="mt-1 block text-[11px] text-[var(--muted)]">
-                Managed by Myelin SSO
+                {t('profile.emailManagedBySso')}
               </span>
             )}
           </label>
@@ -346,28 +342,25 @@ export default function ProfilePage() {
         {profile.pmIntegration?.enabled !== false && (
           <section className="mt-6 space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--panel)]/70 p-5">
             <h2 className="text-sm font-semibold text-[var(--text)]">{t('profile.myelinApiToken')}</h2>
-            <p className="text-xs leading-relaxed text-[var(--muted)]">
-              Personal <code className="text-[var(--accent-soft)]">pt_…</code> token from Project
-              Management → Administration → API Tokens. Used for Myelin calls when you have no
-              valid SSO session. Attribution and permissions follow this token.
-            </p>
+            <p className="text-xs leading-relaxed text-[var(--muted)]">{t('profile.pmTokenHelp')}</p>
             <div className="flex flex-wrap gap-3 text-[12px] text-[var(--muted)]">
               <span>
-                SSO:{' '}
+                {t('profile.ssoStatusLabel')}{' '}
                 {profile.pmIntegration?.ssoToken ? (
-                  <span className="text-[var(--accent-soft)]">connected</span>
+                  <span className="text-[var(--accent-soft)]">{t('profile.connectionConnected')}</span>
                 ) : (
-                  <span>not connected</span>
+                  <span>{t('profile.connectionNotConnected')}</span>
                 )}
               </span>
               <span>
-                Personal token:{' '}
+                {t('profile.personalTokenStatusLabel')}{' '}
                 {profile.pmIntegration?.personalApiKey.configured ? (
                   <span className="font-mono text-[var(--accent-soft)]">
-                    {profile.pmIntegration.personalApiKey.prefix || 'configured'}
+                    {profile.pmIntegration.personalApiKey.prefix ||
+                      t('profile.tokenConfiguredFallback')}
                   </span>
                 ) : (
-                  <span>not set</span>
+                  <span>{t('profile.tokenNotSet')}</span>
                 )}
               </span>
             </div>
@@ -376,11 +369,11 @@ export default function ProfilePage() {
                 href="/api/auth/sso/start"
                 className="inline-flex text-sm font-medium text-[var(--accent-soft)] no-underline hover:underline"
               >
-                Reconnect with Myelin SSO →
+                {t('chrome.reconnectSsoArrow')}
               </a>
             )}
             <label className="block text-sm">
-              Personal API token
+              {t('profile.personalApiTokenField')}
               <input
                 className="input mt-1 w-full"
                 type="password"
@@ -404,7 +397,7 @@ export default function ProfilePage() {
                   if (e.target.checked) setPmApiKey('');
                 }}
               />
-              Clear stored personal token
+              {t('profile.clearStoredToken')}
             </label>
             <label className="flex items-start gap-2 text-sm">
               <input
@@ -415,14 +408,12 @@ export default function ProfilePage() {
                 onChange={(e) => void saveAutoAssign(e.target.checked)}
               />
               <span>
-                <span className="text-[var(--text)]">Auto-assign me on create</span>
+                <span className="text-[var(--text)]">{t('profile.autoAssignLabel')}</span>
                 <span className="mt-0.5 block text-xs text-[var(--muted)]">
-                  When enabled, tasks created from Synapse are assigned to your linked Myelin
-                  user (SSO / Myelin user id). Off = leave Unassigned.
+                  {t('profile.autoAssignHelp')}
                   {profile.pmUserId == null ? (
                     <span className="mt-1 block text-amber-200/90">
-                      No linked Myelin user id yet — reconnect SSO (or ask an admin to sync Myelin
-                      users) so assignment can resolve.
+                      {t('profile.autoAssignNoPmUser')}
                     </span>
                   ) : null}
                 </span>
@@ -455,8 +446,8 @@ export default function ProfilePage() {
           </h2>
           <p className="text-xs text-[var(--muted)]">
             {profile.hasPassword
-              ? 'Update the password used for username/email sign-in.'
-              : 'Optional local password so you can sign in without SSO.'}
+              ? t('profile.changePasswordHint')
+              : t('profile.setLocalPasswordHint')}
           </p>
           {profile.hasPassword && (
             <label className="block text-sm">
@@ -514,7 +505,7 @@ export default function ProfilePage() {
         {profile.isAdmin && (
           <p className="mt-6 text-center text-sm text-[var(--muted)]">
             <Link href="/settings" className="text-[var(--accent-soft)]">
-              Open admin settings
+              {t('profile.openAdminSettings')}
             </Link>
           </p>
         )}

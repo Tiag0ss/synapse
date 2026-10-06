@@ -16,6 +16,7 @@ import {
   UNCATEGORIZED_ESTIMATE_TASK,
   type TaskEstimateMeta,
 } from './taskEstimate';
+import { resolveMarkdownUi, type SynapseMarkdownUi } from './markdownUi';
 
 export type FrontmatterData = Record<string, unknown>;
 
@@ -154,7 +155,8 @@ function objectKeyOrder(obj: Record<string, unknown>): string[] {
 function renderNoteLinkHtml(
   raw: unknown,
   notes: NoteResolveEntry[],
-  linkableVaults: LinkableVaultNotes[] = []
+  linkableVaults: LinkableVaultNotes[] = [],
+  ui: ReturnType<typeof resolveMarkdownUi> = resolveMarkdownUi()
 ): string {
   const target = normalizeFrontmatterTodoNoteTarget(raw);
   if (!target) return '';
@@ -167,9 +169,9 @@ function renderNoteLinkHtml(
     const r = resolveCrossVaultWikilink(target, linkableVaults);
     if (r.status === 'locked') {
       return (
-        `<span class="synapse-wikilink is-locked" title="You don't have access to this note" aria-label="${escapeAttr(r.label)} (no access)">` +
+        `<span class="synapse-wikilink is-locked" title="${escapeAttr(ui.noAccessTitle)}" aria-label="${escapeAttr(r.label)} (${escapeAttr(ui.noAccess)})">` +
         `${escapeHtml(r.label)}` +
-        `<span class="synapse-wikilink-lock" aria-hidden="true">no access</span>` +
+        `<span class="synapse-wikilink-lock" aria-hidden="true">${escapeHtml(ui.noAccess)}</span>` +
         `</span>`
       );
     }
@@ -190,11 +192,12 @@ function renderNoteLinkHtml(
 function renderRelatedHtml(
   value: unknown,
   notes: NoteResolveEntry[],
-  linkableVaults: LinkableVaultNotes[]
+  linkableVaults: LinkableVaultNotes[],
+  ui: ReturnType<typeof resolveMarkdownUi>
 ): string {
   const items = Array.isArray(value) ? value : [value];
   const links = items
-    .map((item) => renderNoteLinkHtml(item, notes, linkableVaults))
+    .map((item) => renderNoteLinkHtml(item, notes, linkableVaults, ui))
     .filter(Boolean);
   if (!links.length) return `<span class="synapse-fm-empty">[]</span>`;
   return `<div class="synapse-fm-list synapse-fm-related">${links
@@ -233,7 +236,8 @@ export function parseFrontmatterRelatedNotes(
 function renderObjectHtml(
   obj: Record<string, unknown>,
   notes: NoteResolveEntry[],
-  linkableVaults: LinkableVaultNotes[] = []
+  linkableVaults: LinkableVaultNotes[] = [],
+  ui: ReturnType<typeof resolveMarkdownUi> = resolveMarkdownUi()
 ): string {
   const rows = objectKeyOrder(obj)
     .map((key) => {
@@ -241,8 +245,8 @@ function renderObjectHtml(
       if (value === undefined || value === null || value === '') return '';
       const rendered =
         key === 'note'
-          ? renderNoteLinkHtml(value, notes, linkableVaults)
-          : renderValueHtml(value, notes, linkableVaults);
+          ? renderNoteLinkHtml(value, notes, linkableVaults, ui)
+          : renderValueHtml(value, notes, linkableVaults, ui);
       if (!rendered) return '';
       return (
         `<div class="synapse-fm-kv">` +
@@ -259,7 +263,8 @@ function renderObjectHtml(
 function renderValueHtml(
   value: unknown,
   notes: NoteResolveEntry[],
-  linkableVaults: LinkableVaultNotes[] = []
+  linkableVaults: LinkableVaultNotes[] = [],
+  ui: ReturnType<typeof resolveMarkdownUi> = resolveMarkdownUi()
 ): string {
   if (value == null) return '';
   if (typeof value === 'boolean' || typeof value === 'number') {
@@ -277,10 +282,10 @@ function renderValueHtml(
     const items = value
       .map((item) => {
         if (isPlainObject(item)) {
-          return `<div class="synapse-fm-item">${renderObjectHtml(item, notes, linkableVaults)}</div>`;
+          return `<div class="synapse-fm-item">${renderObjectHtml(item, notes, linkableVaults, ui)}</div>`;
         }
         if (Array.isArray(item)) {
-          return `<div class="synapse-fm-item">${renderValueHtml(item, notes, linkableVaults)}</div>`;
+          return `<div class="synapse-fm-item">${renderValueHtml(item, notes, linkableVaults, ui)}</div>`;
         }
         return `<div class="synapse-fm-item">${escapeHtml(String(item))}</div>`;
       })
@@ -288,7 +293,7 @@ function renderValueHtml(
     return `<div class="synapse-fm-list">${items}</div>`;
   }
 
-  if (isPlainObject(value)) return renderObjectHtml(value, notes, linkableVaults);
+  if (isPlainObject(value)) return renderObjectHtml(value, notes, linkableVaults, ui);
 
   try {
     return `<pre class="synapse-fm-json">${escapeHtml(JSON.stringify(value, null, 2))}</pre>`;
@@ -300,8 +305,10 @@ function renderValueHtml(
 export function renderFrontmatterHtml(
   data: FrontmatterData,
   notes: NoteResolveEntry[] = [],
-  linkableVaults: LinkableVaultNotes[] = []
+  linkableVaults: LinkableVaultNotes[] = [],
+  uiOpts?: SynapseMarkdownUi | null
 ): string {
+  const ui = resolveMarkdownUi(uiOpts);
   const entries = Object.entries(data || {}).filter(([, v]) => v !== undefined && v !== null && v !== '');
   if (!entries.length) return '';
 
@@ -309,8 +316,8 @@ export function renderFrontmatterHtml(
     .map(([key, value]) => {
       const rendered =
         key === 'related'
-          ? renderRelatedHtml(value, notes, linkableVaults)
-          : renderValueHtml(value, notes, linkableVaults);
+          ? renderRelatedHtml(value, notes, linkableVaults, ui)
+          : renderValueHtml(value, notes, linkableVaults, ui);
       return (
         `<div class="synapse-fm-row">` +
         `<span class="synapse-fm-key">${escapeHtml(key)}</span>` +

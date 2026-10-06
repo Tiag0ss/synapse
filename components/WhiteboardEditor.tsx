@@ -379,7 +379,7 @@ const WhiteboardEditor = forwardRef<WhiteboardEditorHandle, WhiteboardEditorProp
                 setLinkPickerOpen(true);
               }}
             >
-              Link to note…
+              {t('chrome.linkToNoteEllipsis')}
             </button>
             {linked ? (
               <>
@@ -388,7 +388,7 @@ const WhiteboardEditor = forwardRef<WhiteboardEditorHandle, WhiteboardEditorProp
                   className="btn-ghost py-1 text-xs"
                   onClick={() => onOpenNote(linked.noteId)}
                 >
-                  Open note
+                  {t('chrome.openNoteAction')}
                 </button>
                 <button
                   type="button"
@@ -398,18 +398,18 @@ const WhiteboardEditor = forwardRef<WhiteboardEditorHandle, WhiteboardEditorProp
                       linked.noteId,
                       linked.noteTitle ||
                         linkableNotes.find((n) => n.id === linked.noteId)?.title ||
-                        'Note'
+                        t('chrome.note')
                     )
                   }
                 >
-                  Preview
+                  {t('chrome.viewPreview')}
                 </button>
                 <button
                   type="button"
                   className="btn-ghost py-1 text-xs"
                   onClick={unlinkSelection}
                 >
-                  Unlink
+                  {t('chrome.unlink')}
                 </button>
               </>
             ) : null}
@@ -422,7 +422,7 @@ const WhiteboardEditor = forwardRef<WhiteboardEditorHandle, WhiteboardEditorProp
                   onCreateNoteFromText(createPrefill, primary.id);
                 }}
               >
-                Create note…
+                {t('chrome.createNoteEllipsis')}
               </button>
             ) : null}
           </div>
@@ -448,7 +448,7 @@ const WhiteboardEditor = forwardRef<WhiteboardEditorHandle, WhiteboardEditorProp
               className="flex max-h-[min(70vh,420px)] w-full max-w-md flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-2xl"
             >
               <div className="border-b border-[var(--border)] px-4 py-3">
-                <h3 className="text-sm font-semibold text-[var(--text)]">Link to note</h3>
+                <h3 className="text-sm font-semibold text-[var(--text)]">{t('chrome.linkToNote')}</h3>
                 <input
                   autoFocus
                   className="input mt-2 w-full text-sm"
@@ -460,7 +460,7 @@ const WhiteboardEditor = forwardRef<WhiteboardEditorHandle, WhiteboardEditorProp
               </div>
               <ul className="min-h-0 flex-1 overflow-y-auto p-2">
                 {filteredLinkNotes.length === 0 ? (
-                  <li className="px-2 py-3 text-xs text-[var(--muted)]">No notes found</li>
+                  <li className="px-2 py-3 text-xs text-[var(--muted)]">{t('chrome.noNotesFound')}</li>
                 ) : (
                   filteredLinkNotes.map((n) => (
                     <li key={n.id}>
@@ -473,7 +473,7 @@ const WhiteboardEditor = forwardRef<WhiteboardEditorHandle, WhiteboardEditorProp
                           {n.title}
                           {(n.kind || 'note') === 'whiteboard' ? (
                             <span className="ml-1.5 text-[10px] font-normal uppercase text-[var(--muted)]">
-                              Board
+                              {t('chrome.linkKindBoard')}
                             </span>
                           ) : null}
                         </span>
@@ -496,14 +496,14 @@ const WhiteboardEditor = forwardRef<WhiteboardEditorHandle, WhiteboardEditorProp
                     onCreateNoteFromText(createPrefill, primary.id);
                   }}
                 >
-                  Create new…
+                  {t('chrome.createNewEllipsis')}
                 </button>
                 <button
                   type="button"
                   className="btn-ghost"
                   onClick={() => setLinkPickerOpen(false)}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
               </div>
             </div>

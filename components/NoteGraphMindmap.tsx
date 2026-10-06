@@ -692,8 +692,8 @@ export default function NoteGraphMindmap({
         style={{ height }}
       >
         {variant === 'focus' && focusId == null
-          ? 'Select a note to focus the mindmap'
-          : 'No linked notes yet'}
+          ? t('status.selectNoteFocusMindmap')
+          : t('status.noLinkedNotesYet')}
       </div>
     );
   }
@@ -753,11 +753,11 @@ export default function NoteGraphMindmap({
             </button>
           ) : useFolders ? (
             <span className="px-1.5 text-[var(--muted)]">
-              {folderCount} folders · {crossLinks} cross-folder links
+              {t('chrome.mindmapFolderStats', { folders: folderCount, links: crossLinks })}
             </span>
           ) : (
             <span className="px-1.5 text-[var(--muted)]">
-              {nodes.length} notes · {edges.length} links
+              {t('chrome.mindmapNoteStats', { notes: nodes.length, links: edges.length })}
             </span>
           )}
           <input
@@ -865,7 +865,11 @@ export default function NoteGraphMindmap({
                       strokeWidth={sw / Math.sqrt(zoom)}
                     />
                     <title>
-                      {folderLabel(e.fromKey)} ↔ {folderLabel(e.toKey)} · {e.count} links
+                      {t('chrome.mindmapFolderEdgeTitle', {
+                        from: folderLabel(e.fromKey),
+                        to: folderLabel(e.toKey),
+                        count: e.count,
+                      })}
                     </title>
                   </g>
                 );
@@ -904,8 +908,11 @@ export default function NoteGraphMindmap({
                   onPointerUp={(e) => onNodePointerUp(p.id, e)}
                 >
                   <title>
-                    {p.title} — {p.noteCount} notes · {p.linkCount || 0} links to other folders.
-                    Click to open.
+                    {t('chrome.mindmapFolderNodeTitle', {
+                      title: p.title,
+                      notes: p.noteCount || 0,
+                      links: p.linkCount || 0,
+                    })}
                   </title>
                   <circle r={r + 8} fill="rgba(20,184,166,0.12)" />
                   <circle r={r} fill="#132029" stroke="#5eead4" strokeWidth={2.5} />
@@ -966,9 +973,12 @@ export default function NoteGraphMindmap({
               >
                 <title>
                   {restricted
-                    ? `${p.title} — no access`
+                    ? t('chrome.mindmapNodeNoAccess', { title: p.title })
                     : external
-                      ? `${p.title} (${p.folderKey || 'other folder'})`
+                      ? t('chrome.mindmapOtherFolderTitle', {
+                          title: p.title,
+                          folder: p.folderKey || t('chrome.otherFolderFallback'),
+                        })
                       : p.title}
                 </title>
                 <circle
@@ -1007,28 +1017,30 @@ export default function NoteGraphMindmap({
             <>
               <span>{t('chrome.folderClusters')}</span>
               <span>
-                <span className="mr-1 inline-block h-0.5 w-3 bg-teal-300 align-middle" /> Cross-folder
-                links
+                <span className="mr-1 inline-block h-0.5 w-3 bg-teal-300 align-middle" />{' '}
+                {t('chrome.crossFolderLinks')}
               </span>
-              <span>Click a folder to open · drag background to pan</span>
+              <span>{t('chrome.mindmapFolderHint')}</span>
             </>
           ) : useFolders ? (
             <>
               <span>
-                <span className="mr-1 inline-block h-0.5 w-3 bg-teal-300 align-middle" /> Wikilink
+                <span className="mr-1 inline-block h-0.5 w-3 bg-teal-300 align-middle" />{' '}
+                {t('chrome.wikilink')}
               </span>
-              <span>Dashed = other folder · ← Folders to go back</span>
+              <span>{t('chrome.mindmapFolderBack')}</span>
             </>
           ) : (
             <>
               <span>
-                <span className="mr-1 inline-block h-0.5 w-3 bg-teal-300 align-middle" /> Wikilink
+                <span className="mr-1 inline-block h-0.5 w-3 bg-teal-300 align-middle" />{' '}
+                {t('chrome.wikilink')}
               </span>
               <span>
                 <span className="mr-1 inline-block h-0.5 w-3 border-t border-dashed border-sky-300 align-middle" />{' '}
-                Mention
+                {t('chrome.linkMentions')}
               </span>
-              <span>All-notes view · pan / zoom · click to open</span>
+              <span>{t('chrome.mindmapAllNotesHint')}</span>
             </>
           )}
         </div>

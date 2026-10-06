@@ -58,7 +58,7 @@ export default function SharedNotePage() {
     }
     if (!res.ok) {
       setPhase('error');
-      setError(data.message || 'Share not found');
+      setError(data.message || t('chrome.shareNotFound'));
       return;
     }
     const d = data.data || {};
@@ -99,12 +99,12 @@ export default function SharedNotePage() {
     }
     setPhase('content');
     setError('');
-  }, [token]);
+  }, [token, t]);
 
   useEffect(() => {
     if (!token) {
       setPhase('error');
-      setError('Share not found');
+      setError(t('chrome.shareNotFound'));
       return;
     }
     void (async () => {
@@ -114,7 +114,7 @@ export default function SharedNotePage() {
       const meta = await metaRes.json().catch(() => ({}));
       if (!metaRes.ok) {
         setPhase('error');
-        setError(meta.message || 'Share not found');
+        setError(meta.message || t('chrome.shareNotFound'));
         return;
       }
       const nextKind = String(meta.data?.kind || 'note') as ShareKind;
@@ -129,7 +129,7 @@ export default function SharedNotePage() {
         setPhase('password');
       }
     })();
-  }, [token, loadContent]);
+  }, [token, loadContent, t]);
 
   const afterShareWrite = useCallback((root: HTMLElement) => {
     void renderMermaidInRoot(root);
@@ -221,13 +221,13 @@ export default function SharedNotePage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data.message || 'Incorrect password');
+        setError(data.message || t('chrome.incorrectPassword'));
         return;
       }
       setPassword('');
       await loadContent();
     } catch {
-      setError('Network error');
+      setError(t('status.networkError'));
     } finally {
       setUnlockBusy(false);
     }
@@ -285,7 +285,7 @@ export default function SharedNotePage() {
             className="w-full max-w-sm rounded-xl border border-[var(--border)] bg-[var(--panel)] p-6 shadow-lg"
           >
             <h1 className="text-lg font-semibold tracking-tight">
-              {kind === 'flashcard' ? title || 'Shared flashcard' : noteLeafName(title) || 'Shared note'}
+              {kind === 'flashcard' ? title || t('chrome.sharedFlashcard') : noteLeafName(title) || t('chrome.sharedNote')}
             </h1>
             <p className="mt-1 text-sm text-[var(--muted)]">{t('chrome.enterPassword')}</p>
             <label className="mt-4 block text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
@@ -324,7 +324,7 @@ export default function SharedNotePage() {
             <div className="flex min-h-0 flex-1 items-start justify-center overflow-auto px-4 py-8 sm:px-8">
               <div className="w-full max-w-xl rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-6 shadow-lg">
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-                  Flashcard
+                  {t('chrome.flashcardLabel')}
                 </p>
                 <h2 className="mt-2 text-xl font-semibold tracking-tight text-[var(--text)]">
                   {flashcard.front}
@@ -335,12 +335,12 @@ export default function SharedNotePage() {
                     className="btn-primary mt-6 w-full"
                     onClick={() => setFlashRevealed(true)}
                   >
-                    Reveal answer
+                    {t('chrome.revealAnswer')}
                   </button>
                 ) : (
                   <div className="mt-5 border-t border-[var(--border)] pt-4">
                     <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-                      Answer
+                      {t('chrome.answerLabel')}
                     </p>
                     <div
                       ref={flashBackRef}
@@ -351,7 +351,7 @@ export default function SharedNotePage() {
                       className="btn-ghost mt-4 text-xs"
                       onClick={() => setFlashRevealed(false)}
                     >
-                      Hide answer
+                      {t('chrome.hideAnswer')}
                     </button>
                   </div>
                 )}

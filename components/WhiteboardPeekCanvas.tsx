@@ -7,6 +7,7 @@ import type {
   ExcalidrawInitialDataState,
 } from '@excalidraw/excalidraw/types';
 import { parseSynapseNoteLink, SYNAPSE_BOARD_BG } from '@/lib/whiteboardLinks';
+import { useI18n } from '@/lib/i18n/provider';
 
 import '@excalidraw/excalidraw/index.css';
 
@@ -20,15 +21,20 @@ if (typeof window !== 'undefined') {
   window.EXCALIDRAW_ASSET_PATH = '/excalidraw/';
 }
 
+function BoardLoading() {
+  const { t } = useI18n();
+  return (
+    <div className="flex h-full min-h-[220px] items-center justify-center text-sm text-[var(--muted)]">
+      {t('chrome.loadingBoard')}
+    </div>
+  );
+}
+
 const Excalidraw = dynamic(
   async () => (await import('@excalidraw/excalidraw')).Excalidraw,
   {
     ssr: false,
-    loading: () => (
-      <div className="flex h-full min-h-[220px] items-center justify-center text-sm text-[var(--muted)]">
-        Loading board…
-      </div>
-    ),
+    loading: () => <BoardLoading />,
   }
 );
 

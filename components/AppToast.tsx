@@ -64,18 +64,23 @@ export default function AppToast({
     const text = String(message || '').trim();
     if (!text) return;
     // Skip ephemeral save chrome that already lives in the header pill
-    if (text === 'Saving…' || text === 'Autosaving…' || text === 'Autosaved' || text === 'Saved') {
+    if (
+      text === t('chrome.saving') ||
+      text === t('status.autosaving') ||
+      text === t('status.autosaved') ||
+      text === t('status.saved') ||
+      text === t('chrome.unsavedTitle')
+    ) {
       return;
     }
-    if (text === 'Unsaved changes') return;
 
     const id = Date.now();
     setToast({ id, message: text, tone: tone || inferTone(text) });
-    const t = window.setTimeout(() => {
+    const timer = window.setTimeout(() => {
       setToast((cur) => (cur?.id === id ? null : cur));
     }, durationMs);
-    return () => window.clearTimeout(t);
-  }, [message, nonce, tone, durationMs]);
+    return () => window.clearTimeout(timer);
+  }, [message, nonce, tone, durationMs, t]);
 
   if (!toast) return null;
 

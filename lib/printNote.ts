@@ -3,6 +3,11 @@ import {
   type LinkableVaultNotes,
   type NoteIndexEntry,
 } from '@/lib/renderMarkdown';
+import {
+  formatMarkdownUi,
+  resolveMarkdownUi,
+  type SynapseMarkdownUi,
+} from '@/lib/markdownUi';
 import { noteLeafName } from '@/lib/notePaths';
 import { renderMermaidInRoot } from '@/lib/mermaidRender';
 import { fetchVaultBoardJson } from '@/lib/hydrateBoardEmbeds';
@@ -252,7 +257,8 @@ async function boardSceneToSvgOuterHtml(scene: BoardScene): Promise<string> {
 /** Replace live Excalidraw embeds with static SVG snapshots for print. */
 async function hydratePrintBoardEmbeds(
   root: HTMLElement,
-  defaultVaultId: number | null
+  defaultVaultId: number | null,
+  ui: ReturnType<typeof resolveMarkdownUi>
 ): Promise<void> {
   const embeds = Array.from(root.querySelectorAll<HTMLElement>('.synapse-board-embed'));
   if (!embeds.length) return;
@@ -262,7 +268,9 @@ async function hydratePrintBoardEmbeds(
       const noteId = Number(el.dataset.noteId || 0);
       const vaultIdRaw = Number(el.dataset.vaultId || 0);
       const vaultId = vaultIdRaw > 0 ? vaultIdRaw : defaultVaultId;
-      const title = String(el.dataset.displayTitle || el.dataset.noteTitle || 'Whiteboard');
+      const title = String(
+        el.dataset.displayTitle || el.dataset.noteTitle || ui.whiteboardLabel
+      );
       const missing =
         el.classList.contains('is-missing') || el.dataset.missing === '1' || !noteId || !vaultId;
 
@@ -272,7 +280,7 @@ async function hydratePrintBoardEmbeds(
 
       if (missing) {
         frame.classList.add('is-missing');
-        frame.textContent = `Whiteboard not found: ${title}`;
+        frame.textContent = `${ui.whiteboardNotFound}: ${title}`;
         el.replaceWith(frame);
         return;
       }
@@ -282,7 +290,7 @@ async function hydratePrintBoardEmbeds(
         const scene = parseBoardScene(boardJson);
         if (!scene) {
           frame.classList.add('is-error');
-          frame.textContent = `Could not load whiteboard: ${title}`;
+          frame.textContent = formatMarkdownUi(ui.couldNotLoadWhiteboard, { title });
           el.replaceWith(frame);
           return;
         }
@@ -298,7 +306,7 @@ async function hydratePrintBoardEmbeds(
         el.replaceWith(frame);
       } catch {
         frame.classList.add('is-error');
-        frame.textContent = `Could not load whiteboard: ${title}`;
+        frame.textContent = formatMarkdownUi(ui.couldNotLoadWhiteboard, { title });
         el.replaceWith(frame);
       }
     })
@@ -354,6 +362,8 @@ export async function printNoteDocument(params: {
   linkableVaults?: LinkableVaultNotes[];
   noteId?: number | null;
   vaultId?: string | number | null;
+  /** Localized board / locked-link chrome (defaults to English). */
+  ui?: SynapseMarkdownUi;
   /** Window opened via {@link openPrintWindow} in the same user gesture. */
   printWindow: Window;
 }): Promise<void> {
@@ -362,13 +372,14 @@ export async function printNoteDocument(params: {
     throw new Error('Print window was closed before export finished');
   }
 
+  const ui = resolveMarkdownUi(params.ui);
   const leaf = noteLeafName(params.title || 'Note');
   const bodyHtml = renderSynapseMarkdown(
     params.bodyMarkdown || '',
     params.notes || [],
     params.linkableVaults || [],
     params.noteId ?? null,
-    { wikilinks: true }
+    { wikilinks: true, ui }
   );
 
   const baseHref = `${window.location.origin}/`;
@@ -414,7 +425,7 @@ export async function printNoteDocument(params: {
   const vaultNum = Number(params.vaultId);
   const defaultVaultId = Number.isFinite(vaultNum) && vaultNum > 0 ? vaultNum : null;
   try {
-    await hydratePrintBoardEmbeds(bodyEl, defaultVaultId);
+    await hydratePrintBoardEmbeds(bodyEl, defaultVaultId, ui);
   } catch {
     // Continue without boards if export fails.
   }

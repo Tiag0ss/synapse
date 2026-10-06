@@ -122,14 +122,14 @@ export default function PublicWikiPage() {
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
           setWikiFoldCards([]);
-          setError(data.message || 'Failed to load flashcards');
+          setError(data.message || t('status.failedToLoadFlashcards'));
           return;
         }
         setError('');
         setWikiFoldCards(Array.isArray(data.data?.cards) ? data.data.cards : []);
       } catch {
         setWikiFoldCards([]);
-        setError('Failed to load flashcards');
+        setError(t('status.failedToLoadFlashcards'));
       } finally {
         setFlashcardsLoading(false);
       }
@@ -143,9 +143,9 @@ export default function PublicWikiPage() {
       const data = await res.json();
       if (!res.ok) {
         if (res.status === 401 || data.requiresAuth) {
-          setError('This note requires sign-in. Sign in with Myelin, then reload.');
+          setError(t('status.noteRequiresSignIn'));
         } else {
-          setError(data.message || 'Note unavailable');
+          setError(data.message || t('status.noteUnavailable'));
         }
         return;
       }
@@ -203,7 +203,7 @@ export default function PublicWikiPage() {
       const res = await fetch(`/api/public/${slug}`, { credentials: 'include' });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.message || 'Not found');
+        setError(data.message || t('status.notFound'));
         return;
       }
       setVaultName(data.data.vault.name);
@@ -479,7 +479,7 @@ export default function PublicWikiPage() {
               onClick={() => toggleFlashcards()}
               title={t('chrome.studyFlashcardsWiki')}
             >
-              {centerMode === 'flashcards' ? 'Notes' : 'Flashcards'}
+              {centerMode === 'flashcards' ? t('chrome.notes') : t('chrome.flashcards')}
             </button>
             <Link
               href="/w"
@@ -542,9 +542,13 @@ export default function PublicWikiPage() {
               onClick={() => toggleFlashcards()}
               title={t('chrome.studyFlashcardsWiki')}
             >
-              {centerMode === 'flashcards' ? 'Back to notes' : 'Flashcards'}
+              {centerMode === 'flashcards' ? t('chrome.backToNotes') : t('chrome.flashcards')}
             </button>
-            <span>{notes.length} notes</span>
+            <span>
+              {notes.length === 1
+                ? t('chrome.noteCountOne', { count: notes.length })
+                : t('chrome.notesCount', { count: notes.length })}
+            </span>
             <div className="border-l border-[var(--border)] pl-2">
               <AppUserMenu dense showSignInWhenGuest />
             </div>
@@ -601,7 +605,7 @@ export default function PublicWikiPage() {
             notes={filteredNotes}
             selectedId={activeId}
             onOpenNote={(id) => void openNote(id)}
-            emptyLabel={q.trim() ? 'No matching notes' : 'No public notes'}
+            emptyLabel={q.trim() ? t('chrome.noMatchingNotes') : t('chrome.noPublicNotes')}
           />
         </aside>
 
@@ -637,7 +641,7 @@ export default function PublicWikiPage() {
                   wikiSlug: next.wikiSlug || slug,
                 })
               }
-              emptyHint="No fold cards on visible wiki pages. Use :::fold- Question … ::: in a public (or authenticated) note."
+              emptyHint={t('chrome.foldCardsEmptyWiki')}
             />
           ) : (
             <>
@@ -656,7 +660,7 @@ export default function PublicWikiPage() {
                     className="btn-ghost lg:hidden"
                     onClick={() => setNotesOpen(true)}
                   >
-                    Browse notes
+                    {t('chrome.browseNotes')}
                   </button>
                 </div>
               )}
@@ -713,7 +717,7 @@ export default function PublicWikiPage() {
             <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
               {t('chrome.focusedMindmap')}
             </h2>
-            <p className="mt-0.5 text-[11px] text-[var(--muted)]">Current note + links</p>
+            <p className="mt-0.5 text-[11px] text-[var(--muted)]">{t('status.currentNoteLinks')}</p>
             <div className="mt-2">
               {graph ? (
                 <NoteGraphMindmap
@@ -740,10 +744,10 @@ export default function PublicWikiPage() {
                 {t('chrome.references')}
               </h2>
               <p className="mt-0.5 text-[11px] text-[var(--muted)]">
-                {isWhiteboard ? 'Notes linked from this board' : 'Links from this note'}
+                {isWhiteboard ? t('chrome.notesLinkedFromBoard') : t('chrome.linksFromThisNote')}
               </p>
               <div className="mt-2 space-y-1">
-                {references.length === 0 && <p className="text-[var(--muted)]">None</p>}
+                {references.length === 0 && <p className="text-[var(--muted)]">{t('chrome.none')}</p>}
                 {references.map((b) => (
                   <button
                     key={`ref-${b.Id}-${b.Kind}`}
@@ -766,7 +770,9 @@ export default function PublicWikiPage() {
               </h2>
               <p className="mt-0.5 text-[11px] text-[var(--muted)]">{t('chrome.backlinksHint')}</p>
               <div className="mt-2 space-y-1">
-                {backlinks.length === 0 && <p className="text-[var(--muted)]">None</p>}
+                {backlinks.length === 0 && (
+                  <p className="text-[var(--muted)]">{t('chrome.none')}</p>
+                )}
                 {backlinks.map((b) => (
                   <button
                     key={`bl-${b.Id}-${b.Kind}`}

@@ -17,21 +17,21 @@ interface PublicWikiItem {
   visibilityHint: 'public' | 'authenticated' | 'private' | 'access';
 }
 
-function hintLabel(hint: PublicWikiItem['visibilityHint']): string {
-  switch (hint) {
-    case 'access':
-      return 'Shared with you';
-    case 'authenticated':
-      return 'Signed-in users';
-    case 'private':
-      return 'Private';
-    default:
-      return 'Public';
-  }
-}
-
 export default function PublicWikisDirectoryPage() {
   const { t } = useI18n();
+
+  const hintLabel = (hint: PublicWikiItem['visibilityHint']): string => {
+    switch (hint) {
+      case 'access':
+        return t('home.roleShared');
+      case 'authenticated':
+        return t('chrome.signedInUsers');
+      case 'private':
+        return t('chrome.visPrivate');
+      default:
+        return t('chrome.visPublic');
+    }
+  };
   const [wikis, setWikis] = useState<PublicWikiItem[]>([]);
   const [authenticated, setAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -45,13 +45,13 @@ export default function PublicWikisDirectoryPage() {
         const res = await fetch('/api/public', { credentials: 'include' });
         const data = await res.json();
         if (!res.ok) {
-          setError(data.message || 'Failed to load wikis');
+          setError(data.message || t('status.failedToLoadWikis'));
           return;
         }
         setWikis(data.data?.wikis || []);
         setAuthenticated(Boolean(data.data?.authenticated));
       } catch {
-        setError('Network error');
+        setError(t('status.networkError'));
       } finally {
         setLoading(false);
       }
@@ -77,8 +77,7 @@ export default function PublicWikisDirectoryPage() {
           </p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">{t('chrome.publicWikis')}</h1>
           <p className="mt-2 max-w-xl text-sm text-[var(--muted)]">
-            Vaults with the public wiki enabled. What you see depends on note visibility: public for
-            everyone, authenticated for signed-in users, and full contents if you have vault access.
+            {t('chrome.publicWikisDirHint')}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -110,10 +109,10 @@ export default function PublicWikisDirectoryPage() {
       {!loading && !error && filtered.length === 0 && (
         <p className="rounded-xl border border-dashed border-[var(--border)] px-4 py-10 text-center text-sm text-[var(--muted)]">
           {q.trim()
-            ? 'No wikis match your filter.'
+            ? t('status.noWikisMatchFilter')
             : authenticated
-              ? 'No public wikis are visible yet. Enable the public wiki on a vault and publish notes.'
-              : 'No public wikis yet. Sign in to see authenticated wikis you can access.'}
+              ? t('chrome.noPublicWikisVisible')
+              : t('chrome.noPublicWikisSignIn')}
         </p>
       )}
 
@@ -132,7 +131,9 @@ export default function PublicWikisDirectoryPage() {
                 <span className="font-mono">/w/{w.slug}</span>
                 <span aria-hidden>·</span>
                 <span>
-                  {w.noteCount} note{w.noteCount === 1 ? '' : 's'}
+                  {w.noteCount === 1
+                    ? t('chrome.noteCountOne', { count: w.noteCount })
+                    : t('chrome.notesCount', { count: w.noteCount })}
                 </span>
                 <span aria-hidden>·</span>
                 <span

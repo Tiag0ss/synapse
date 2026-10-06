@@ -109,21 +109,21 @@ export default function VaultPmSettingsModal({
           }))
         );
         if (list.length === 0) {
-          setOrgError('No organizations returned for your Myelin account.');
+          setOrgError(t('status.noOrganizationsReturned'));
         }
       } else {
         setOrgs([]);
         setNeedsReauth(Boolean(orgJson.reauth) || orgRes.status === 401);
         const msg =
           orgJson.message ||
-          'Failed to load organizations — reconnect SSO or add a personal API token in Profile';
+          t('status.failedLoadOrganizations');
         setOrgError(msg);
         setStatus(msg);
       }
       const cbJson = await cbRes.json();
       if (cbRes.ok) setItems(cbJson.data?.items || []);
     } catch {
-      setOrgError('Network error while loading organizations');
+      setOrgError(t('status.networkErrorLoadingOrganizations'));
     } finally {
       setLoadingOrgs(false);
     }
@@ -156,7 +156,7 @@ export default function VaultPmSettingsModal({
         if (!res.ok) {
           setProjects([]);
           if (json.reauth || res.status === 401) setNeedsReauth(true);
-          setOrgError(json.message || 'Failed to load projects');
+          setOrgError(json.message || t('status.failedLoadProjects'));
           return;
         }
         const list = Array.isArray(json.data) ? json.data : [];
@@ -232,11 +232,11 @@ export default function VaultPmSettingsModal({
 
   const createProject = async () => {
     if (!orgId) {
-      setStatus('Pick an organization first');
+      setStatus(t('status.pickOrgFirst'));
       return;
     }
     setBusy(true);
-    setStatus('Creating project…');
+    setStatus(t('status.creatingProject'));
     try {
       const res = await fetch(`/api/vaults/${vaultId}/push-project`, {
         method: 'POST',
@@ -250,18 +250,18 @@ export default function VaultPmSettingsModal({
         const name = String(data.data.pmProjectName || vaultName || '').trim() || null;
         setLinkedProjectId(id);
         setLinkedProjectName(name);
-        setStatus(name ? `Linked Myelin project “${name}”` : `Linked Myelin project #${id}`);
+        setStatus(name ? t('status.linkedMyelinProjectName', { name }) : t('status.linkedMyelinProjectId', { id }));
         onChanged();
         await load();
       } else if (res.status === 409 && data.data?.pmProjectId) {
         setLinkedProjectId(Number(data.data.pmProjectId));
         const name = String(data.data.pmProjectName || '').trim();
         if (name) setLinkedProjectName(name);
-        setStatus('Already linked');
+        setStatus(t('status.alreadyLinked'));
         if (data.data.openUrl) window.open(data.data.openUrl, '_blank');
         onChanged();
       } else {
-        setStatus(data.message || 'Failed to create project');
+        setStatus(data.message || t('status.failedCreateProject'));
       }
     } finally {
       setBusy(false);
@@ -270,7 +270,7 @@ export default function VaultPmSettingsModal({
 
   const linkProject = async () => {
     if (!orgId || !linkProjectId) {
-      setStatus('Organization and project required');
+      setStatus(t('status.orgAndProjectRequired'));
       return;
     }
     setBusy(true);
@@ -288,11 +288,11 @@ export default function VaultPmSettingsModal({
           String(data.data.pmProjectName || selectedProjectName || '').trim() || null;
         setLinkedProjectId(id);
         setLinkedProjectName(name);
-        setStatus(name ? `Linked Myelin project “${name}”` : `Linked Myelin project #${id}`);
+        setStatus(name ? t('status.linkedMyelinProjectName', { name }) : t('status.linkedMyelinProjectId', { id }));
         onChanged();
         await load();
       } else {
-        setStatus(data.message || 'Link failed');
+        setStatus(data.message || t('status.linkFailed'));
       }
     } finally {
       setBusy(false);
@@ -306,7 +306,7 @@ export default function VaultPmSettingsModal({
         method: 'POST',
         credentials: 'include',
       });
-      setStatus(res.ok ? 'Project unlinked from vault' : 'Unlink failed');
+      setStatus(res.ok ? t('status.projectUnlinked') : t('status.unlinkFailed'));
       if (res.ok) {
         setLinkedProjectId(null);
         setLinkedProjectName(null);
@@ -320,11 +320,11 @@ export default function VaultPmSettingsModal({
 
   const pushCheckbox = async (item: VaultCheckboxItem) => {
     if (!linkedProjectId) {
-      setStatus('Link a Myelin project first');
+      setStatus(t('status.linkMyelinProjectFirst'));
       return;
     }
     setBusy(true);
-    setStatus('Creating task…');
+    setStatus(t('status.creatingTask'));
     try {
       const res = await fetch(`/api/vaults/${vaultId}/notes/${item.noteId}/checkboxes/push`, {
         method: 'POST',
@@ -336,8 +336,8 @@ export default function VaultPmSettingsModal({
       if (res.ok || (res.status === 409 && data.data?.pmTaskId)) {
         setStatus(
           data.data?.alreadyLinked
-            ? `Already linked as Myelin #${data.data.pmTaskId}`
-            : `Created Myelin task #${data.data.pmTaskId}`
+            ? t('status.alreadyLinkedAsMyelin', { id: data.data.pmTaskId })
+            : t('status.createdMyelinTask', { id: data.data.pmTaskId })
         );
         if (!data.data?.alreadyLinked && data.data?.openUrl) {
           window.open(data.data.openUrl, '_blank');
@@ -347,7 +347,7 @@ export default function VaultPmSettingsModal({
         await load();
       } else {
         if (data.reauth || res.status === 401) setNeedsReauth(true);
-        setStatus(data.message || 'Could not create task');
+        setStatus(data.message || t('status.couldNotCreateTask'));
       }
     } finally {
       setBusy(false);
@@ -356,11 +356,11 @@ export default function VaultPmSettingsModal({
 
   const linkCheckbox = async (item: VaultCheckboxItem, pmTaskId: number, pmProjectId: number) => {
     if (!linkedProjectId) {
-      setStatus('Link a Myelin project first');
+      setStatus(t('status.linkMyelinProjectFirst'));
       return;
     }
     setBusy(true);
-    setStatus('Linking task…');
+    setStatus(t('status.linkingTask'));
     try {
       const res = await fetch(`/api/vaults/${vaultId}/notes/${item.noteId}/checkboxes/link`, {
         method: 'POST',
@@ -370,13 +370,13 @@ export default function VaultPmSettingsModal({
       });
       const data = await res.json();
       if (res.ok) {
-        setStatus(`Linked to Myelin #${data.data?.pmTaskId ?? pmTaskId}`);
+        setStatus(t('status.linkedToMyelin', { id: data.data?.pmTaskId ?? pmTaskId }));
         setChooserItem(null);
         onChanged();
         await load();
       } else {
         if (data.reauth || res.status === 401) setNeedsReauth(true);
-        setStatus(data.message || 'Could not link task');
+        setStatus(data.message || t('status.couldNotLinkTask'));
       }
     } finally {
       setBusy(false);
@@ -386,7 +386,7 @@ export default function VaultPmSettingsModal({
   const unlinkCheckbox = async (item: VaultCheckboxItem) => {
     if (!item.pmTaskId) return;
     setBusy(true);
-    setStatus('Unlinking…');
+    setStatus(t('status.unlinking'));
     try {
       const res = await fetch(`/api/vaults/${vaultId}/notes/${item.noteId}/checkboxes/unlink`, {
         method: 'POST',
@@ -400,13 +400,13 @@ export default function VaultPmSettingsModal({
       });
       const data = await res.json();
       if (res.ok) {
-        setStatus(`Unlinked from Myelin #${data.data?.clearedPmTaskId ?? item.pmTaskId}`);
+        setStatus(t('status.unlinkedFromMyelin', { id: data.data?.clearedPmTaskId ?? item.pmTaskId }));
         setUnlinkItem(null);
         onChanged();
         await load();
       } else {
         if (data.reauth || res.status === 401) setNeedsReauth(true);
-        setStatus(data.message || 'Could not unlink task');
+        setStatus(data.message || t('status.couldNotUnlinkTask'));
       }
     } finally {
       setBusy(false);
@@ -415,12 +415,12 @@ export default function VaultPmSettingsModal({
 
   const pushAllMissing = async () => {
     if (!linkedProjectId) {
-      setStatus('Link a Myelin project first');
+      setStatus(t('status.linkMyelinProjectFirst'));
       return;
     }
     const missing = items.filter((i) => !i.pmTaskId).length;
     if (!missing) {
-      setStatus('No missing tasks — all checkboxes are already linked');
+      setStatus(t('status.noMissingTasks'));
       return;
     }
     setBusy(true);
@@ -431,9 +431,9 @@ export default function VaultPmSettingsModal({
       created: 0,
       failed: 0,
       skipped: 0,
-      label: `Preparing to create up to ${missing} task${missing === 1 ? '' : 's'}…`,
+      label: t('status.preparingCreateTasks', { count: missing }),
     });
-    setStatus(`Creating missing tasks…`);
+    setStatus(t('status.creatingMissingTasks'));
     try {
       const res = await fetch(`/api/vaults/${vaultId}/checkboxes/push-missing?stream=1`, {
         method: 'POST',
@@ -445,7 +445,7 @@ export default function VaultPmSettingsModal({
         const data = await res.json().catch(() => ({}));
         const payload = data as { message?: string; reauth?: boolean };
         if (payload.reauth || res.status === 401) setNeedsReauth(true);
-        setStatus(payload.message || 'Bulk create failed');
+        setStatus(payload.message || t('status.bulkCreateFailed'));
         setBulkProgress(null);
         return;
       }
@@ -501,12 +501,16 @@ export default function VaultPmSettingsModal({
           } else if (event.type === 'done') {
             const d = event.data || {};
             finalMessage =
-              `Created ${d.created || 0}, skipped ${d.skipped || 0}, failed ${d.failed || 0}` +
-              (d.errors?.length ? ` · ${d.errors.length} error(s)` : '');
+              t('status.bulkCreateSummary', {
+                created: d.created || 0,
+                skipped: d.skipped || 0,
+                failed: d.failed || 0,
+              }) +
+              (d.errors?.length ? t('status.bulkCreateErrorsSuffix', { count: d.errors.length }) : '');
             setStatus(finalMessage);
           } else if (event.type === 'error') {
             if (event.reauth) setNeedsReauth(true);
-            finalMessage = event.message || 'Bulk create failed';
+            finalMessage = event.message || t('status.bulkCreateFailed');
             setStatus(finalMessage);
           }
         }
@@ -523,12 +527,16 @@ export default function VaultPmSettingsModal({
           if (event.type === 'done') {
             const d = event.data || {};
             setStatus(
-              `Created ${d.created || 0}, skipped ${d.skipped || 0}, failed ${d.failed || 0}` +
-                (d.errors?.length ? ` · ${d.errors.length} error(s)` : '')
+              t('status.bulkCreateSummary', {
+                created: d.created || 0,
+                skipped: d.skipped || 0,
+                failed: d.failed || 0,
+              }) +
+                (d.errors?.length ? t('status.bulkCreateErrorsSuffix', { count: d.errors.length }) : '')
             );
           } else if (event.type === 'error') {
             if (event.reauth) setNeedsReauth(true);
-            setStatus(event.message || 'Bulk create failed');
+            setStatus(event.message || t('status.bulkCreateFailed'));
           }
         } catch {
           /* ignore trailing garbage */
@@ -538,7 +546,7 @@ export default function VaultPmSettingsModal({
       onChanged();
       await load();
     } catch {
-      setStatus('Network error during bulk create');
+      setStatus(t('status.networkErrorBulkCreate'));
     } finally {
       setBusy(false);
       setBulkProgress(null);
@@ -547,19 +555,19 @@ export default function VaultPmSettingsModal({
 
   const autoLinkByDescription = async () => {
     if (!linkedProjectId) {
-      setStatus('Link a Myelin project first');
+      setStatus(t('status.linkMyelinProjectFirst'));
       return;
     }
     if (!autoLinkNoteId) {
-      setStatus('Select a note first');
+      setStatus(t('status.selectNoteFirst'));
       return;
     }
     if (!autoLinkCandidates) {
-      setStatus('No unlinked checkboxes in that note');
+      setStatus(t('status.noUnlinkedCheckboxes'));
       return;
     }
     setBusy(true);
-    setStatus('Matching Myelin tasks by description…');
+    setStatus(t('status.matchingMyelinByDescription'));
     try {
       const res = await fetch(`/api/vaults/${vaultId}/checkboxes/auto-link`, {
         method: 'POST',
@@ -570,16 +578,21 @@ export default function VaultPmSettingsModal({
       const data = await res.json();
       if (!res.ok) {
         if (data.reauth || res.status === 401) setNeedsReauth(true);
-        setStatus(data.message || 'Auto-link failed');
+        setStatus(data.message || t('status.autoLinkFailed'));
         return;
       }
       const linked = Number(data.data?.linked?.length || 0);
       const unmatched = Number(data.data?.unmatched?.length || 0);
       const ambiguous = Number(data.data?.ambiguous?.length || 0);
       const failed = Number(data.data?.failed?.length || 0);
-      const failedPart = failed > 0 ? ` · ${failed} failed` : '';
+      const failedPart = failed > 0 ? t('status.failedCountSuffix', { count: failed }) : '';
       setStatus(
-        `Auto-linked ${linked} · ${unmatched} unmatched · ${ambiguous} ambiguous${failedPart} — use Link / create for the rest`
+        t('status.autoLinkDetailed', {
+          linked,
+          unmatched,
+          ambiguous,
+          failedPart,
+        })
       );
       onChanged();
       await load();
@@ -595,7 +608,7 @@ export default function VaultPmSettingsModal({
           <div>
             <h2 className="text-lg font-semibold tracking-tight">{t('chrome.vaultMyelin')}</h2>
             <p className="mt-1 text-sm text-[var(--muted)]">
-              Link one Myelin project to this vault, then create tasks from note checkboxes.
+              {t('chrome.vaultPmLinkHint')}
             </p>
           </div>
           <button type="button" className="btn-ghost" onClick={onClose}>
@@ -607,7 +620,7 @@ export default function VaultPmSettingsModal({
         <div className="min-h-0 flex-1 space-y-5 overflow-auto p-5">
           {embedded && (
             <p className="text-sm text-[var(--muted)]">
-              Link one Myelin project to this vault, then create tasks from note checkboxes.
+              {t('chrome.vaultPmLinkHint')}
             </p>
           )}
           <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)]/50 p-4">
@@ -615,15 +628,15 @@ export default function VaultPmSettingsModal({
             {linkedProjectId ? (
               <>
                 <p className="mt-2 text-sm text-[var(--muted)]">
-                  Linked to{' '}
+                  {t('chrome.linkedToPrefix')}{' '}
                   <a
                     className="text-[var(--accent-soft)]"
                     href={`${process.env.NEXT_PUBLIC_PM_BASE_URL || 'http://localhost:3000'}/projects/${linkedProjectId}`}
                     target="_blank"
                     rel="noreferrer"
-                    title={`Myelin project #${linkedProjectId}`}
+                    title={t('chrome.myelinProjectHashId', { id: linkedProjectId })}
                   >
-                    {linkedProjectName?.trim() || `Project #${linkedProjectId}`}
+                    {linkedProjectName?.trim() || t('chrome.projectHashId', { id: linkedProjectId })}
                   </a>
                   {linkedProjectName?.trim() ? (
                     <span className="text-[var(--muted)]"> #{linkedProjectId}</span>
