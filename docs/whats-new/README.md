@@ -2,9 +2,9 @@
 
 Static release notes shipped with the app (`changelog.json`). Served by `GET /api/whats-new`.
 
-## Source of truth: Git `V*` tags (+ package.json for the next release)
+## Source of truth: `package.json` version (not Git tags)
 
-Woodpecker builds Docker images from `V*` tags. Changelog entries after the hand-authored `1.0.0` are generated from commit subjects between tags.
+Woodpecker builds Docker images from `V*` tags **after** you bump `package.json`. Changelog entries after the hand-authored `1.0.0` are generated from commits between package.json version introductions (subjects + body bullet lines).
 
 Release sequence:
 
@@ -24,9 +24,9 @@ pnpm whats-new:generate -- --keep-curated
 Behaviour:
 
 - Does **not** overwrite the hand-authored `1.0.0` entry  
-- Rebuilds each tagged version `> 1.0.0` from `previousTag..thisTag` commit subjects  
-- If `package.json` version is **newer** than the latest `V*` tag, builds that entry from `latestTag..HEAD` (unreleased work for the next tag)  
-- Fetches tags from `origin` when possible (`git fetch --tags`)  
+- Rebuilds each version `> 1.0.0` from commits since the previous package.json version introduction  
+- If the working-tree `package.json` version is not committed yet, includes commits through `HEAD`  
+- Prefer `- ` bullets in the commit body (squash commits); otherwise uses the subject line  
 - After generate, curate titles/bullets in `changelog.json` as needed  
 
 The running app reads `package.json` `version` and this JSON. Users see entries with `since < version <= current` based on `Users.LastSeenAppVersion`.

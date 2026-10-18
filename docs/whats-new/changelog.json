@@ -5,11 +5,30 @@
       "date": "2026-09-01",
       "title": "Initial release",
       "items": [
-        "Vaults with notes, folders, wikilinks, and tags",
-        "Whiteboard notes with Excalidraw and ![[board]] embeds",
-        "Public wiki and password-protected note shares",
-        "Myelin SSO and checkbox task push/pull",
-        "Vault media, attachments, and markdown export"
+        "Markdown vaults with folder paths, note tree, and vault switcher",
+        "Editor with split/edit/preview, toolbar, autosave, and Ctrl/Cmd+S",
+        "Paste/drop images and file attachments with lightbox",
+        "Excalidraw whiteboards as first-class notes (maximize, peek, wiki, shares)",
+        "Inline board embeds with ![[Whiteboard]] (plain [[Whiteboard]] stays a link)",
+        "Search by title/path/body and Jump to note palette (Ctrl/Cmd+O)",
+        "Wikilinks (path + unique leaf), cross-vault [[@vault/note]], tags, and backlinks",
+        "Focused and full mindmaps; board→note links in References",
+        "Rich markdown: Mermaid, KaTeX, highlight, callouts, footnotes, and TOC",
+        "Note revision history with side-by-side restore",
+        "ZIP import/export with nested folders and images",
+        "Note templates (blank, meeting, risk, decision)",
+        "Trash with soft-delete and restore; leave shared / delete owned vaults",
+        "Checkbox → Myelin tasks (manual push/link; Synapse pulls closed/cancelled)",
+        "Password-protected temporary share links (/s/:token)",
+        "Send notes: copy or move to another vault from the Share modal",
+        "Public wiki (/w/:slug) with vault and per-note visibility",
+        "Wiki directory (/w) listing wikis you may open",
+        "Vault sharing: Read = wiki only; Edit = vault editor + wiki",
+        "Local username/password auth and optional Myelin SSO (linked by email)",
+        "Password reset via SMTP; admin settings for registration, SMTP, and users",
+        "Optional AI todo suggestions (Ollama or OpenAI) with review/merge before save",
+        "Myelin bridge: per-user SSO token or personal API key; manual vault→project link",
+        "Theme (light/dark/system + palettes) and UI languages pt/en/es/fr"
       ]
     },
     {
@@ -17,7 +36,26 @@
       "date": "2026-10-06",
       "title": "Update i18n implementation and UI localization across the application",
       "items": [
-        "Update i18n implementation and UI localization across the application"
+        "Introduced a new `synapse-i18n.mdc` file to define localization rules for UI strings in multiple languages (English, European Portuguese, Spanish, French)",
+        "Updated various components and pages to utilize i18n for user-visible strings, ensuring consistent language support throughout the application",
+        "Enhanced error messages and status notifications to leverage localization, improving user experience for non-English speakers",
+        "Refactored existing UI elements to follow the new i18n guidelines, including status messages, template labels, and modal content"
+      ]
+    },
+    {
+      "version": "1.1.0",
+      "date": "2026-10-18",
+      "title": "Implement session expiration handling and enhance task linking functi…",
+      "items": [
+        "Redirect to login when the session expires in the note editor",
+        "Ensure Myelin tasks modal correctly links to the Myelin project instead of localhost",
+        "Introduce a new `whats-new:generate` script for generating versioned changelogs",
+        "Improve task loading performance in the modal by implementing search debounce",
+        "Automatically fill the assignee field based on vault settings",
+        "Allow users to change the slug of the wiki",
+        "Enable exporting notes in static wiki format",
+        "Update various components to handle note conflicts and presence notifications",
+        "Enhance the UI for better user experience during task management and note editing"
       ]
     }
   ]
