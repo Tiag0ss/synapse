@@ -261,7 +261,8 @@ const en: Messages = {
     personalApiTokenField: 'Personal API token',
     clearStoredToken: 'Clear stored personal token',
     autoAssignLabel: 'Auto-assign me on create',
-    autoAssignHelp: 'When enabled, tasks created from Synapse are assigned to your linked Myelin user (SSO / Myelin user id). Off = leave Unassigned.',
+    autoAssignHelp:
+      'Fallback when a vault has no auto-assign setting of its own. Vault Myelin settings control assignment for tasks created from that vault (default off). When this profile option is on and no vault context applies, tasks are assigned to your linked Myelin user.',
     autoAssignNoPmUser: 'No linked Myelin user id yet — reconnect SSO (or ask an admin to sync Myelin users) so assignment can resolve.',
     openAdminSettings: 'Open admin settings',
     setLocalPasswordHint: 'Optional local password so you can sign in without SSO.',
@@ -406,7 +407,8 @@ const pt: Messages = {
     personalApiTokenField: 'Token API pessoal',
     clearStoredToken: 'Limpar token pessoal guardado',
     autoAssignLabel: 'Atribuir-me automaticamente ao criar',
-    autoAssignHelp: 'Quando activo, as tarefas criadas a partir do Synapse são atribuídas ao seu utilizador Myelin associado (SSO / id Myelin). Desligado = ficam Sem atribuição.',
+    autoAssignHelp:
+      'Reserva quando um cofre não tem a própria opção de auto-atribuição. As definições Myelin do cofre controlam a atribuição das tarefas criadas a partir desse cofre (desligado por defeito). Com esta opção de perfil activa e sem contexto de cofre, as tarefas são atribuídas ao seu utilizador Myelin associado.',
     autoAssignNoPmUser: 'Ainda sem id de utilizador Myelin associado — volte a ligar o SSO (ou peça a um administrador para sincronizar utilizadores Myelin) para a atribuição funcionar.',
     openAdminSettings: 'Abrir definições de administração',
     setLocalPasswordHint: 'Palavra-passe local opcional para entrar sem SSO.',
@@ -551,7 +553,8 @@ const es: Messages = {
     personalApiTokenField: 'Token API personal',
     clearStoredToken: 'Borrar token personal almacenado',
     autoAssignLabel: 'Asignarme automáticamente al crear',
-    autoAssignHelp: 'Si está activo, las tareas creadas desde Synapse se asignan a su usuario Myelin vinculado (SSO / id Myelin). Desactivado = quedan Sin asignar.',
+    autoAssignHelp:
+      'Reserva cuando una bóveda no tiene su propia opción de autoasignación. Los ajustes Myelin de la bóveda controlan la asignación de las tareas creadas desde esa bóveda (desactivado por defecto). Con esta opción de perfil activa y sin contexto de bóveda, las tareas se asignan a su usuario Myelin vinculado.',
     autoAssignNoPmUser: 'Aún no hay id de usuario Myelin vinculado — reconecte el SSO (o pida a un administrador que sincronice usuarios Myelin) para que la asignación funcione.',
     openAdminSettings: 'Abrir ajustes de administración',
     setLocalPasswordHint: 'Contraseña local opcional para iniciar sesión sin SSO.',
@@ -698,7 +701,8 @@ const fr: Messages = {
     personalApiTokenField: 'Jeton API personnel',
     clearStoredToken: 'Effacer le jeton personnel enregistré',
     autoAssignLabel: 'M’assigner automatiquement à la création',
-    autoAssignHelp: 'Lorsqu’il est activé, les tâches créées depuis Synapse sont assignées à votre utilisateur Myelin lié (SSO / id Myelin). Désactivé = laisser Non assigné.',
+    autoAssignHelp:
+      'Secours lorsqu’un coffre n’a pas sa propre option d’auto-assignation. Les réglages Myelin du coffre contrôlent l’assignation des tâches créées depuis ce coffre (désactivé par défaut). Avec cette option de profil activée et sans contexte de coffre, les tâches sont assignées à votre utilisateur Myelin lié.',
     autoAssignNoPmUser: 'Pas encore d’id utilisateur Myelin lié — reconnectez le SSO (ou demandez à un admin de synchroniser les utilisateurs Myelin) pour que l’assignation fonctionne.',
     openAdminSettings: 'Ouvrir les paramètres admin',
     setLocalPasswordHint: 'Mot de passe local optionnel pour vous connecter sans SSO.',

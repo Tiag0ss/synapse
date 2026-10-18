@@ -173,18 +173,37 @@ function taskCompletionRank(task: PmTaskSummary): number {
   return 2;
 }
 
+function sprintGroupKey(task: AssignedTask): string {
+  const name = String(task.SprintName || '').trim();
+  if (name) return name;
+  if (task.SprintId != null && Number(task.SprintId) > 0) return `Sprint #${task.SprintId}`;
+  return 'Backlog';
+}
+
 function buildTasksMarkdown(
   tasks: AssignedTask[],
   markerByTaskId: Map<number, string>
 ): { markdown: string; rows: Array<{ markerId: string; text: string; checked: number; pmTaskId: number; pmProjectId: number }> } {
-  const byProject = new Map<string, AssignedTask[]>();
+  /** Sprint → project → tasks */
+  const bySprint = new Map<string, Map<string, AssignedTask[]>>();
   for (const t of tasks) {
-    const key = t.projectName;
-    const list = byProject.get(key) || [];
+    const sprint = sprintGroupKey(t);
+    let byProject = bySprint.get(sprint);
+    if (!byProject) {
+      byProject = new Map();
+      bySprint.set(sprint, byProject);
+    }
+    const list = byProject.get(t.projectName) || [];
     list.push(t);
-    byProject.set(key, list);
+    byProject.set(t.projectName, list);
   }
-  const names = [...byProject.keys()].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+
+  const sprintNames = [...bySprint.keys()].sort((a, b) => {
+    if (a === 'Backlog') return 1;
+    if (b === 'Backlog') return -1;
+    return a.localeCompare(b, undefined, { sensitivity: 'base' });
+  });
+
   const parts: string[] = [];
   const rows: Array<{
     markerId: string;
@@ -193,31 +212,44 @@ function buildTasksMarkdown(
     pmTaskId: number;
     pmProjectId: number;
   }> = [];
-  for (const name of names) {
-    const list = (byProject.get(name) || []).sort((a, b) => {
-      const rankDiff = taskCompletionRank(a) - taskCompletionRank(b);
-      if (rankDiff !== 0) return rankDiff;
-      return sanitizeTaskLabel(String(a.TaskName || ''), a.Id).localeCompare(
-        sanitizeTaskLabel(String(b.TaskName || ''), b.Id),
-        undefined,
-        { sensitivity: 'base' }
-      );
-    });
-    if (!list.some((task) => !isTaskDone(task))) continue;
-    parts.push(`## ${name}`);
-    for (const task of list) {
-      const markerId = markerForTask(task.Id, markerByTaskId.get(task.Id));
-      const line = checkboxLine(task, markerId);
-      parts.push(line);
-      rows.push({
-        markerId,
-        text: sanitizeTaskLabel(String(task.TaskName || ''), task.Id).slice(0, 512),
-        checked: isTaskDone(task) ? 1 : 0,
-        pmTaskId: task.Id,
-        pmProjectId: task.projectId,
+
+  for (const sprintName of sprintNames) {
+    const byProject = bySprint.get(sprintName)!;
+    const projectNames = [...byProject.keys()].sort((a, b) =>
+      a.localeCompare(b, undefined, { sensitivity: 'base' })
+    );
+    const sprintHasOpen = projectNames.some((pn) =>
+      (byProject.get(pn) || []).some((task) => !isTaskDone(task))
+    );
+    if (!sprintHasOpen) continue;
+
+    parts.push(`## ${sprintName}`);
+    for (const projectName of projectNames) {
+      const list = (byProject.get(projectName) || []).sort((a, b) => {
+        const rankDiff = taskCompletionRank(a) - taskCompletionRank(b);
+        if (rankDiff !== 0) return rankDiff;
+        return sanitizeTaskLabel(String(a.TaskName || ''), a.Id).localeCompare(
+          sanitizeTaskLabel(String(b.TaskName || ''), b.Id),
+          undefined,
+          { sensitivity: 'base' }
+        );
       });
+      if (!list.some((task) => !isTaskDone(task))) continue;
+      parts.push(`### ${projectName}`);
+      for (const task of list) {
+        const markerId = markerForTask(task.Id, markerByTaskId.get(task.Id));
+        const line = checkboxLine(task, markerId);
+        parts.push(line);
+        rows.push({
+          markerId,
+          text: sanitizeTaskLabel(String(task.TaskName || ''), task.Id).slice(0, 512),
+          checked: isTaskDone(task) ? 1 : 0,
+          pmTaskId: task.Id,
+          pmProjectId: task.projectId,
+        });
+      }
+      parts.push('');
     }
-    parts.push('');
   }
   if (!parts.length) {
     parts.push('_No Planner tasks are currently assigned to you._');

@@ -4,12 +4,24 @@ import { getSettingBool, SETTING_KEYS } from './appSettings';
 import logger from '../utils/logger';
 
 export const PM_BASE_URL = (process.env.PM_BASE_URL || 'http://localhost:3000').replace(/\/+$/, '');
+/** Browser-facing Myelin origin (open links). Prefer public URL when API base is docker-internal. */
+export const PM_PUBLIC_BASE_URL = (
+  process.env.NEXT_PUBLIC_PM_BASE_URL ||
+  process.env.PM_PUBLIC_BASE_URL ||
+  process.env.PM_BASE_URL ||
+  'http://localhost:3000'
+).replace(/\/+$/, '');
 const SYNAPSE_PUBLIC_URL = (
   process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${process.env.PORT || 3010}`
 ).replace(/\/+$/, '');
 
 export function buildPmTaskOpenUrl(projectId: number, taskId: number): string {
-  return `${PM_BASE_URL}/projects/${projectId}?tab=tasks&taskId=${taskId}`;
+  return `${PM_PUBLIC_BASE_URL}/projects/${projectId}?tab=tasks&taskId=${taskId}`;
+}
+
+export function buildPmProjectOpenUrl(projectId: number, tab?: 'tasks'): string {
+  const base = `${PM_PUBLIC_BASE_URL}/projects/${projectId}`;
+  return tab ? `${base}?tab=${tab}` : base;
 }
 
 export function buildSynapseNoteUrl(vaultId: number, noteId: number): string {
@@ -583,6 +595,17 @@ export type PmTaskSummary = {
   ClosedAt?: string | null;
   /** HTML description from PM (project task list). */
   Description?: string | null;
+  /** Sprint the task belongs to (project task list join). */
+  SprintId?: number | null;
+  SprintName?: string | null;
+};
+
+export type PmSprintSummary = {
+  Id: number;
+  Name: string;
+  Status?: string | null;
+  StartDate?: string | null;
+  EndDate?: string | null;
 };
 
 /** Fetch tasks for a PM project (includes StatusIsClosed / StatusIsCancelled / StatusName). */
@@ -590,6 +613,57 @@ export async function fetchPmProjectTasks(userId: number, projectId: number) {
   return pmFetch<{ tasks?: PmTaskSummary[]; success?: boolean }>(
     userId,
     `/api/tasks/project/${projectId}`
+  );
+}
+
+/** List sprints for a PM project. */
+export async function fetchPmProjectSprints(userId: number, projectId: number) {
+  return pmFetch<{ sprints?: PmSprintSummary[]; success?: boolean }>(
+    userId,
+    `/api/sprints/project/${projectId}`
+  );
+}
+
+export function normalizePmProjectSprints(data: unknown): PmSprintSummary[] {
+  const nested = data as { sprints?: unknown[]; data?: unknown[] } | null;
+  const raw =
+    (nested && Array.isArray(nested.sprints) && nested.sprints) ||
+    (nested && Array.isArray(nested.data) && nested.data) ||
+    (Array.isArray(data) ? data : []);
+  const out: PmSprintSummary[] = [];
+  for (const row of raw) {
+    const s = row as Record<string, unknown>;
+    const Id = Number(s.Id ?? s.id);
+    if (!Number.isFinite(Id) || Id <= 0) continue;
+    out.push({
+      Id,
+      Name: String(s.Name ?? s.name ?? `Sprint #${Id}`).trim() || `Sprint #${Id}`,
+      Status: s.Status != null ? String(s.Status) : s.status != null ? String(s.status) : null,
+      StartDate:
+        s.StartDate != null ? String(s.StartDate) : s.startDate != null ? String(s.startDate) : null,
+      EndDate: s.EndDate != null ? String(s.EndDate) : s.endDate != null ? String(s.endDate) : null,
+    });
+  }
+  return out;
+}
+
+/** Assign existing tasks to a sprint (`POST /api/sprints/{id}/tasks`). */
+export async function assignPmTasksToSprint(
+  userId: number,
+  sprintId: number,
+  taskIds: number[]
+) {
+  const ids = taskIds.filter((id) => Number.isFinite(id) && id > 0);
+  if (!ids.length) {
+    return { ok: true as const, status: 200, data: { success: true, updated: 0 } };
+  }
+  return pmFetch<{ success?: boolean; updated?: number }>(
+    userId,
+    `/api/sprints/${sprintId}/tasks`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ taskIds: ids }),
+    }
   );
 }
 
@@ -677,6 +751,16 @@ export function normalizePmProjectTasks(data: unknown): PmTaskSummary[] {
           ? String(t.Description)
           : t.description != null
             ? String(t.description)
+            : null,
+      SprintId: (() => {
+        const n = Number(t.SprintId ?? t.sprintId);
+        return Number.isFinite(n) && n > 0 ? n : null;
+      })(),
+      SprintName:
+        t.SprintName != null
+          ? String(t.SprintName)
+          : t.sprintName != null
+            ? String(t.sprintName)
             : null,
     });
   }
@@ -925,28 +1009,36 @@ function peekJwtUserId(token: string): number | null {
 }
 
 /**
- * When the user enabled Profile → auto-assign, return their PM user id for `assignedTo`.
+ * When auto-assign is enabled (vault setting when `vaultId` is set, else profile),
+ * return the creator's PM user id for `assignedTo`.
  * Prefer `Users.PmUserId`; fall back to SSO JWT `userId` if linked session exists.
  */
-export async function resolveAutoAssignPmUserId(synapseUserId: number): Promise<number | null> {
-  const [rows] = await pool.execute<RowDataPacket[]>(
-    'SELECT PmUserId, PmAutoAssignOnCreate FROM Users WHERE Id = ? LIMIT 1',
-    [synapseUserId]
-  );
-  const row = rows[0];
-  if (!row || Number(row.PmAutoAssignOnCreate) !== 1) return null;
-
-  if (row.PmUserId != null && Number(row.PmUserId) > 0) {
-    return Number(row.PmUserId);
+export async function resolveAutoAssignPmUserId(
+  synapseUserId: number,
+  opts?: { vaultId?: number | null }
+): Promise<number | null> {
+  const vaultId = opts?.vaultId != null ? Number(opts.vaultId) : 0;
+  if (Number.isFinite(vaultId) && vaultId > 0) {
+    const [vaultRows] = await pool.execute<RowDataPacket[]>(
+      'SELECT PmAutoAssignOnCreate FROM Vaults WHERE Id = ? LIMIT 1',
+      [vaultId]
+    );
+    if (!vaultRows[0] || Number(vaultRows[0].PmAutoAssignOnCreate) !== 1) return null;
+  } else {
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      'SELECT PmAutoAssignOnCreate FROM Users WHERE Id = ? LIMIT 1',
+      [synapseUserId]
+    );
+    if (!rows[0] || Number(rows[0].PmAutoAssignOnCreate) !== 1) return null;
   }
 
-  const sso = await getSsoAccessToken(synapseUserId);
-  if (sso) {
-    const fromJwt = peekJwtUserId(sso);
-    if (fromJwt != null) return fromJwt;
-  }
+  const linked = await resolveLinkedPmUserId(synapseUserId);
+  if (linked != null) return linked;
 
-  logger.warn('PM auto-assign enabled but no PmUserId for Synapse user', { synapseUserId });
+  logger.warn('PM auto-assign enabled but no PmUserId for Synapse user', {
+    synapseUserId,
+    vaultId: vaultId > 0 ? vaultId : null,
+  });
   return null;
 }
 
@@ -985,6 +1077,8 @@ export async function createPmTask(
     synapseNoteId?: number;
     synapseMarkerId?: string;
     synapseNoteUrl?: string;
+    /** After create, assign the new task to this sprint via POST /api/sprints/{id}/tasks. */
+    sprintId?: number | null;
   }
 ) {
   const payload: Record<string, unknown> = {
@@ -1007,13 +1101,41 @@ export async function createPmTask(
   const assignedTo =
     body.assignedTo != null && Number.isFinite(body.assignedTo) && body.assignedTo > 0
       ? Number(body.assignedTo)
-      : await resolveAutoAssignPmUserId(userId);
+      : await resolveAutoAssignPmUserId(userId, {
+          vaultId: body.synapseVaultId != null ? Number(body.synapseVaultId) : null,
+        });
   if (assignedTo != null) payload.assignedTo = assignedTo;
 
-  return pmFetch<{ taskId?: number; id?: number; data?: { Id?: number } }>(userId, '/api/tasks', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
+  const created = await pmFetch<{ taskId?: number; id?: number; data?: { Id?: number } }>(
+    userId,
+    '/api/tasks',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }
+  );
+
+  const sprintId =
+    body.sprintId != null && Number.isFinite(Number(body.sprintId)) && Number(body.sprintId) > 0
+      ? Number(body.sprintId)
+      : null;
+  if (created.ok && sprintId != null) {
+    const newId = Number(
+      created.data.taskId ?? created.data.id ?? created.data.data?.Id
+    );
+    if (Number.isFinite(newId) && newId > 0) {
+      const assigned = await assignPmTasksToSprint(userId, sprintId, [newId]);
+      if (!assigned.ok) {
+        logger.warn('Created PM task but failed to assign sprint', {
+          taskId: newId,
+          sprintId,
+          message: assigned.data.message,
+        });
+      }
+    }
+  }
+
+  return created;
 }
 
 export async function updatePmTask(

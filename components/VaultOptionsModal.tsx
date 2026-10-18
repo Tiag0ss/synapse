@@ -35,11 +35,15 @@ interface VaultOptionsModalProps {
   defaultVisibility?: string;
   pmProjectId?: number | null;
   pmProjectName?: string | null;
+  pmProjectOpenUrl?: string | null;
   pmOrganizationId?: number | null;
+  pmAutoAssignOnCreate?: boolean;
+  pmDefaultSprintId?: number | null;
   initialTab?: OptionsTab;
   notes?: NoteResolveEntry[];
   onClose: () => void;
   onChanged: () => void;
+  onNotesMutated?: (noteIds: number[]) => void;
   onStatus?: (msg: string) => void;
   onOpenNote: (noteId: number) => void;
   isPersonalWork?: boolean;
@@ -56,11 +60,15 @@ export default function VaultOptionsModal({
   defaultVisibility = 'private',
   pmProjectId,
   pmProjectName,
+  pmProjectOpenUrl,
   pmOrganizationId,
+  pmAutoAssignOnCreate = false,
+  pmDefaultSprintId = null,
   initialTab = 'links',
   notes = [],
   onClose,
   onChanged,
+  onNotesMutated,
   onStatus,
   onOpenNote,
   onCreateMissingNote,
@@ -77,6 +85,7 @@ export default function VaultOptionsModal({
   const [linksStatus, setLinksStatus] = useState('');
   const [vaultStatus, setVaultStatus] = useState('');
   const [exporting, setExporting] = useState(false);
+  const [exportingWiki, setExportingWiki] = useState(false);
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState('');
@@ -85,9 +94,9 @@ export default function VaultOptionsModal({
   const [loadingTrash, setLoadingTrash] = useState(false);
   const [trashBusy, setTrashBusy] = useState<number | null>(null);
   const [vaultDefaultVis, setVaultDefaultVis] = useState(defaultVisibility || 'private');
-  const [savingVis, setSavingVis] = useState(false);
   const [nameDraft, setNameDraft] = useState(vaultName);
-  const [savingName, setSavingName] = useState(false);
+  const [slugDraft, setSlugDraft] = useState(vaultSlug);
+  const [savingVaultSettings, setSavingVaultSettings] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -109,7 +118,8 @@ export default function VaultOptionsModal({
     setDeleteConfirm('');
     setVaultDefaultVis((defaultVisibility || 'private').toLowerCase());
     setNameDraft(vaultName);
-  }, [open, initialTab, defaultVisibility, vaultName, canEdit]);
+    setSlugDraft(vaultSlug);
+  }, [open, initialTab, defaultVisibility, vaultName, vaultSlug, canEdit]);
 
   const loadBroken = async () => {
     setLoadingLinks(true);
@@ -196,96 +206,118 @@ export default function VaultOptionsModal({
     }
   };
 
-  const saveVaultName = async () => {
-    if (!isOwner) return;
-    const next = nameDraft.trim();
-    if (!next) {
+  const nameDirty = nameDraft.trim() !== vaultName;
+  const slugDirty = slugDraft.trim() !== vaultSlug;
+  const visDirty =
+    vaultDefaultVis.toLowerCase() !== (defaultVisibility || 'private').toLowerCase();
+  const vaultSettingsDirty = nameDirty || slugDirty || visDirty;
+
+  const saveVaultSettings = async () => {
+    if (!isOwner || savingVaultSettings) return;
+    const nextName = nameDraft.trim();
+    const nextSlug = slugDraft.trim();
+    const nextVis = vaultDefaultVis.toLowerCase();
+    if (!nextName) {
       setVaultStatus(t('chrome.nameCannotBeEmpty'));
       return;
     }
-    if (next === vaultName) {
-      setVaultStatus(t('chrome.nameUnchanged'));
+    if (!nextSlug) {
+      setVaultStatus(t('chrome.wikiSlugEmpty'));
       return;
     }
-    setSavingName(true);
-    setVaultStatus(t('chrome.savingName'));
-    try {
-      const res = await fetch(`/api/vaults/${vaultId}`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: next }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setVaultStatus(data.message || t('chrome.failedRenameVault'));
-        return;
-      }
-      setVaultStatus(t('chrome.renamedTo', { name: next }));
-      onChanged();
-    } catch {
-      setVaultStatus(t('chrome.failedRenameVault'));
-    } finally {
-      setSavingName(false);
+    if (!vaultSettingsDirty) {
+      setVaultStatus(t('chrome.vaultSettingsUnchanged'));
+      return;
     }
-  };
+    const body: {
+      name?: string;
+      slug?: string;
+      defaultVisibility?: string;
+    } = {};
+    if (nameDirty) body.name = nextName;
+    if (slugDirty) body.slug = nextSlug;
+    if (visDirty) body.defaultVisibility = nextVis;
 
-  const saveDefaultVisibility = async (next: string) => {
-    if (!isOwner) return;
-    const value = next.toLowerCase();
-    setVaultDefaultVis(value);
-    setSavingVis(true);
-    setVaultStatus(t('chrome.savingVisibility'));
+    setSavingVaultSettings(true);
+    setVaultStatus(t('chrome.saving'));
     try {
       const res = await fetch(`/api/vaults/${vaultId}`, {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ defaultVisibility: value }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) {
-        setVaultStatus(data.message || t('chrome.failedUpdateVisibility'));
-        setVaultDefaultVis((defaultVisibility || 'private').toLowerCase());
+        setVaultStatus(
+          data.message ||
+            (slugDirty
+              ? t('chrome.failedUpdateWikiSlug')
+              : nameDirty
+                ? t('chrome.failedRenameVault')
+                : t('chrome.failedUpdateVisibility'))
+        );
         return;
       }
-      setVaultStatus(t('chrome.visibilitySetTo', { value }));
+      setVaultStatus(t('chrome.vaultSettingsSaved'));
       onChanged();
     } catch {
       setVaultStatus(t('chrome.failedUpdateVisibility'));
-      setVaultDefaultVis((defaultVisibility || 'private').toLowerCase());
     } finally {
-      setSavingVis(false);
+      setSavingVaultSettings(false);
     }
+  };
+
+  const downloadExportBlob = async (endpoint: string, fallbackName: string) => {
+    const res = await fetch(endpoint, { credentials: 'include' });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setVaultStatus((data as { message?: string }).message || t('chrome.exportFailed'));
+      return false;
+    }
+    const blob = await res.blob();
+    const disp = res.headers.get('Content-Disposition') || '';
+    const match = /filename="([^"]+)"/.exec(disp);
+    const fileName = match?.[1] || fallbackName;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    a.click();
+    URL.revokeObjectURL(url);
+    const notes = res.headers.get('X-Synapse-Note-Count') || '?';
+    const images = res.headers.get('X-Synapse-Image-Count') || '?';
+    setVaultStatus(t('chrome.exportedSummary', { notes, images }));
+    return true;
   };
 
   const exportZip = async () => {
     setExporting(true);
     setVaultStatus(t('chrome.exporting'));
     try {
-      const res = await fetch(`/api/vaults/${vaultId}/export-zip`, { credentials: 'include' });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setVaultStatus((data as { message?: string }).message || t('chrome.exportFailed'));
-        return;
-      }
-      const blob = await res.blob();
-      const disp = res.headers.get('Content-Disposition') || '';
-      const match = /filename="([^"]+)"/.exec(disp);
-      const fileName = match?.[1] || `${vaultName || 'vault'}.zip`;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName;
-      a.click();
-      URL.revokeObjectURL(url);
-      const notes = res.headers.get('X-Synapse-Note-Count') || '?';
-      const images = res.headers.get('X-Synapse-Image-Count') || '?';
-      setVaultStatus(t('chrome.exportedSummary', { notes, images }));
+      await downloadExportBlob(
+        `/api/vaults/${vaultId}/export-zip`,
+        `${vaultName || 'vault'}.zip`
+      );
     } catch {
       setVaultStatus(t('chrome.exportFailed'));
     } finally {
       setExporting(false);
+    }
+  };
+
+  const exportStaticWiki = async () => {
+    setExportingWiki(true);
+    setVaultStatus(t('chrome.exportingStaticWiki'));
+    try {
+      await downloadExportBlob(
+        `/api/vaults/${vaultId}/export-static-wiki`,
+        `${vaultName || 'vault'}-wiki.zip`
+      );
+    } catch {
+      setVaultStatus(t('chrome.exportFailed'));
+    } finally {
+      setExportingWiki(false);
     }
   };
 
@@ -565,9 +597,14 @@ export default function VaultOptionsModal({
               vaultName={vaultName}
               pmProjectId={pmProjectId}
               pmProjectName={pmProjectName}
+              pmProjectOpenUrl={pmProjectOpenUrl}
               pmOrganizationId={pmOrganizationId}
+              pmAutoAssignOnCreate={pmAutoAssignOnCreate}
+              pmDefaultSprintId={pmDefaultSprintId}
+              isOwner={isOwner}
               onClose={onClose}
               onChanged={onChanged}
+              onNotesMutated={onNotesMutated}
               onStatus={onStatus}
               notes={notes}
               onOpenNote={(id) => {
@@ -578,110 +615,169 @@ export default function VaultOptionsModal({
           )}
 
           {tab === 'vault' && (
-            <div className="space-y-4 overflow-auto p-5">
-              <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)]/40 p-4">
-                <h3 className="text-sm font-semibold">{t('chrome.vaultNameHeading')}</h3>
-                <p className="mt-1 text-xs text-[var(--muted)]">
-                  {t('chrome.vaultNameHint')}
-                  {vaultSlug ? (
-                    <>
-                      {' '}
-                      (<code className="text-[var(--accent-soft)]">/w/{vaultSlug}</code>)
-                    </>
-                  ) : null}
-                </p>
-                <label className="mt-3 block text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
-                  {t('home.vaultName')}
-                  <input
-                    className="input mt-1.5 w-full max-w-sm"
-                    value={nameDraft}
-                    disabled={!isOwner || savingName}
-                    onChange={(e) => setNameDraft(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        void saveVaultName();
+            <div className="flex h-full min-h-0 flex-col">
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 sm:p-5">
+                <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)]/40 p-3 sm:p-4">
+                  <div className="space-y-2.5">
+                    <label
+                      className="grid gap-1 sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:items-center sm:gap-3"
+                      title={t('chrome.vaultNameHint')}
+                    >
+                      <span className="text-xs font-medium text-[var(--muted)]">
+                        {t('chrome.vaultNameHeading')}
+                      </span>
+                      <input
+                        className="input w-full max-w-md py-1.5 text-sm"
+                        value={nameDraft}
+                        disabled={!isOwner || savingVaultSettings}
+                        onChange={(e) => setNameDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            void saveVaultSettings();
+                          }
+                        }}
+                        maxLength={255}
+                        aria-label={t('home.vaultName')}
+                      />
+                    </label>
+
+                    <label
+                      className="grid gap-1 sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:items-center sm:gap-3"
+                      title={t('chrome.wikiSlugHint')}
+                    >
+                      <span className="text-xs font-medium text-[var(--muted)]">
+                        {t('chrome.wikiSlugHeading')}
+                      </span>
+                      <div className="flex max-w-md items-center gap-1">
+                        <span className="shrink-0 text-xs text-[var(--muted)]">/w/</span>
+                        <input
+                          className="input w-full py-1.5 font-mono text-sm"
+                          value={slugDraft}
+                          disabled={!isOwner || savingVaultSettings}
+                          onChange={(e) => setSlugDraft(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              void saveVaultSettings();
+                            }
+                          }}
+                          maxLength={255}
+                          spellCheck={false}
+                          autoComplete="off"
+                          aria-label={t('chrome.wikiSlugLabel')}
+                        />
+                      </div>
+                    </label>
+
+                    <label
+                      className="grid gap-1 sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:items-center sm:gap-3"
+                      title={t('chrome.wikiAudienceHint')}
+                    >
+                      <span className="text-xs font-medium text-[var(--muted)]">
+                        {t('chrome.vaultWikiAudience')}
+                      </span>
+                      <select
+                        className="input w-full max-w-md py-1.5 text-sm"
+                        value={vaultDefaultVis}
+                        disabled={!isOwner || savingVaultSettings}
+                        onChange={(e) => setVaultDefaultVis(e.target.value)}
+                        aria-label={t('chrome.vaultWikiAudience')}
+                      >
+                        <option value="private">{t('chrome.visPrivateDetail')}</option>
+                        <option value="authenticated">{t('chrome.visAuthenticatedDetail')}</option>
+                        <option value="unlisted">{t('chrome.visUnlistedDetail')}</option>
+                        <option value="public">{t('chrome.visPublicDetail')}</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      className="btn-primary py-1.5 text-sm"
+                      disabled={
+                        !isOwner ||
+                        savingVaultSettings ||
+                        !nameDraft.trim() ||
+                        !slugDraft.trim() ||
+                        !vaultSettingsDirty
                       }
-                    }}
-                    maxLength={255}
-                  />
-                </label>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    className="btn-primary"
-                    disabled={
-                      !isOwner ||
-                      savingName ||
-                      !nameDraft.trim() ||
-                      nameDraft.trim() === vaultName
-                    }
-                    onClick={() => void saveVaultName()}
-                  >
-                    {savingName ? t('chrome.saving') : t('chrome.saveName')}
-                  </button>
-                  {!isOwner && (
-                    <p className="text-xs text-[var(--muted)]">{t('chrome.onlyOwnerRename')}</p>
-                  )}
-                </div>
-              </section>
+                      onClick={() => void saveVaultSettings()}
+                    >
+                      {savingVaultSettings ? t('chrome.saving') : t('common.save')}
+                    </button>
+                    {!isOwner && (
+                      <p className="text-xs text-[var(--muted)]">{t('chrome.onlyOwnerChange')}</p>
+                    )}
+                  </div>
+                </section>
 
-              <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)]/40 p-4">
-                <h3 className="text-sm font-semibold">{t('chrome.wikiAudienceHeading')}</h3>
-                <p className="mt-1 text-xs text-[var(--muted)]">{t('chrome.wikiAudienceHint')}</p>
-                <label className="mt-3 block text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
-                  {t('chrome.vaultWikiAudience')}
-                  <select
-                    className="input mt-1.5 w-full max-w-sm"
-                    value={vaultDefaultVis}
-                    disabled={!isOwner || savingVis}
-                    onChange={(e) => void saveDefaultVisibility(e.target.value)}
-                  >
-                    <option value="private">{t('chrome.visPrivateDetail')}</option>
-                    <option value="authenticated">{t('chrome.visAuthenticatedDetail')}</option>
-                    <option value="unlisted">{t('chrome.visUnlistedDetail')}</option>
-                    <option value="public">{t('chrome.visPublicDetail')}</option>
-                  </select>
-                </label>
+                <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)]/40 p-3 sm:p-4">
+                  <h3 className="text-sm font-semibold">{t('chrome.vaultOptionsExport')}</h3>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className="btn-primary py-1.5 text-sm"
+                      title={t('chrome.exportZipHint')}
+                      disabled={exporting || exportingWiki}
+                      onClick={() => void exportZip()}
+                    >
+                      {exporting ? t('chrome.exporting') : t('chrome.exportZip')}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-ghost py-1.5 text-sm"
+                      title={t('chrome.exportStaticWikiHint')}
+                      disabled={exporting || exportingWiki}
+                      onClick={() => void exportStaticWiki()}
+                    >
+                      {exportingWiki ? t('chrome.exportingStaticWiki') : t('chrome.exportStaticWiki')}
+                    </button>
+                  </div>
+                </section>
+
                 {!isOwner && (
-                  <p className="mt-2 text-xs text-[var(--muted)]">{t('chrome.onlyOwnerChange')}</p>
+                  <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)]/40 p-3 sm:p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <h3 className="text-sm font-semibold">{t('chrome.leaveVault')}</h3>
+                        <p className="mt-0.5 text-xs text-[var(--muted)]">{t('chrome.leaveVaultHint')}</p>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn-danger shrink-0 py-1.5 text-sm"
+                        onClick={() => setLeaveOpen(true)}
+                      >
+                        {t('chrome.leaveVault')}
+                      </button>
+                    </div>
+                  </section>
                 )}
-              </section>
 
-              <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)]/40 p-4">
-                <h3 className="text-sm font-semibold">{t('chrome.vaultOptionsExport')}</h3>
-                <p className="mt-1 text-xs text-[var(--muted)]">{t('chrome.exportZipHint')}</p>
-                <button
-                  type="button"
-                  className="btn-primary mt-3"
-                  disabled={exporting}
-                  onClick={() => void exportZip()}
-                >
-                  {exporting ? t('chrome.exporting') : t('chrome.exportZip')}
-                </button>
-              </section>
-
-              {!isOwner && (
-                <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)]/40 p-4">
-                  <h3 className="text-sm font-semibold">{t('chrome.leaveVault')}</h3>
-                  <p className="mt-1 text-xs text-[var(--muted)]">{t('chrome.leaveVaultHint')}</p>
-                  <button type="button" className="btn-danger mt-3" onClick={() => setLeaveOpen(true)}>
-                    {t('chrome.leaveVault')}
-                  </button>
-                </section>
+                {isOwner && !isPersonalWork && (
+                  <section className="rounded-xl border border-red-500/30 bg-red-500/5 p-3 sm:p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <h3 className="text-sm font-semibold text-red-300">{t('chrome.deleteVault')}</h3>
+                        <p className="mt-0.5 text-xs text-[var(--muted)]">{t('chrome.deleteVaultHint')}</p>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn-danger shrink-0 py-1.5 text-sm"
+                        onClick={() => setDeleteOpen(true)}
+                      >
+                        {t('chrome.deleteVault')}…
+                      </button>
+                    </div>
+                  </section>
+                )}
+              </div>
+              {vaultStatus && (
+                <footer className="shrink-0 border-t border-[var(--border)] px-5 py-2 text-xs text-[var(--muted)]">
+                  {vaultStatus}
+                </footer>
               )}
-
-              {isOwner && !isPersonalWork && (
-                <section className="rounded-xl border border-red-500/30 bg-red-500/5 p-4">
-                  <h3 className="text-sm font-semibold text-red-300">{t('chrome.deleteVault')}</h3>
-                  <p className="mt-1 text-xs text-[var(--muted)]">{t('chrome.deleteVaultHint')}</p>
-                  <button type="button" className="btn-danger mt-3" onClick={() => setDeleteOpen(true)}>
-                    {t('chrome.deleteVault')}…
-                  </button>
-                </section>
-              )}
-
-              {vaultStatus && <p className="text-xs text-[var(--muted)]">{vaultStatus}</p>}
             </div>
           )}
         </div>

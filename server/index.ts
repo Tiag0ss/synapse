@@ -17,6 +17,7 @@ import usersRoutes from './routes/users';
 import templatesRoutes from './routes/templates';
 import exportTemplatesRoutes from './routes/exportTemplates';
 import notificationsRoutes from './routes/notifications';
+import whatsNewRoutes from './routes/whatsNew';
 import { registerHealthRoute } from './health';
 
 dotenv.config();
@@ -103,6 +104,7 @@ async function main() {
   server.use('/api/shares', noteSharesRoutes);
   server.use('/api/settings', settingsRoutes);
   server.use('/api/notifications', notificationsRoutes);
+  server.use('/api/whats-new', whatsNewRoutes);
   server.use('/api/users', usersRoutes);
   server.use('/api/templates', templatesRoutes);
   server.use('/api/export-templates', exportTemplatesRoutes);

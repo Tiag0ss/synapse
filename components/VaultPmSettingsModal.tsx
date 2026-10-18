@@ -37,9 +37,16 @@ interface VaultPmSettingsModalProps {
   vaultName: string;
   pmProjectId?: number | null;
   pmProjectName?: string | null;
+  pmProjectOpenUrl?: string | null;
   pmOrganizationId?: number | null;
+  /** Vault-level auto-assign (default off). Owner can toggle. */
+  pmAutoAssignOnCreate?: boolean;
+  pmDefaultSprintId?: number | null;
+  isOwner?: boolean;
   onClose: () => void;
   onChanged: () => void;
+  /** Called after checkbox create/link so the open note can reload markers. */
+  onNotesMutated?: (noteIds: number[]) => void;
   /** Bubble status into vault toast / header. */
   onStatus?: (msg: string) => void;
   onOpenNote?: (noteId: number) => void;
@@ -54,9 +61,14 @@ export default function VaultPmSettingsModal({
   vaultName,
   pmProjectId,
   pmProjectName,
+  pmProjectOpenUrl,
   pmOrganizationId,
+  pmAutoAssignOnCreate = false,
+  pmDefaultSprintId = null,
+  isOwner = false,
   onClose,
   onChanged,
+  onNotesMutated,
   onStatus,
   onOpenNote,
   notes = [],
@@ -70,6 +82,9 @@ export default function VaultPmSettingsModal({
   const [linkProjectId, setLinkProjectId] = useState('');
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [linkedProjectId, setLinkedProjectId] = useState<number | null>(pmProjectId ?? null);
+  const [linkedProjectOpenUrl, setLinkedProjectOpenUrl] = useState<string | null>(
+    pmProjectOpenUrl?.trim() || null
+  );
   const [linkedProjectName, setLinkedProjectName] = useState<string | null>(
     pmProjectName?.trim() || null
   );
@@ -89,6 +104,12 @@ export default function VaultPmSettingsModal({
   const [chooserItem, setChooserItem] = useState<VaultCheckboxItem | null>(null);
   const [unlinkItem, setUnlinkItem] = useState<VaultCheckboxItem | null>(null);
   const [autoLinkNoteId, setAutoLinkNoteId] = useState<number | ''>('');
+  const [autoAssign, setAutoAssign] = useState(Boolean(pmAutoAssignOnCreate));
+  const [sprints, setSprints] = useState<Array<{ Id: number; Name: string }>>([]);
+  const [defaultSprintId, setDefaultSprintId] = useState<string>(
+    pmDefaultSprintId != null && pmDefaultSprintId > 0 ? String(pmDefaultSprintId) : ''
+  );
+  const [loadingSprints, setLoadingSprints] = useState(false);
 
   const load = async () => {
     setLoadingOrgs(true);
@@ -134,10 +155,63 @@ export default function VaultPmSettingsModal({
     setOrgId(pmOrganizationId ? String(pmOrganizationId) : '');
     setLinkedProjectId(pmProjectId ?? null);
     setLinkedProjectName(pmProjectName?.trim() || null);
+    setLinkedProjectOpenUrl(pmProjectOpenUrl?.trim() || null);
+    setAutoAssign(Boolean(pmAutoAssignOnCreate));
+    setDefaultSprintId(
+      pmDefaultSprintId != null && pmDefaultSprintId > 0 ? String(pmDefaultSprintId) : ''
+    );
     setLinkProjectId('');
     setProjectQuery('');
     void load();
-  }, [open, vaultId, pmOrganizationId, pmProjectId, pmProjectName]);
+  }, [
+    open,
+    vaultId,
+    pmOrganizationId,
+    pmProjectId,
+    pmProjectName,
+    pmProjectOpenUrl,
+    pmAutoAssignOnCreate,
+    pmDefaultSprintId,
+  ]);
+
+  useEffect(() => {
+    if (!open || !linkedProjectId) {
+      setSprints([]);
+      return;
+    }
+    let cancelled = false;
+    setLoadingSprints(true);
+    void (async () => {
+      try {
+        const res = await fetch(`/api/vaults/${vaultId}/pm-sprints`, { credentials: 'include' });
+        const json = await res.json();
+        if (cancelled) return;
+        if (!res.ok) {
+          setSprints([]);
+          return;
+        }
+        const list = Array.isArray(json.data?.sprints) ? json.data.sprints : [];
+        setSprints(
+          list
+            .map((s: { Id?: number; id?: number; Name?: string; name?: string }) => ({
+              Id: Number(s.Id ?? s.id),
+              Name: String(s.Name ?? s.name ?? '').trim() || `Sprint #${s.Id ?? s.id}`,
+            }))
+            .filter((s: { Id: number }) => Number.isFinite(s.Id) && s.Id > 0)
+        );
+        if (json.data?.defaultSprintId != null) {
+          setDefaultSprintId(String(json.data.defaultSprintId));
+        }
+      } catch {
+        if (!cancelled) setSprints([]);
+      } finally {
+        if (!cancelled) setLoadingSprints(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, vaultId, linkedProjectId]);
 
   useEffect(() => {
     if (!open || !orgId) {
@@ -250,6 +324,10 @@ export default function VaultPmSettingsModal({
         const name = String(data.data.pmProjectName || vaultName || '').trim() || null;
         setLinkedProjectId(id);
         setLinkedProjectName(name);
+        if (data.data.openUrl) {
+          setLinkedProjectOpenUrl(String(data.data.openUrl));
+          window.open(String(data.data.openUrl), '_blank');
+        }
         setStatus(name ? t('status.linkedMyelinProjectName', { name }) : t('status.linkedMyelinProjectId', { id }));
         onChanged();
         await load();
@@ -257,6 +335,7 @@ export default function VaultPmSettingsModal({
         setLinkedProjectId(Number(data.data.pmProjectId));
         const name = String(data.data.pmProjectName || '').trim();
         if (name) setLinkedProjectName(name);
+        if (data.data.openUrl) setLinkedProjectOpenUrl(String(data.data.openUrl));
         setStatus(t('status.alreadyLinked'));
         if (data.data.openUrl) window.open(data.data.openUrl, '_blank');
         onChanged();
@@ -288,12 +367,68 @@ export default function VaultPmSettingsModal({
           String(data.data.pmProjectName || selectedProjectName || '').trim() || null;
         setLinkedProjectId(id);
         setLinkedProjectName(name);
+        if (data.data.openUrl) {
+          setLinkedProjectOpenUrl(String(data.data.openUrl));
+          window.open(String(data.data.openUrl), '_blank');
+        }
         setStatus(name ? t('status.linkedMyelinProjectName', { name }) : t('status.linkedMyelinProjectId', { id }));
         onChanged();
         await load();
       } else {
         setStatus(data.message || t('status.linkFailed'));
       }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveAutoAssign = async (next: boolean) => {
+    if (!isOwner) return;
+    setBusy(true);
+    const prev = autoAssign;
+    setAutoAssign(next);
+    try {
+      const res = await fetch(`/api/vaults/${vaultId}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pmAutoAssignOnCreate: next }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAutoAssign(prev);
+        setStatus(data.message || t('status.failedSaveAutoAssign'));
+        return;
+      }
+      setStatus(next ? t('status.autoAssignOn') : t('status.autoAssignOff'));
+      onChanged();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveDefaultSprint = async (value: string) => {
+    if (!isOwner) return;
+    const prev = defaultSprintId;
+    setDefaultSprintId(value);
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/vaults/${vaultId}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pmDefaultSprintId: value ? Number(value) : null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setDefaultSprintId(prev);
+        setStatus(data.message || t('status.updateFailed'));
+        return;
+      }
+      setStatus(t('chrome.vaultDefaultSprintSaved'));
+      onChanged();
     } finally {
       setBusy(false);
     }
@@ -343,6 +478,7 @@ export default function VaultPmSettingsModal({
           window.open(data.data.openUrl, '_blank');
         }
         setChooserItem(null);
+        onNotesMutated?.([item.noteId]);
         onChanged();
         await load();
       } else {
@@ -372,6 +508,7 @@ export default function VaultPmSettingsModal({
       if (res.ok) {
         setStatus(t('status.linkedToMyelin', { id: data.data?.pmTaskId ?? pmTaskId }));
         setChooserItem(null);
+        onNotesMutated?.([item.noteId]);
         onChanged();
         await load();
       } else {
@@ -402,6 +539,7 @@ export default function VaultPmSettingsModal({
       if (res.ok) {
         setStatus(t('status.unlinkedFromMyelin', { id: data.data?.clearedPmTaskId ?? item.pmTaskId }));
         setUnlinkItem(null);
+        onNotesMutated?.([item.noteId]);
         onChanged();
         await load();
       } else {
@@ -418,11 +556,13 @@ export default function VaultPmSettingsModal({
       setStatus(t('status.linkMyelinProjectFirst'));
       return;
     }
-    const missing = items.filter((i) => !i.pmTaskId).length;
+    const missingItems = items.filter((i) => !i.pmTaskId);
+    const missing = missingItems.length;
     if (!missing) {
       setStatus(t('status.noMissingTasks'));
       return;
     }
+    const touchedNoteIds = [...new Set(missingItems.map((i) => i.noteId))];
     setBusy(true);
     setBulkProgress({
       phase: 'prepare',
@@ -543,6 +683,7 @@ export default function VaultPmSettingsModal({
         }
       }
 
+      onNotesMutated?.(touchedNoteIds);
       onChanged();
       await load();
     } catch {
@@ -617,24 +758,22 @@ export default function VaultPmSettingsModal({
         </header>
         )}
 
-        <div className="min-h-0 flex-1 space-y-5 overflow-auto p-5">
-          {embedded && (
-            <p className="text-sm text-[var(--muted)]">
-              {t('chrome.vaultPmLinkHint')}
-            </p>
-          )}
-          <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)]/50 p-4">
-            <h3 className="text-sm font-semibold">{t('chrome.myelinProject')}</h3>
-            {linkedProjectId ? (
-              <>
-                <p className="mt-2 text-sm text-[var(--muted)]">
+        <div className="min-h-0 flex-1 space-y-3 overflow-auto p-4 sm:p-5">
+          <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)]/50 p-3 sm:p-4">
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <h3 className="text-sm font-semibold">{t('chrome.myelinProject')}</h3>
+              {linkedProjectId ? (
+                <p className="min-w-0 text-xs text-[var(--muted)]">
                   {t('chrome.linkedToPrefix')}{' '}
                   <a
                     className="text-[var(--accent-soft)]"
-                    href={`${process.env.NEXT_PUBLIC_PM_BASE_URL || 'http://localhost:3000'}/projects/${linkedProjectId}`}
+                    href={linkedProjectOpenUrl || '#'}
                     target="_blank"
                     rel="noreferrer"
                     title={t('chrome.myelinProjectHashId', { id: linkedProjectId })}
+                    onClick={(e) => {
+                      if (!linkedProjectOpenUrl) e.preventDefault();
+                    }}
                   >
                     {linkedProjectName?.trim() || t('chrome.projectHashId', { id: linkedProjectId })}
                   </a>
@@ -642,36 +781,78 @@ export default function VaultPmSettingsModal({
                     <span className="text-[var(--muted)]"> #{linkedProjectId}</span>
                   ) : null}
                 </p>
-                {projectStale && (
-                  <div className="mt-2 rounded-lg border border-[color-mix(in_srgb,var(--warn)_45%,var(--border))] bg-[color-mix(in_srgb,var(--warn)_10%,transparent)] px-3 py-2 text-xs text-[var(--text)]">
-                    <p className="font-medium">{t('chrome.projectNotFoundOrg')}</p>
-                    <p className="mt-0.5 text-[var(--muted)]">{t('chrome.projectNotFoundHint')}</p>
-                    <button
-                      type="button"
-                      className="btn-ghost mt-2 py-1 text-xs"
-                      disabled={busy}
-                      onClick={() => void unlink()}
-                    >
-                      {t('chrome.unlinkProject')}
-                    </button>
-                  </div>
-                )}
-              </>
-            ) : (
-              <p className="mt-2 text-sm text-[var(--muted)]">{t('chrome.noProjectLinked')}</p>
-            )}
+              ) : (
+                <p className="text-xs text-[var(--muted)]">{t('chrome.noProjectLinked')}</p>
+              )}
+            </div>
             {items.length > 0 && (
-              <p className="mt-3 text-[11px] text-[var(--muted)]">
+              <p className="mt-1 text-[11px] text-[var(--muted)]">
                 {t('chrome.tasksLinkedSummary', { linked: linkedCount, missing: missingCount })}
                 {openLinkedCount > 0
                   ? t('chrome.openLinkedSuffix', { count: openLinkedCount })
                   : ''}
               </p>
             )}
+            {projectStale && linkedProjectId && (
+              <div className="mt-2 rounded-lg border border-[color-mix(in_srgb,var(--warn)_45%,var(--border))] bg-[color-mix(in_srgb,var(--warn)_10%,transparent)] px-3 py-2 text-xs text-[var(--text)]">
+                <p className="font-medium">{t('chrome.projectNotFoundOrg')}</p>
+                <p className="mt-0.5 text-[var(--muted)]">{t('chrome.projectNotFoundHint')}</p>
+                <button
+                  type="button"
+                  className="btn-ghost mt-2 py-1 text-xs"
+                  disabled={busy}
+                  onClick={() => void unlink()}
+                >
+                  {t('chrome.unlinkProject')}
+                </button>
+              </div>
+            )}
 
-            <div className="mt-3 flex flex-wrap items-center gap-2">
+            <div className="mt-2.5 space-y-2">
+              <label
+                className="flex cursor-pointer items-center gap-2"
+                title={t('chrome.vaultAutoAssignHelp')}
+              >
+                <input
+                  type="checkbox"
+                  className="accent-[var(--accent)]"
+                  checked={autoAssign}
+                  disabled={busy || !isOwner}
+                  onChange={(e) => void saveAutoAssign(e.target.checked)}
+                />
+                <span className="text-sm text-[var(--text)]">{t('chrome.vaultAutoAssignLabel')}</span>
+              </label>
+
+              {linkedProjectId ? (
+                <label
+                  className="grid gap-1 sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:items-center sm:gap-3"
+                  title={t('chrome.vaultDefaultSprintHelp')}
+                  htmlFor="vault-default-sprint"
+                >
+                  <span className="text-xs font-medium text-[var(--muted)]">
+                    {t('chrome.vaultDefaultSprintLabel')}
+                  </span>
+                  <select
+                    id="vault-default-sprint"
+                    className="input w-full max-w-md py-1.5 text-sm"
+                    value={defaultSprintId}
+                    disabled={busy || !isOwner || loadingSprints}
+                    onChange={(e) => void saveDefaultSprint(e.target.value)}
+                  >
+                    <option value="">{t('chrome.vaultDefaultSprintNone')}</option>
+                    {sprints.map((s) => (
+                      <option key={s.Id} value={String(s.Id)}>
+                        {s.Name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+            </div>
+
+            <div className="mt-2.5 flex flex-wrap items-center gap-2">
               <select
-                className="input min-w-[14rem]"
+                className="input min-w-[12rem] py-1.5 text-sm"
                 value={orgId}
                 onChange={(e) => {
                   setOrgId(e.target.value);
@@ -693,104 +874,112 @@ export default function VaultPmSettingsModal({
                   </option>
                 ))}
               </select>
-              <button type="button" className="btn-ghost" disabled={loadingOrgs} onClick={() => void load()}>
+              <button
+                type="button"
+                className="btn-ghost py-1.5 text-sm"
+                disabled={loadingOrgs}
+                onClick={() => void load()}
+              >
                 {t('chrome.refresh')}
               </button>
-              {!linkedProjectId && (
-                <div className="mt-3 w-full space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      className="btn-primary"
-                      disabled={busy || !orgId}
-                      onClick={() => void createProject()}
-                    >
-                      {t('chrome.createProjectFromVault')}
-                    </button>
-                  </div>
-                  <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)]/40 p-3">
-                    <label className="block text-xs font-medium text-[var(--muted)]" htmlFor="pm-project-search">
-                      {t('chrome.orLinkExisting')}
-                    </label>
-                    <input
-                      id="pm-project-search"
-                      className="input mt-1.5 w-full"
-                      placeholder={
-                        !orgId
-                          ? t('chrome.pickOrgFirst')
-                          : loadingProjects
-                            ? t('chrome.loadingProjects')
-                            : t('chrome.searchProjects')
-                      }
-                      value={projectQuery}
-                      onChange={(e) => {
-                        setProjectQuery(e.target.value);
-                        setLinkProjectId('');
-                      }}
-                      disabled={!orgId || loadingProjects || busy}
-                      autoComplete="off"
-                    />
-                    {linkProjectId && selectedProjectName && (
-                      <p className="mt-1.5 text-xs text-[var(--accent-soft)]">
-                        {t('chrome.selectedLabel', { name: selectedProjectName })}{' '}
-                        <span className="text-[var(--muted)]">#{linkProjectId}</span>
-                      </p>
-                    )}
-                    <div className="mt-2 max-h-40 overflow-y-auto rounded-md border border-[var(--border)]">
-                      {!orgId ? (
-                        <p className="px-3 py-2 text-xs text-[var(--muted)]">{t('chrome.selectOrgToList')}</p>
-                      ) : loadingProjects ? (
-                        <p className="px-3 py-2 text-xs text-[var(--muted)]">{t('common.loading')}</p>
-                      ) : filteredProjects.length === 0 ? (
-                        <p className="px-3 py-2 text-xs text-[var(--muted)]">
-                          {projects.length === 0 ? t('chrome.noProjectsInOrg') : t('chrome.noMatches')}
-                        </p>
-                      ) : (
-                        <ul className="divide-y divide-[var(--border)]" role="listbox" aria-label={t('chrome.projectsAria')}>
-                          {filteredProjects.map((p) => {
-                            const selected = String(p.Id) === linkProjectId;
-                            return (
-                              <li key={p.Id}>
-                                <button
-                                  type="button"
-                                  role="option"
-                                  aria-selected={selected}
-                                  className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition ${
-                                    selected
-                                      ? 'bg-[var(--accent)]/20 text-[var(--text)]'
-                                      : 'text-[var(--text)] hover:bg-[var(--surface-2)]'
-                                  }`}
-                                  onClick={() => {
-                                    setLinkProjectId(String(p.Id));
-                                    setProjectQuery(p.Name);
-                                  }}
-                                >
-                                  <span className="min-w-0 truncate">{p.Name}</span>
-                                  <span className="shrink-0 text-xs text-[var(--muted)]">#{p.Id}</span>
-                                </button>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      className="btn-ghost mt-2"
-                      disabled={busy || !orgId || !linkProjectId}
-                      onClick={() => void linkProject()}
-                    >
-                      {t('chrome.linkSelectedProject')}
-                    </button>
-                  </div>
-                </div>
-              )}
               {linkedProjectId && (
-                <button type="button" className="btn-danger" disabled={busy} onClick={() => void unlink()}>
+                <button
+                  type="button"
+                  className="btn-danger ml-auto py-1.5 text-sm"
+                  disabled={busy}
+                  onClick={() => void unlink()}
+                >
                   {t('chrome.unlinkProject')}
                 </button>
               )}
             </div>
+            {!linkedProjectId && (
+              <div className="mt-2.5 space-y-2">
+                <button
+                  type="button"
+                  className="btn-primary py-1.5 text-sm"
+                  disabled={busy || !orgId}
+                  onClick={() => void createProject()}
+                >
+                  {t('chrome.createProjectFromVault')}
+                </button>
+                <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)]/40 p-2.5">
+                  <label className="block text-xs font-medium text-[var(--muted)]" htmlFor="pm-project-search">
+                    {t('chrome.orLinkExisting')}
+                  </label>
+                  <input
+                    id="pm-project-search"
+                    className="input mt-1 w-full py-1.5 text-sm"
+                    placeholder={
+                      !orgId
+                        ? t('chrome.pickOrgFirst')
+                        : loadingProjects
+                          ? t('chrome.loadingProjects')
+                          : t('chrome.searchProjects')
+                    }
+                    value={projectQuery}
+                    onChange={(e) => {
+                      setProjectQuery(e.target.value);
+                      setLinkProjectId('');
+                    }}
+                    disabled={!orgId || loadingProjects || busy}
+                    autoComplete="off"
+                  />
+                  {linkProjectId && selectedProjectName && (
+                    <p className="mt-1 text-xs text-[var(--accent-soft)]">
+                      {t('chrome.selectedLabel', { name: selectedProjectName })}{' '}
+                      <span className="text-[var(--muted)]">#{linkProjectId}</span>
+                    </p>
+                  )}
+                  <div className="mt-1.5 max-h-36 overflow-y-auto rounded-md border border-[var(--border)]">
+                    {!orgId ? (
+                      <p className="px-3 py-2 text-xs text-[var(--muted)]">{t('chrome.selectOrgToList')}</p>
+                    ) : loadingProjects ? (
+                      <p className="px-3 py-2 text-xs text-[var(--muted)]">{t('common.loading')}</p>
+                    ) : filteredProjects.length === 0 ? (
+                      <p className="px-3 py-2 text-xs text-[var(--muted)]">
+                        {projects.length === 0 ? t('chrome.noProjectsInOrg') : t('chrome.noMatches')}
+                      </p>
+                    ) : (
+                      <ul className="divide-y divide-[var(--border)]" role="listbox" aria-label={t('chrome.projectsAria')}>
+                        {filteredProjects.map((p) => {
+                          const selected = String(p.Id) === linkProjectId;
+                          return (
+                            <li key={p.Id}>
+                              <button
+                                type="button"
+                                role="option"
+                                aria-selected={selected}
+                                className={`flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-sm transition ${
+                                  selected
+                                    ? 'bg-[var(--accent)]/20 text-[var(--text)]'
+                                    : 'text-[var(--text)] hover:bg-[var(--surface-2)]'
+                                }`}
+                                onClick={() => {
+                                  setLinkProjectId(String(p.Id));
+                                  setProjectQuery(p.Name);
+                                }}
+                              >
+                                <span className="min-w-0 truncate">{p.Name}</span>
+                                <span className="shrink-0 text-xs text-[var(--muted)]">#{p.Id}</span>
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-ghost mt-1.5 py-1.5 text-sm"
+                    disabled={busy || !orgId || !linkProjectId}
+                    onClick={() => void linkProject()}
+                  >
+                    {t('chrome.linkSelectedProject')}
+                  </button>
+                </div>
+              </div>
+            )}
             {orgError && (
               <div className="mt-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
                 <p>{orgError}</p>

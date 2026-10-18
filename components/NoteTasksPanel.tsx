@@ -45,8 +45,9 @@ interface NoteTasksPanelProps {
   /**
    * Apply body already persisted by the server (PM sync / markers).
    * Must not leave the editor dirty or skip a needed save.
+   * Pass updatedAt when the API returns it (optimistic concurrency).
    */
-  onBodyChange: (body: string) => void;
+  onBodyChange: (body: string, meta?: { updatedAt?: string | null }) => void;
   /**
    * Client-side body rewrite that must be saved (e.g. Recalculate estimates).
    * Receives the full markdown and should persist it to the DB.
@@ -116,9 +117,9 @@ export default function NoteTasksPanel({
   bodyRef.current = body;
 
   const applyBodyFromServer = useCallback(
-    (next: unknown) => {
+    (next: unknown, updatedAt?: string | null) => {
       if (typeof next === 'string' && next !== bodyRef.current) {
-        onBodyChange(next);
+        onBodyChange(next, updatedAt != null ? { updatedAt } : undefined);
       }
     },
     [onBodyChange]
@@ -314,7 +315,7 @@ export default function NoteTasksPanel({
       });
       const data = await res.json();
       if (res.ok && data.data?.bodyMarkdown != null) {
-        applyBodyFromServer(data.data.bodyMarkdown);
+        applyBodyFromServer(data.data.bodyMarkdown, data.data.updatedAt);
         onStatus?.(item.checked ? t('status.markedOpen') : t('status.markedDone'));
         await load();
       } else {

@@ -1,0 +1,47 @@
+---
+description: Keep .cursorrules PM-ACTIVE-TASK in sync via Myelin MCP (replaces Kanban extension)
+alwaysApply: true
+---
+
+# PM-ACTIVE-TASK (Myelin MCP)
+
+The Kanban VS Code extension used to write the `PM-ACTIVE-TASK` block in `.cursorrules` and `.git/pm-active-task.json`. With MCP-only workflows, **agents must maintain that block**.
+
+## When to update
+
+1. **Start work** on a Myelin task (In Progress / implementing): add it to the active list.
+2. **Before commit** (or when the user asks to commit / generate a commit message): ensure every task reflected in the staged diff is listed.
+3. **After a successful commit**: the `post-commit` hook clears the list; do not re-add Done tasks from history.
+
+## How to update
+
+1. Resolve scope: Myelin MCP `resolve_context` / `list_my_tasks` with `repositoryUrl` = this repo’s `origin` (e.g. `https://github.com/Tiag0ss/synapse.git`) or `projectId` **16** (Synapse).
+2. Write `.git/pm-active-task.json`:
+
+```json
+{
+  "tasks": [
+    {
+      "taskId": 1362,
+      "projectId": 16,
+      "taskName": "Short title",
+      "updatedAt": "ISO-8601"
+    }
+  ],
+  "updatedAt": "ISO-8601"
+}
+```
+
+Newest / most relevant task last in the array is fine; order in `.cursorrules` should prefer **most recently activated first** (usually highest Id or latest `updatedAt`).
+
+3. Replace the block between `# >>> PM-ACTIVE-TASK:START` and `# >>> PM-ACTIVE-TASK:END` in `.cursorrules` using the same shape the Kanban extension used:
+
+- Empty: `# No active PM tasks since the last commit.`
+- Non-empty: bullet lines `- Task #N - {name}`, plus `Always keep every of these references in the message: Task #A, Task #B, …`
+
+4. Do **not** invent Task #Ids. Prefer Myelin MCP over guessing from chat.
+
+## Commit messages
+
+- Include **every** Task #Id from the active block (subject and/or body). Prefer a trailing `References: Task #A, Task #B, …` line when many.
+- If the block says there are no active PM tasks, **do not** add Task references from git history.

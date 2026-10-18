@@ -7,6 +7,8 @@ export type StatusMessages = {
   uploadFailed: string;
   updateFailed: string;
   saveFailed: string;
+  noteConflictDetected: string;
+  sessionExpiredSignIn: string;
   createFailed: string;
   exportFailed: string;
   loginFailed: string;
@@ -196,6 +198,8 @@ export const statusEn: StatusMessages = {
   uploadFailed: 'Upload failed',
   updateFailed: 'Update failed',
   saveFailed: 'Save failed',
+  noteConflictDetected: 'Note conflict — another version is on the server',
+  sessionExpiredSignIn: 'Your session expired — sign in again',
   createFailed: 'Create failed',
   exportFailed: 'Export failed',
   loginFailed: 'Login failed',
@@ -384,6 +388,8 @@ export const statusPt: StatusMessages = {
   uploadFailed: 'Falha no envio',
   updateFailed: 'Falha na actualização',
   saveFailed: 'Falha ao guardar',
+  noteConflictDetected: 'Conflito na nota — existe outra versão no servidor',
+  sessionExpiredSignIn: 'A sessão expirou — inicie sessão novamente',
   createFailed: 'Falha ao criar',
   exportFailed: 'Falha na exportação',
   loginFailed: 'Falha no início de sessão',
@@ -572,6 +578,8 @@ export const statusEs: StatusMessages = {
   uploadFailed: 'Error al subir',
   updateFailed: 'Error al actualizar',
   saveFailed: 'Error al guardar',
+  noteConflictDetected: 'Conflicto en la nota — hay otra versión en el servidor',
+  sessionExpiredSignIn: 'La sesión expiró — inicie sesión de nuevo',
   createFailed: 'Error al crear',
   exportFailed: 'Error al exportar',
   loginFailed: 'Error al iniciar sesión',
@@ -760,6 +768,8 @@ export const statusFr: StatusMessages = {
   uploadFailed: 'Échec du téléversement',
   updateFailed: 'Échec de la mise à jour',
   saveFailed: 'Échec de l’enregistrement',
+  noteConflictDetected: 'Conflit sur la note — une autre version est sur le serveur',
+  sessionExpiredSignIn: 'Votre session a expiré — reconnectez-vous',
   createFailed: 'Échec de la création',
   exportFailed: 'Échec de l’export',
   loginFailed: 'Échec de la connexion',

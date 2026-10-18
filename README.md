@@ -168,7 +168,7 @@ Notes and vault ACLs live only in Synapse. Task/project create goes through Myel
 | **unlisted** | Anyone with the link | No |
 | **public** | Everyone | Yes |
 
-Share **Read** = wiki only (no vault editor). Share **Edit** / owner = vault app + wiki. Per-note visibility filters content inside an accessible wiki; **private** notes are visible on the wiki only to Edit/Owner (not Share Read).
+Share **Read** = wiki only (no vault editor). Share **Edit** / owner = vault app + wiki. Per-note visibility filters content inside an accessible wiki. **Private** notes never appear on the public wiki — not even for Edit/Owner — until visibility is raised (unlisted/public).
 
 ### Note syntax (quick)
 

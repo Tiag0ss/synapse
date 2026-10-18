@@ -16,6 +16,14 @@ import RevisionDiffModal, {
   type PartialRestorePatch,
   type RevisionSnapshot,
 } from '@/components/RevisionDiffModal';
+import NoteConflictModal from '@/components/NoteConflictModal';
+import NotePresenceBanner from '@/components/NotePresenceBanner';
+import {
+  noteUpdatedAtIso,
+  type NoteConflictLocalDraft,
+  type NoteConflictServerSnapshot,
+} from '@/lib/noteConflict';
+import { useNotePresence } from '@/lib/useNotePresence';
 import VaultOptionsModal from '@/components/VaultOptionsModal';
 import VaultPmSettingsModal from '@/components/VaultPmSettingsModal';
 import NoteTasksPanel from '@/components/NoteTasksPanel';
@@ -38,6 +46,10 @@ import { invalidateBoardEmbedCache } from '@/components/BoardEmbedPortals';
 import type { FoldCard } from '@/lib/extractFoldCards';
 import { useIsLgUp } from '@/lib/useMediaQuery';
 import { useI18n } from '@/lib/i18n/provider';
+import {
+  isUnauthorizedResponse,
+  redirectToLogin,
+} from '@/lib/sessionAuth';
 
 interface NoteListItem {
   Id: number;
@@ -149,7 +161,10 @@ export default function VaultWorkspacePage() {
     Name?: string;
     PmProjectId?: number | null;
     PmProjectName?: string | null;
+    PmProjectOpenUrl?: string | null;
     PmOrganizationId?: number | null;
+    PmAutoAssignOnCreate?: number | boolean | null;
+    PmDefaultSprintId?: number | null;
     slug?: string;
     AllowPublicPages?: number | boolean;
     DefaultVisibility?: string;
@@ -225,6 +240,12 @@ export default function VaultWorkspacePage() {
   const [pendingSwitchId, setPendingSwitchId] = useState<number | null>(null);
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const skipNextAutosaveRef = useRef(false);
+  /** Last known Notes.UpdatedAt for optimistic concurrency. */
+  const [noteUpdatedAt, setNoteUpdatedAt] = useState<string | null>(null);
+  const [conflictServer, setConflictServer] = useState<NoteConflictServerSnapshot | null>(null);
+  const [conflictDraft, setConflictDraft] = useState<NoteConflictLocalDraft | null>(null);
+  const [conflictSaving, setConflictSaving] = useState(false);
+  const [softLockConfirmOpen, setSoftLockConfirmOpen] = useState(false);
 
   const noteIndex = useMemo(
     () =>
@@ -244,6 +265,12 @@ export default function VaultWorkspacePage() {
   const accessRole = vaultMeta.AccessRole || 'owner';
   const canEdit = accessRole === 'owner' || accessRole === 'edit';
   const isOwner = accessRole === 'owner';
+  const { peers: presencePeers, softLock, nowMs: presenceNowMs } = useNotePresence({
+    vaultId,
+    noteId: selectedId,
+    claimFocus: canEdit,
+    enabled: selectedId != null,
+  });
   const isPersonalWork = Number(vaultMeta.IsPersonalWork || 0) === 1;
   const hubNoteId =
     vaultMeta.HubNoteId != null
@@ -289,40 +316,82 @@ export default function VaultWorkspacePage() {
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, [dirty]);
 
+  const handleUnauthorized = useCallback(() => {
+    setStatus(t('status.sessionExpiredSignIn'));
+    redirectToLogin();
+  }, [t, setStatus]);
+
   const loadNotes = useCallback(async () => {
     const res = await fetch(`/api/vaults/${vaultId}/notes${q ? `?q=${encodeURIComponent(q)}` : ''}`, {
       credentials: 'include',
     });
+    if (isUnauthorizedResponse(res)) {
+      handleUnauthorized();
+      return;
+    }
     const data = await res.json();
     setNotes(data.data || []);
-  }, [vaultId, q]);
+  }, [vaultId, q, handleUnauthorized]);
 
   const loadLinkableVaults = useCallback(async () => {
     const res = await fetch('/api/vaults/linkable-notes', { credentials: 'include' });
+    if (isUnauthorizedResponse(res)) {
+      handleUnauthorized();
+      return;
+    }
     const data = await res.json();
     if (res.ok) setLinkableVaults(Array.isArray(data.data) ? data.data : []);
-  }, []);
+  }, [handleUnauthorized]);
 
   const loadVault = useCallback(async () => {
     const res = await fetch(`/api/vaults/${vaultId}`, { credentials: 'include' });
+    if (isUnauthorizedResponse(res)) {
+      handleUnauthorized();
+      return;
+    }
     const data = await res.json();
     if (data.data) setVaultMeta(data.data);
-  }, [vaultId]);
+  }, [vaultId, handleUnauthorized]);
 
   const loadGraph = useCallback(async () => {
     const res = await fetch(`/api/vaults/${vaultId}/graph`, { credentials: 'include' });
+    if (isUnauthorizedResponse(res)) {
+      handleUnauthorized();
+      return;
+    }
     const data = await res.json();
     if (res.ok) {
       setGraph(data.data || { nodes: [], edges: [] });
-      setGraphToken((t) => t + 1);
+      setGraphToken((n) => n + 1);
     }
-  }, [vaultId]);
+  }, [vaultId, handleUnauthorized]);
 
   useEffect(() => {
     void loadVault();
     void loadGraph();
     void loadLinkableVaults();
   }, [loadVault, loadGraph, loadLinkableVaults]);
+
+  /** Catch idle session expiry when returning to the tab. */
+  useEffect(() => {
+    const check = () => {
+      if (document.visibilityState !== 'visible') return;
+      void (async () => {
+        try {
+          const res = await fetch('/api/auth/me', { credentials: 'include' });
+          if (isUnauthorizedResponse(res)) handleUnauthorized();
+        } catch {
+          /* network blip — ignore */
+        }
+      })();
+    };
+    document.addEventListener('visibilitychange', check);
+    window.addEventListener('focus', check);
+    return () => {
+      document.removeEventListener('visibilitychange', check);
+      window.removeEventListener('focus', check);
+    };
+  }, [handleUnauthorized]);
 
   useEffect(() => {
     if (vaultId) rememberLastVault(vaultId);
@@ -336,6 +405,10 @@ export default function VaultWorkspacePage() {
       return;
     }
     const res = await fetch(`/api/vaults/${vaultId}/notes/${id}`, { credentials: 'include' });
+    if (isUnauthorizedResponse(res)) {
+      handleUnauthorized();
+      return;
+    }
     const data = await res.json();
     if (!res.ok) return;
     const n = data.data;
@@ -372,6 +445,9 @@ export default function VaultWorkspacePage() {
       visibility: String(n.Visibility || ''),
       icon,
     });
+    setNoteUpdatedAt(noteUpdatedAtIso(n.UpdatedAt));
+    setConflictServer(null);
+    setConflictDraft(null);
     setSaveState('idle');
     setCenterMode('editor');
     setBoardMaximized(false);
@@ -422,13 +498,29 @@ export default function VaultWorkspacePage() {
     body?: string;
     boardJson?: string | null;
     visibility?: string;
+    icon?: NoteIconId | null;
+    overwriteConflict?: boolean;
+    /** Skip soft-lock confirm (user already accepted). */
+    ignoreSoftLock?: boolean;
+    /** When set, skip opening a new conflict modal (already resolving one). */
+    expectedUpdatedAt?: string | null;
   }) => {
     if (!selectedId || !canEdit) return false;
+    if (conflictServer && !opts?.overwriteConflict) return false;
     const reason = opts?.reason || 'manual';
+    // Soft lock: pause autosave; warn on manual save until user confirms.
+    if (softLock && !opts?.ignoreSoftLock) {
+      if (reason === 'auto') return false;
+      setSoftLockConfirmOpen(true);
+      return false;
+    }
     const nextTitle = opts?.title ?? title;
     const nextBody = opts?.body ?? body;
     const nextBoard = opts?.boardJson !== undefined ? opts.boardJson : boardJson;
     const nextVisibility = opts?.visibility ?? visibility;
+    const nextIcon = opts?.icon !== undefined ? opts.icon : noteIcon;
+    const expected =
+      opts?.expectedUpdatedAt !== undefined ? opts.expectedUpdatedAt : noteUpdatedAt;
     setSaveState('saving');
     setStatus(reason === 'auto' ? t('status.autosaving') : t('chrome.saving'));
     const payload =
@@ -437,15 +529,19 @@ export default function VaultWorkspacePage() {
             title: nextTitle,
             boardJson: nextBoard,
             visibility: nextVisibility || null,
-            icon: noteIcon,
+            icon: nextIcon,
             revisionSource: reason,
+            ...(expected ? { expectedUpdatedAt: expected } : {}),
+            ...(opts?.overwriteConflict ? { overwriteConflict: true } : {}),
           }
         : {
             title: nextTitle,
             bodyMarkdown: nextBody,
             visibility: nextVisibility || null,
-            icon: noteIcon,
+            icon: nextIcon,
             revisionSource: reason,
+            ...(expected ? { expectedUpdatedAt: expected } : {}),
+            ...(opts?.overwriteConflict ? { overwriteConflict: true } : {}),
           };
     const res = await fetch(`/api/vaults/${vaultId}/notes/${selectedId}`, {
       method: 'PUT',
@@ -454,6 +550,29 @@ export default function VaultWorkspacePage() {
       body: JSON.stringify(payload),
     });
     const data = await res.json();
+    if (isUnauthorizedResponse(res)) {
+      setSaveState('error');
+      handleUnauthorized();
+      return false;
+    }
+    if (res.status === 409 && data?.code === 'note_conflict' && data?.data) {
+      const server = data.data as NoteConflictServerSnapshot;
+      setConflictServer({
+        ...server,
+        updatedAt: noteUpdatedAtIso(server.updatedAt) || String(server.updatedAt || ''),
+        kind: server.kind === 'whiteboard' ? 'whiteboard' : 'note',
+      });
+      setConflictDraft({
+        title: nextTitle,
+        bodyMarkdown: nextBody,
+        boardJson: nextBoard,
+        visibility: nextVisibility,
+        icon: nextIcon,
+      });
+      setSaveState('error');
+      setStatus(t('status.noteConflictDetected'));
+      return false;
+    }
     if (!res.ok) {
       setSaveState('error');
       setStatus(data.message || t('status.saveFailed'));
@@ -468,13 +587,21 @@ export default function VaultWorkspacePage() {
     if (savedBody !== nextBody) {
       setBody(savedBody);
     }
+    if (opts?.title !== undefined) setTitle(nextTitle);
+    if (opts?.visibility !== undefined) setVisibility(nextVisibility);
+    if (opts?.icon !== undefined) setNoteIcon(nextIcon);
+    if (opts?.boardJson !== undefined) setBoardJson(nextBoard);
     setSavedSnapshot({
       title: nextTitle,
       body: savedBody,
       boardJson: nextBoard,
       visibility: nextVisibility,
-      icon: noteIcon,
+      icon: nextIcon,
     });
+    const nextUpdatedAt = noteUpdatedAtIso(data.data?.updatedAt);
+    if (nextUpdatedAt) setNoteUpdatedAt(nextUpdatedAt);
+    setConflictServer(null);
+    setConflictDraft(null);
     setSaveState('saved');
     setStatus(reason === 'auto' ? t('status.autosaved') : t('status.saved'));
     await loadNotes();
@@ -501,11 +628,88 @@ export default function VaultWorkspacePage() {
     return true;
   };
 
-  const applyServerBody = useCallback((next: string) => {
+  const applyServerBody = useCallback((next: string, meta?: { updatedAt?: string | null }) => {
     skipNextAutosaveRef.current = true;
     setBody(next);
     setSavedSnapshot((s) => ({ ...s, body: next }));
+    const nextAt = noteUpdatedAtIso(meta?.updatedAt);
+    if (nextAt) setNoteUpdatedAt(nextAt);
   }, []);
+
+  const resolveConflictTakeServer = useCallback(() => {
+    if (!conflictServer) return;
+    skipNextAutosaveRef.current = true;
+    const icon = normalizeNoteIcon(conflictServer.icon);
+    setTitle(conflictServer.title);
+    setBody(conflictServer.bodyMarkdown);
+    setBoardJson(conflictServer.boardJson);
+    setVisibility(conflictServer.visibility || '');
+    setNoteIcon(icon);
+    setSavedSnapshot({
+      title: conflictServer.title,
+      body: conflictServer.bodyMarkdown,
+      boardJson: conflictServer.boardJson,
+      visibility: conflictServer.visibility || '',
+      icon,
+    });
+    setNoteUpdatedAt(noteUpdatedAtIso(conflictServer.updatedAt));
+    setConflictServer(null);
+    setConflictDraft(null);
+    setSaveState('idle');
+    setStatus(t('status.saved'));
+  }, [conflictServer, t]);
+
+  const resolveConflictKeepMine = useCallback(async () => {
+    if (!conflictServer || !conflictDraft) return;
+    setConflictSaving(true);
+    try {
+      const ok = await saveNote({
+        reason: 'manual',
+        title: conflictDraft.title,
+        body: conflictDraft.bodyMarkdown,
+        boardJson: conflictDraft.boardJson,
+        visibility: conflictDraft.visibility,
+        icon: normalizeNoteIcon(conflictDraft.icon),
+        overwriteConflict: true,
+        expectedUpdatedAt: conflictServer.updatedAt,
+      });
+      if (ok) {
+        setTitle(conflictDraft.title);
+        setBody(conflictDraft.bodyMarkdown);
+        setBoardJson(conflictDraft.boardJson);
+        setVisibility(conflictDraft.visibility);
+        setNoteIcon(normalizeNoteIcon(conflictDraft.icon));
+      }
+    } finally {
+      setConflictSaving(false);
+    }
+  }, [conflictServer, conflictDraft, title, body, boardJson, visibility, noteIcon, vaultId, selectedId, itemKind]);
+
+  const resolveConflictSaveMerged = useCallback(async () => {
+    if (!conflictServer || !conflictDraft) return;
+    setConflictSaving(true);
+    try {
+      const ok = await saveNote({
+        reason: 'manual',
+        title: conflictDraft.title,
+        body: conflictDraft.bodyMarkdown,
+        boardJson: conflictDraft.boardJson,
+        visibility: conflictDraft.visibility,
+        icon: normalizeNoteIcon(conflictDraft.icon),
+        overwriteConflict: true,
+        expectedUpdatedAt: conflictServer.updatedAt,
+      });
+      if (ok) {
+        setTitle(conflictDraft.title);
+        setBody(conflictDraft.bodyMarkdown);
+        setBoardJson(conflictDraft.boardJson);
+        setVisibility(conflictDraft.visibility);
+        setNoteIcon(normalizeNoteIcon(conflictDraft.icon));
+      }
+    } finally {
+      setConflictSaving(false);
+    }
+  }, [conflictServer, conflictDraft, title, body, boardJson, visibility, noteIcon, vaultId, selectedId, itemKind]);
 
   const onBoardChange = useCallback((next: string) => {
     setBoardJson(next);
@@ -1167,7 +1371,7 @@ aria-label={t('chrome.info')}
               )}
             </div>
             <div className="pl-0.5">
-              <AppUserMenu dense />
+              <AppUserMenu dense showSignInWhenGuest />
             </div>
           </div>
           <div className="flex items-center gap-1 border-t border-[var(--border)] bg-[var(--surface)]/40 px-2 py-1.5">
@@ -1355,7 +1559,7 @@ aria-label={t('chrome.info')}
                     : status || (saveState === 'saved' ? t('common.save') : '')}
               </span>
             )}
-            <AppUserMenu dense />
+            <AppUserMenu dense showSignInWhenGuest />
           </div>
         </div>
 
@@ -1735,6 +1939,13 @@ aria-label={t('chrome.info')}
                 <p className="shrink-0 rounded-lg border border-[var(--border)] bg-[var(--surface-2)]/50 px-3 py-2 text-xs text-[var(--muted)]">
                   {t('chrome.hubPullOnlyBanner')}
                 </p>
+              )}
+              {!boardFull && (
+                <NotePresenceBanner
+                  peers={presencePeers}
+                  softLock={softLock}
+                  nowMs={presenceNowMs}
+                />
               )}
               {isWhiteboard ? (
                 <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -2178,6 +2389,22 @@ aria-label={t('chrome.info')}
       />
 
       <ConfirmModal
+        open={softLockConfirmOpen}
+        title={t('chrome.presenceSoftLockTitle')}
+        message={t('chrome.presenceSoftLockMessage', {
+          name: softLock?.username || '…',
+        })}
+        confirmLabel={t('chrome.presenceSaveAnyway')}
+        cancelLabel={t('common.cancel')}
+        danger
+        onConfirm={() => {
+          setSoftLockConfirmOpen(false);
+          void saveNote({ reason: 'manual', ignoreSoftLock: true });
+        }}
+        onCancel={() => setSoftLockConfirmOpen(false)}
+      />
+
+      <ConfirmModal
         open={pendingSwitchId != null}
         title={t('chrome.unsavedTitle')}
         message={t('chrome.unsavedMessage')}
@@ -2252,6 +2479,26 @@ aria-label={t('chrome.info')}
         }}
       />
 
+      <NoteConflictModal
+        open={Boolean(conflictServer && conflictDraft)}
+        server={conflictServer}
+        draft={conflictDraft}
+        saving={conflictSaving}
+        onClose={() => {
+          if (conflictSaving) return;
+          setConflictServer(null);
+          setConflictDraft(null);
+        }}
+        onDraftChange={setConflictDraft}
+        onTakeServer={resolveConflictTakeServer}
+        onKeepMine={() => {
+          void resolveConflictKeepMine();
+        }}
+        onSaveMerged={() => {
+          void resolveConflictSaveMerged();
+        }}
+      />
+
       <VaultOptionsModal
         open={vaultOptionsOpen}
         vaultId={vaultId}
@@ -2262,7 +2509,14 @@ aria-label={t('chrome.info')}
         defaultVisibility={vaultMeta.DefaultVisibility || 'private'}
         pmProjectId={vaultMeta.PmProjectId}
         pmProjectName={vaultMeta.PmProjectName}
+        pmProjectOpenUrl={vaultMeta.PmProjectOpenUrl}
         pmOrganizationId={vaultMeta.PmOrganizationId}
+        pmAutoAssignOnCreate={Number(vaultMeta.PmAutoAssignOnCreate) === 1}
+        pmDefaultSprintId={
+          vaultMeta.PmDefaultSprintId != null && Number(vaultMeta.PmDefaultSprintId) > 0
+            ? Number(vaultMeta.PmDefaultSprintId)
+            : null
+        }
         initialTab={vaultOptionsTab || 'links'}
         notes={noteIndex}
         onClose={() => {
@@ -2273,6 +2527,11 @@ aria-label={t('chrome.info')}
           void loadVault();
           void loadNotes();
           void loadGraph();
+        }}
+        onNotesMutated={(noteIds) => {
+          if (selectedId != null && noteIds.includes(selectedId) && !dirty) {
+            void openNote(selectedId, { force: true });
+          }
         }}
         onStatus={setStatus}
         onOpenNote={(id) => {
@@ -2292,11 +2551,24 @@ aria-label={t('chrome.info')}
         vaultName={vaultMeta.Name || `Vault #${vaultId}`}
         pmProjectId={vaultMeta.PmProjectId}
         pmProjectName={vaultMeta.PmProjectName}
+        pmProjectOpenUrl={vaultMeta.PmProjectOpenUrl}
         pmOrganizationId={vaultMeta.PmOrganizationId}
+        pmAutoAssignOnCreate={Number(vaultMeta.PmAutoAssignOnCreate) === 1}
+        pmDefaultSprintId={
+          vaultMeta.PmDefaultSprintId != null && Number(vaultMeta.PmDefaultSprintId) > 0
+            ? Number(vaultMeta.PmDefaultSprintId)
+            : null
+        }
+        isOwner={isOwner}
         onClose={() => setPmTasksOpen(false)}
         onChanged={() => {
           void loadVault();
           void loadNotes();
+        }}
+        onNotesMutated={(noteIds) => {
+          if (selectedId != null && noteIds.includes(selectedId) && !dirty) {
+            void openNote(selectedId, { force: true });
+          }
         }}
         onStatus={setStatus}
         onOpenNote={(id) => {

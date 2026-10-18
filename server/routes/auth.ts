@@ -385,7 +385,7 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
-router.get('/sso/start', async (_req, res) => {
+router.get('/sso/start', async (req, res) => {
   const allowSso = await getSettingBool(SETTING_KEYS.allowSsoLogin, true);
   if (!allowSso || !isSsoEnvConfigured()) {
     return res.status(403).send('SSO login is disabled');
@@ -403,6 +403,28 @@ router.get('/sso/start', async (_req, res) => {
     secure: cookieSecure(),
     maxAge: 10 * 60 * 1000,
   });
+  // Optional return path after SSO (from /?next=… on the login screen).
+  const nextRaw = typeof req.query.next === 'string' ? req.query.next : '';
+  let nextPath = '';
+  try {
+    nextPath = decodeURIComponent(nextRaw);
+  } catch {
+    nextPath = '';
+  }
+  if (
+    nextPath.startsWith('/') &&
+    !nextPath.startsWith('//') &&
+    !nextPath.startsWith('/api')
+  ) {
+    res.cookie('sso_next', nextPath, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: cookieSecure(),
+      maxAge: 10 * 60 * 1000,
+    });
+  } else {
+    res.clearCookie('sso_next');
+  }
   res.redirect(url.toString());
 });
 
@@ -467,6 +489,15 @@ router.get('/sso/callback', async (req, res) => {
     setSessionCookie(res, sessionUser);
 
     const cookies = (req as AuthRequest & { cookies?: Record<string, string> }).cookies || {};
+    const ssoNext = String(cookies.sso_next || '').trim();
+    res.clearCookie('sso_next');
+    if (
+      ssoNext.startsWith('/') &&
+      !ssoNext.startsWith('//') &&
+      !ssoNext.startsWith('/api')
+    ) {
+      return res.redirect(ssoNext);
+    }
     const lastRaw = String(cookies[LAST_VAULT_COOKIE] || '').trim();
     const lastId = Number(lastRaw);
     if (Number.isFinite(lastId) && lastId > 0) {

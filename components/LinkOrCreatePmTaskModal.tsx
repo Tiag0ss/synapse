@@ -27,6 +27,9 @@ interface LinkOrCreatePmTaskModalProps {
   onLink: (pmTaskId: number, pmProjectId: number) => void | Promise<void>;
 }
 
+const MIN_SEARCH_CHARS = 2;
+const SEARCH_DEBOUNCE_MS = 350;
+
 function normalizeLinkableTask(raw: Record<string, unknown>): LinkablePmTaskOption | null {
   const id = Number(raw.id ?? raw.Id);
   if (!Number.isFinite(id) || id <= 0) return null;
@@ -53,7 +56,8 @@ export default function LinkOrCreatePmTaskModal({
   onLink,
 }: LinkOrCreatePmTaskModalProps) {
   const { t } = useI18n();
-  const [loading, setLoading] = useState(false);
+  const [projectsLoading, setProjectsLoading] = useState(false);
+  const [tasksLoading, setTasksLoading] = useState(false);
   const [error, setError] = useState('');
   const [needsReauth, setNeedsReauth] = useState(false);
   const [projects, setProjects] = useState<LinkablePmProjectOption[]>([]);
@@ -61,47 +65,38 @@ export default function LinkOrCreatePmTaskModal({
   const [projectFilter, setProjectFilter] = useState<string>('all');
   const [defaultProjectId, setDefaultProjectId] = useState<number | null>(null);
   const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const searchGen = useRef(0);
 
   useEffect(() => {
     if (!open) return;
     setQuery('');
+    setDebouncedQuery('');
     setSelectedId(null);
     setError('');
     setNeedsReauth(false);
-    setProjectFilter('all');
+    setTasks([]);
+    setHasSearched(false);
     let cancelled = false;
     (async () => {
-      setLoading(true);
+      setProjectsLoading(true);
       try {
-        const res = await fetch(`/api/vaults/${vaultId}/pm-tasks/linkable`, {
+        const res = await fetch(`/api/vaults/${vaultId}/pm-tasks/linkable?projectsOnly=1`, {
           credentials: 'include',
         });
         const json = await res.json();
         if (cancelled) return;
         if (!res.ok) {
           if (json.reauth || res.status === 401) setNeedsReauth(true);
-          setTasks([]);
           setProjects([]);
           setError(json.message || t('status.failedToLoadMyelinTasks'));
           return;
         }
         const payload = json.data;
-        const rawTasks = Array.isArray(payload)
-          ? payload
-          : Array.isArray(payload?.tasks)
-            ? payload.tasks
-            : [];
         const rawProjects = Array.isArray(payload?.projects) ? payload.projects : [];
-        const normalized = rawTasks
-          .map((row: unknown) =>
-            row && typeof row === 'object'
-              ? normalizeLinkableTask(row as Record<string, unknown>)
-              : null
-          )
-          .filter((t: LinkablePmTaskOption | null): t is LinkablePmTaskOption => t != null);
-        setTasks(normalized);
         setProjects(
           rawProjects
             .map((p: { id?: number; Id?: number; name?: string; Name?: string }) => ({
@@ -111,43 +106,113 @@ export default function LinkOrCreatePmTaskModal({
             .filter((p: LinkablePmProjectOption) => Number.isFinite(p.id) && p.id > 0)
         );
         const def = Number(payload?.defaultProjectId);
-        setDefaultProjectId(Number.isFinite(def) && def > 0 ? def : null);
+        const defaultId = Number.isFinite(def) && def > 0 ? def : null;
+        setDefaultProjectId(defaultId);
+        // Prefer vault project so search hits one project instead of the whole org.
+        setProjectFilter(defaultId != null ? String(defaultId) : 'all');
       } catch {
         if (!cancelled) {
-          setTasks([]);
           setProjects([]);
           setError(t('status.networkErrorLoadingMyelinTasks'));
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setProjectsLoading(false);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [open, vaultId]);
+  }, [open, vaultId, t]);
 
   useEffect(() => {
-    if (!open || loading) return;
-    const t = window.setTimeout(() => inputRef.current?.focus(), 50);
-    return () => window.clearTimeout(t);
-  }, [open, loading]);
+    if (!open) return;
+    const handle = window.setTimeout(() => {
+      setDebouncedQuery(query.trim());
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(handle);
+  }, [open, query]);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const projId = projectFilter === 'all' ? null : Number(projectFilter);
-    return tasks.filter((t) => {
-      if (projId != null && Number.isFinite(projId) && t.projectId !== projId) return false;
-      if (!q) return true;
-      const name = String(t.taskName || '').toLowerCase();
-      const status = String(t.statusName || '').toLowerCase();
-      const project = String(t.projectName || '').toLowerCase();
-      const id = String(t.id);
-      return name.includes(q) || status.includes(q) || project.includes(q) || id.includes(q);
-    });
-  }, [tasks, query, projectFilter]);
+  useEffect(() => {
+    if (!open || projectsLoading) return;
+    const q = debouncedQuery;
+    if (q.length < MIN_SEARCH_CHARS) {
+      setTasks([]);
+      setHasSearched(false);
+      setTasksLoading(false);
+      return;
+    }
 
-  const selectedTask = selectedId != null ? tasks.find((t) => t.id === selectedId) : null;
+    let cancelled = false;
+    const gen = ++searchGen.current;
+    (async () => {
+      setTasksLoading(true);
+      setError('');
+      try {
+        const params = new URLSearchParams();
+        params.set('q', q);
+        if (projectFilter !== 'all') params.set('projectId', projectFilter);
+        const res = await fetch(`/api/vaults/${vaultId}/pm-tasks/linkable?${params.toString()}`, {
+          credentials: 'include',
+        });
+        const json = await res.json();
+        if (cancelled || gen !== searchGen.current) return;
+        if (!res.ok) {
+          if (json.reauth || res.status === 401) setNeedsReauth(true);
+          setTasks([]);
+          setHasSearched(true);
+          setError(json.message || t('status.failedToLoadMyelinTasks'));
+          return;
+        }
+        const payload = json.data;
+        const rawTasks = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.tasks)
+            ? payload.tasks
+            : [];
+        const normalized = rawTasks
+          .map((row: unknown) =>
+            row && typeof row === 'object'
+              ? normalizeLinkableTask(row as Record<string, unknown>)
+              : null
+          )
+          .filter((row: LinkablePmTaskOption | null): row is LinkablePmTaskOption => row != null);
+        setTasks(normalized);
+        setHasSearched(true);
+        setSelectedId(null);
+      } catch {
+        if (!cancelled && gen === searchGen.current) {
+          setTasks([]);
+          setHasSearched(true);
+          setError(t('status.networkErrorLoadingMyelinTasks'));
+        }
+      } finally {
+        if (!cancelled && gen === searchGen.current) setTasksLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, vaultId, debouncedQuery, projectFilter, projectsLoading, t]);
+
+  useEffect(() => {
+    if (!open || projectsLoading) return;
+    const timer = window.setTimeout(() => inputRef.current?.focus(), 50);
+    return () => window.clearTimeout(timer);
+  }, [open, projectsLoading]);
+
+  const selectedTask = useMemo(
+    () => (selectedId != null ? tasks.find((task) => task.id === selectedId) : null),
+    [tasks, selectedId]
+  );
+
+  const listMessage = useMemo(() => {
+    if (projectsLoading) return t('common.loading');
+    if (query.trim().length < MIN_SEARCH_CHARS) return t('chrome.searchTasksToLoad');
+    if (tasksLoading) return t('common.loading');
+    if (!hasSearched) return t('chrome.searchTasksToLoad');
+    if (tasks.length === 0) return t('chrome.noTasksMatchFilter');
+    return null;
+  }, [projectsLoading, query, tasksLoading, hasSearched, tasks.length, t]);
 
   if (!open) return null;
 
@@ -198,7 +263,7 @@ export default function LinkOrCreatePmTaskModal({
                 id="linkable-project"
                 className="input w-full"
                 value={projectFilter}
-                disabled={busy || loading}
+                disabled={busy || projectsLoading || tasksLoading}
                 onChange={(e) => {
                   setProjectFilter(e.target.value);
                   setSelectedId(null);
@@ -227,7 +292,7 @@ export default function LinkOrCreatePmTaskModal({
             placeholder={t('chrome.filterTasksExtended')}
             aria-label={t('chrome.filterTasksExtended')}
             value={query}
-            disabled={busy}
+            disabled={busy || projectsLoading}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
               e.stopPropagation();
@@ -239,17 +304,11 @@ export default function LinkOrCreatePmTaskModal({
           />
 
           <div className="min-h-0 flex-1 overflow-y-auto rounded-xl border border-[var(--border)]">
-            {loading ? (
-              <p className="px-3 py-6 text-center text-sm text-[var(--muted)]">{t('common.loading')}</p>
-            ) : filtered.length === 0 ? (
-              <p className="px-3 py-6 text-center text-sm text-[var(--muted)]">
-                {tasks.length === 0
-                  ? t('chrome.noLinkableTasks')
-                  : t('chrome.noTasksMatchFilter')}
-              </p>
+            {listMessage ? (
+              <p className="px-3 py-6 text-center text-sm text-[var(--muted)]">{listMessage}</p>
             ) : (
               <ul className="divide-y divide-[var(--border)]">
-                {filtered.map((task) => {
+                {tasks.map((task) => {
                   const selected = selectedId === task.id;
                   return (
                     <li key={`${task.projectId}-${task.id}`}>
@@ -297,7 +356,7 @@ export default function LinkOrCreatePmTaskModal({
           <button
             type="button"
             className="btn-ghost"
-            disabled={busy || loading}
+            disabled={busy || projectsLoading}
             onClick={() => void onCreate()}
           >
             {t('chrome.createNewTask')}
@@ -305,7 +364,7 @@ export default function LinkOrCreatePmTaskModal({
           <button
             type="button"
             className="btn-primary"
-            disabled={busy || loading || !selectedTask || !selectedTask.projectId}
+            disabled={busy || tasksLoading || !selectedTask || !selectedTask.projectId}
             onClick={() => {
               if (selectedTask) void onLink(selectedTask.id, selectedTask.projectId);
             }}

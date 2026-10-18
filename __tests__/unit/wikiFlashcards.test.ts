@@ -55,7 +55,8 @@ describe('wiki flashcards visibility', () => {
     expect(isNoteEligibleForWikiFlashcards('authenticated', 'note', true, false)).toBe(true);
     expect(isNoteEligibleForWikiFlashcards('private', 'note', true, false)).toBe(false);
     expect(isNoteEligibleForWikiFlashcards('unlisted', 'note', true, false)).toBe(false);
-    expect(isNoteEligibleForWikiFlashcards('private', 'note', true, true)).toBe(true);
+    expect(isNoteEligibleForWikiFlashcards('private', 'note', true, true)).toBe(false);
+    expect(isNoteEligibleForWikiFlashcards('unlisted', 'note', true, true)).toBe(true);
     expect(isNoteEligibleForWikiFlashcards('public', 'whiteboard', false, false)).toBe(false);
   });
 
@@ -70,10 +71,11 @@ describe('wiki flashcards visibility', () => {
     expect(cards.map((c) => c.front).sort()).toEqual(['Auth Q', 'What is X?']);
   });
 
-  it('vault editor deck includes private and unlisted folds', () => {
+  it('vault editor deck includes unlisted folds but never private', () => {
     const cards = buildWikiFlashcards(notes, 'private', true, true);
     const fronts = cards.map((c) => c.front).sort();
-    expect(fronts).toEqual(['Auth Q', 'Hidden list', 'Secret', 'What is X?']);
+    expect(fronts).toEqual(['Auth Q', 'Hidden list', 'What is X?']);
+    expect(fronts).not.toContain('Secret');
     expect(fronts).not.toContain('Board card');
   });
 });

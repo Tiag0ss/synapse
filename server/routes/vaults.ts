@@ -10,22 +10,30 @@ import {
   fetchPmOrganizations,
   fetchPmProjects,
   fetchPmProjectStatuses,
+  fetchPmProjectSprints,
   normalizeOrganizationList,
   normalizePmProjectList,
+  normalizePmProjectSprints,
   pmProjectDisplayName,
   resolvePmProjectName,
   resolveTaskStatusId,
   resolveTaskStatusIdWithName,
   updatePmTask,
   buildPmTaskOpenUrl,
+  buildPmProjectOpenUrl,
   buildSynapseNoteUrl,
-  PM_BASE_URL,
 } from '../services/pmClient';
 import {
   rebuildNoteGraph,
   rewriteWikiLinksOnRename,
   snapshotRevision,
 } from '../services/notesGraph';
+import { noteUpdatedAtIso, sameNoteUpdatedAt } from '../../lib/noteConflict';
+import {
+  clearNotePresence,
+  listNotePresence,
+  upsertNotePresence,
+} from '../services/notePresence';
 import {
   ensureCheckboxMarker,
   setCheckboxCheckedByIndex,
@@ -38,6 +46,7 @@ import {
 import { applySafeMediaHeaders, readVaultMedia, saveVaultMedia, listNoteAttachments, deleteVaultMedia } from '../services/vaultMedia';
 import { importVaultZip } from '../services/vaultZipImport';
 import { exportVaultZip } from '../services/vaultZipExport';
+import { exportVaultStaticWiki } from '../services/vaultStaticWikiExport';
 import { renderNoteDocx } from '../services/carboneExport';
 import {
   ensureHubNote,
@@ -752,14 +761,37 @@ router.get('/:vaultId/export-zip', async (req: AuthRequest, res: Response) => {
   }
 });
 
+/** Static HTML wiki ZIP (index + pages + media) for offline / hosting. */
+router.get('/:vaultId/export-static-wiki', async (req: AuthRequest, res: Response) => {
+  const vault = await readableVault(Number(req.params.vaultId), req.user!.userId);
+  if (!vault) return res.status(404).json({ success: false, message: 'Vault not found' });
+  try {
+    const result = await exportVaultStaticWiki(
+      Number(vault.Id),
+      String(vault.Name || `vault-${vault.Id}`)
+    );
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${result.fileName}"`);
+    res.setHeader('X-Synapse-Note-Count', String(result.noteCount));
+    res.setHeader('X-Synapse-Image-Count', String(result.imageCount));
+    res.send(result.buffer);
+  } catch (error) {
+    logger.error('Vault static wiki export failed', { error, vaultId: vault.Id });
+    res.status(500).json({ success: false, message: 'Static wiki export failed' });
+  }
+});
+
 router.patch('/:vaultId', async (req: AuthRequest, res: Response) => {
   const vault = await ownedVault(Number(req.params.vaultId), req.user!.userId);
   if (!vault) return res.status(404).json({ success: false, message: 'Vault not found' });
   const schema = z.object({
     name: z.string().min(1).max(255).optional(),
+    slug: z.string().min(1).max(255).optional(),
     allowPublicPages: z.boolean().optional(),
     defaultVisibility: visibilityEnum.optional(),
     description: z.string().max(5000).optional().nullable(),
+    pmAutoAssignOnCreate: z.boolean().optional(),
+    pmDefaultSprintId: z.number().int().positive().nullable().optional(),
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) {
@@ -771,6 +803,35 @@ router.patch('/:vaultId', async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ success: false, message: 'Name cannot be empty' });
     }
     await pool.execute('UPDATE Vaults SET Name = ? WHERE Id = ?', [name, vault.Id]);
+  }
+  if (parsed.data.slug !== undefined) {
+    const rawSlug = String(parsed.data.slug).trim();
+    if (!rawSlug) {
+      return res.status(400).json({ success: false, message: 'Wiki slug cannot be empty' });
+    }
+    const nextSlug = slugify(rawSlug);
+    if (!nextSlug) {
+      return res.status(400).json({ success: false, message: 'Invalid wiki slug' });
+    }
+    const currentSlug = String(vault.slug || '');
+    if (nextSlug !== currentSlug) {
+      const [dup] = await pool.execute<RowDataPacket[]>(
+        'SELECT Id FROM Vaults WHERE OwnerPmUserId = ? AND slug = ? AND Id <> ? LIMIT 1',
+        [vault.OwnerPmUserId, nextSlug, vault.Id]
+      );
+      if (dup.length) {
+        return res.status(409).json({
+          success: false,
+          message: 'That wiki slug is already used by another of your vaults',
+        });
+      }
+      try {
+        await pool.execute('UPDATE Vaults SET slug = ? WHERE Id = ?', [nextSlug, vault.Id]);
+      } catch (error) {
+        logger.error('Vault slug update failed', { error, vaultId: vault.Id });
+        return res.status(500).json({ success: false, message: 'Failed to update wiki slug' });
+      }
+    }
   }
   if (parsed.data.allowPublicPages !== undefined) {
     await pool.execute('UPDATE Vaults SET AllowPublicPages = ? WHERE Id = ?', [
@@ -787,6 +848,18 @@ router.patch('/:vaultId', async (req: AuthRequest, res: Response) => {
   if (parsed.data.description !== undefined) {
     await pool.execute('UPDATE Vaults SET Description = ? WHERE Id = ?', [
       parsed.data.description,
+      vault.Id,
+    ]);
+  }
+  if (parsed.data.pmAutoAssignOnCreate !== undefined) {
+    await pool.execute('UPDATE Vaults SET PmAutoAssignOnCreate = ? WHERE Id = ?', [
+      parsed.data.pmAutoAssignOnCreate ? 1 : 0,
+      vault.Id,
+    ]);
+  }
+  if (parsed.data.pmDefaultSprintId !== undefined) {
+    await pool.execute('UPDATE Vaults SET PmDefaultSprintId = ? WHERE Id = ?', [
+      parsed.data.pmDefaultSprintId,
       vault.Id,
     ]);
   }
@@ -841,9 +914,15 @@ router.get('/:vaultId', async (req: AuthRequest, res: Response) => {
       hubNoteId = await findHubNoteId(Number(vault.Id));
     }
   }
+  const pmProjectId = vault.PmProjectId != null ? Number(vault.PmProjectId) : null;
   res.json({
     success: true,
-    data: { ...vault, HubNoteId: hubNoteId, IsPersonalWork: isPersonalWorkVault(vault as Record<string, unknown>) ? 1 : 0 },
+    data: {
+      ...vault,
+      HubNoteId: hubNoteId,
+      IsPersonalWork: isPersonalWorkVault(vault as Record<string, unknown>) ? 1 : 0,
+      PmProjectOpenUrl: pmProjectId ? buildPmProjectOpenUrl(pmProjectId) : null,
+    },
   });
 });
 
@@ -1174,10 +1253,37 @@ router.put('/:vaultId/notes/:noteId', async (req: AuthRequest, res: Response) =>
     aliases: z.array(z.string()).optional(),
     icon: z.union([z.string().max(64), z.null()]).optional(),
     revisionSource: z.enum(['manual', 'auto']).optional(),
+    /** Client's last known UpdatedAt; when set, reject stale overwrites with 409. */
+    expectedUpdatedAt: z.string().min(1).optional(),
+    /** Skip optimistic lock (after user confirms overwrite / merge save). */
+    overwriteConflict: z.boolean().optional(),
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ success: false, message: 'Invalid note payload' });
+  }
+
+  if (
+    parsed.data.expectedUpdatedAt &&
+    !parsed.data.overwriteConflict &&
+    !sameNoteUpdatedAt(parsed.data.expectedUpdatedAt, existing.UpdatedAt)
+  ) {
+    const kind = String(existing.Kind || 'note') === 'whiteboard' ? 'whiteboard' : 'note';
+    return res.status(409).json({
+      success: false,
+      message: 'Note was modified elsewhere',
+      code: 'note_conflict',
+      data: {
+        updatedAt: noteUpdatedAtIso(existing.UpdatedAt),
+        title: String(existing.Title || ''),
+        path: String(existing.Path || ''),
+        bodyMarkdown: String(existing.BodyMarkdown || ''),
+        boardJson: existing.BoardJson != null ? String(existing.BoardJson) : null,
+        visibility: existing.Visibility != null ? String(existing.Visibility) : '',
+        icon: existing.Icon != null ? String(existing.Icon) : null,
+        kind,
+      },
+    });
   }
 
   const existingKind = String(existing.Kind || 'note') === 'whiteboard' ? 'whiteboard' : 'note';
@@ -1247,10 +1353,84 @@ router.put('/:vaultId/notes/:noteId', async (req: AuthRequest, res: Response) =>
   } else if (existingKind === 'whiteboard') {
     await rebuildNoteGraph(Number(existing.Id), Number(vault.Id));
   }
+
+  const [freshRows] = await pool.execute<RowDataPacket[]>(
+    'SELECT UpdatedAt FROM Notes WHERE Id = ?',
+    [existing.Id]
+  );
+  const updatedAt = noteUpdatedAtIso(freshRows[0]?.UpdatedAt) || noteUpdatedAtIso(new Date());
+
   res.json({
     success: true,
-    data: existingKind === 'note' ? { bodyMarkdown: body } : undefined,
+    data: {
+      ...(existingKind === 'note' ? { bodyMarkdown: body } : {}),
+      updatedAt,
+    },
   });
+});
+
+/** Who else has this note open (soft presence / soft lock). */
+router.get('/:vaultId/notes/:noteId/presence', async (req: AuthRequest, res: Response) => {
+  const vault = await readableVault(Number(req.params.vaultId), req.user!.userId);
+  if (!vault) return res.status(404).json({ success: false, message: 'Vault not found' });
+  const noteId = Number(req.params.noteId);
+  const [noteRows] = await pool.execute<RowDataPacket[]>(
+    `SELECT Id FROM Notes WHERE Id = ? AND VaultId = ? AND ${ACTIVE_NOTE}`,
+    [noteId, vault.Id]
+  );
+  if (!noteRows.length) return res.status(404).json({ success: false, message: 'Note not found' });
+  try {
+    const data = await listNotePresence(noteId, req.user!.userId);
+    res.json({ success: true, data });
+  } catch (error) {
+    logger.error('List note presence failed', { error, noteId });
+    res.status(500).json({ success: false, message: 'Failed to list presence' });
+  }
+});
+
+/** Heartbeat while a note is open. `hasFocus` drives soft lock for other editors. */
+router.put('/:vaultId/notes/:noteId/presence', async (req: AuthRequest, res: Response) => {
+  const vault = await readableVault(Number(req.params.vaultId), req.user!.userId);
+  if (!vault) return res.status(404).json({ success: false, message: 'Vault not found' });
+  const noteId = Number(req.params.noteId);
+  const [noteRows] = await pool.execute<RowDataPacket[]>(
+    `SELECT Id FROM Notes WHERE Id = ? AND VaultId = ? AND ${ACTIVE_NOTE}`,
+    [noteId, vault.Id]
+  );
+  if (!noteRows.length) return res.status(404).json({ success: false, message: 'Note not found' });
+
+  const parsed = z
+    .object({ hasFocus: z.boolean().optional() })
+    .safeParse(req.body ?? {});
+  if (!parsed.success) {
+    return res.status(400).json({ success: false, message: 'Invalid presence payload' });
+  }
+
+  try {
+    const data = await upsertNotePresence({
+      noteId,
+      userId: req.user!.userId,
+      username: req.user!.username || '',
+      hasFocus: parsed.data.hasFocus === true,
+    });
+    res.json({ success: true, data });
+  } catch (error) {
+    logger.error('Upsert note presence failed', { error, noteId });
+    res.status(500).json({ success: false, message: 'Failed to update presence' });
+  }
+});
+
+router.delete('/:vaultId/notes/:noteId/presence', async (req: AuthRequest, res: Response) => {
+  const vault = await readableVault(Number(req.params.vaultId), req.user!.userId);
+  if (!vault) return res.status(404).json({ success: false, message: 'Vault not found' });
+  const noteId = Number(req.params.noteId);
+  try {
+    await clearNotePresence(noteId, req.user!.userId);
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Clear note presence failed', { error, noteId });
+    res.status(500).json({ success: false, message: 'Failed to clear presence' });
+  }
 });
 
 router.delete('/:vaultId/notes/:noteId', async (req: AuthRequest, res: Response) => {
@@ -2104,7 +2284,7 @@ router.post('/:vaultId/push-project', async (req: AuthRequest, res: Response) =>
       data: {
         pmProjectId: vault.PmProjectId,
         pmProjectName: vault.PmProjectName ? String(vault.PmProjectName) : null,
-        openUrl: `${PM_BASE_URL}/projects/${vault.PmProjectId}`,
+        openUrl: buildPmProjectOpenUrl(Number(vault.PmProjectId)),
       },
     });
   }
@@ -2156,7 +2336,7 @@ router.post('/:vaultId/push-project', async (req: AuthRequest, res: Response) =>
     data: {
       pmProjectId: projectId,
       pmProjectName: projectName,
-      openUrl: `${PM_BASE_URL}/projects/${projectId}`,
+      openUrl: buildPmProjectOpenUrl(Number(projectId)),
     },
   });
 });
@@ -2187,7 +2367,7 @@ router.post('/:vaultId/link-project', async (req: AuthRequest, res: Response) =>
     data: {
       pmProjectId: parsed.data.projectId,
       pmProjectName,
-      openUrl: `${PM_BASE_URL}/projects/${parsed.data.projectId}`,
+      openUrl: buildPmProjectOpenUrl(Number(parsed.data.projectId)),
     },
   });
 });
@@ -2505,7 +2685,7 @@ router.post('/:vaultId/checkboxes/push-missing', async (req: AuthRequest, res: R
         success: true,
         data: {
           ...data,
-          openUrl: `${PM_BASE_URL}/projects/${projectId}?tab=tasks`,
+          openUrl: buildPmProjectOpenUrl(Number(projectId), 'tasks'),
         },
       });
       res.end();
@@ -2534,7 +2714,7 @@ router.post('/:vaultId/checkboxes/push-missing', async (req: AuthRequest, res: R
       success: true,
       data: {
         ...data,
-        openUrl: `${PM_BASE_URL}/projects/${projectId}?tab=tasks`,
+        openUrl: buildPmProjectOpenUrl(Number(projectId), 'tasks'),
       },
     });
   } catch (error: unknown) {
@@ -2648,6 +2828,41 @@ router.post('/:vaultId/notes/:noteId/checkboxes/push', async (req: AuthRequest, 
 });
 
 /** Project tasks with no Synapse refs (for link picker). Optional ?projectId= filters one project. */
+/** List Myelin sprints for the vault’s linked project (default sprint picker). */
+router.get('/:vaultId/pm-sprints', async (req: AuthRequest, res: Response) => {
+  const vault = await editableVault(Number(req.params.vaultId), req.user!.userId);
+  if (!vault) return res.status(404).json({ success: false, message: 'Vault not found' });
+  const projectId = Number(vault.PmProjectId);
+  if (!projectId) {
+    return res.status(400).json({
+      success: false,
+      message: 'Link or create a Myelin project on this vault first',
+    });
+  }
+  try {
+    const resPm = await fetchPmProjectSprints(req.user!.userId, projectId);
+    if (!resPm.ok) {
+      return pmFail(res, resPm.status || 502, resPm.data.message || 'Failed to list sprints');
+    }
+    res.json({
+      success: true,
+      data: {
+        projectId,
+        defaultSprintId:
+          vault.PmDefaultSprintId != null && Number(vault.PmDefaultSprintId) > 0
+            ? Number(vault.PmDefaultSprintId)
+            : null,
+        sprints: normalizePmProjectSprints(resPm.data),
+      },
+    });
+  } catch (error: unknown) {
+    const err = error as { status?: number; message?: string };
+    const status = err.status || 500;
+    if (status >= 500) logger.error('List PM sprints failed', { error });
+    return pmFail(res, status, err.message || 'Failed to list sprints');
+  }
+});
+
 router.get('/:vaultId/pm-tasks/linkable', async (req: AuthRequest, res: Response) => {
   const vault = await editableVault(Number(req.params.vaultId), req.user!.userId);
   if (!vault) return res.status(404).json({ success: false, message: 'Vault not found' });
@@ -2662,6 +2877,9 @@ router.get('/:vaultId/pm-tasks/linkable', async (req: AuthRequest, res: Response
   }
 
   const filterProjectId = req.query.projectId != null ? Number(req.query.projectId) : null;
+  const projectsOnly =
+    String(req.query.projectsOnly || '') === '1' || String(req.query.projectsOnly || '') === 'true';
+  const q = typeof req.query.q === 'string' ? req.query.q : '';
 
   try {
     const data = await listLinkablePmTasksForVault({
@@ -2670,6 +2888,8 @@ router.get('/:vaultId/pm-tasks/linkable', async (req: AuthRequest, res: Response
       defaultProjectId,
       organizationId: orgId,
       projectId: Number.isFinite(filterProjectId) && filterProjectId! > 0 ? filterProjectId : null,
+      projectsOnly,
+      q: projectsOnly ? null : q,
     });
     res.json({ success: true, data });
   } catch (error: unknown) {
@@ -2875,7 +3095,7 @@ router.post(
         success: true,
         data: {
           ...data,
-          openUrl: `${PM_BASE_URL}/projects/${projectId}?tab=tasks`,
+          openUrl: buildPmProjectOpenUrl(Number(projectId), 'tasks'),
         },
       });
     } catch (error: unknown) {
@@ -3018,9 +3238,18 @@ router.patch('/:vaultId/notes/:noteId/checkboxes', async (req: AuthRequest, res:
     }
   }
 
+  const [freshRows] = await pool.execute<RowDataPacket[]>(
+    'SELECT UpdatedAt FROM Notes WHERE Id = ?',
+    [note.Id]
+  );
   res.json({
     success: true,
-    data: { bodyMarkdown: body, markerId, checked: parsed.data.checked },
+    data: {
+      bodyMarkdown: body,
+      markerId,
+      checked: parsed.data.checked,
+      updatedAt: noteUpdatedAtIso(freshRows[0]?.UpdatedAt),
+    },
   });
 });
 

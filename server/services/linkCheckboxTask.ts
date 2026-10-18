@@ -100,6 +100,10 @@ export async function listLinkablePmTasksForVault(params: {
   organizationId: number;
   /** When set, only return tasks from this project. */
   projectId?: number | null;
+  /** Skip fetching tasks (projects catalog only — for lazy search UI). */
+  projectsOnly?: boolean;
+  /** Case-insensitive substring filter on task name / id / status / description. */
+  q?: string | null;
 }): Promise<{
   projects: LinkablePmProjectRow[];
   tasks: LinkablePmTaskRow[];
@@ -123,6 +127,14 @@ export async function listLinkablePmTasksForVault(params: {
     return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
   });
 
+  if (params.projectsOnly) {
+    return {
+      projects: projectRows,
+      tasks: [],
+      defaultProjectId: params.defaultProjectId,
+    };
+  }
+
   const filterProjectId =
     params.projectId != null && Number(params.projectId) > 0 ? Number(params.projectId) : null;
   const targets = filterProjectId
@@ -137,6 +149,9 @@ export async function listLinkablePmTasksForVault(params: {
   const vaultLinked = await linkedPmTaskIdsInVault(params.vaultId);
   const tasks: LinkablePmTaskRow[] = [];
   const concurrency = 4;
+  const q = String(params.q || '')
+    .trim()
+    .toLowerCase();
   for (let i = 0; i < targets.length; i += concurrency) {
     const chunk = targets.slice(i, i + concurrency);
     const results = await Promise.all(
@@ -167,9 +182,27 @@ export async function listLinkablePmTasksForVault(params: {
     for (const rows of results) tasks.push(...rows);
   }
 
+  const filtered =
+    q.length === 0
+      ? tasks
+      : tasks.filter((t) => {
+          const name = String(t.taskName || '').toLowerCase();
+          const status = String(t.statusName || '').toLowerCase();
+          const project = String(t.projectName || '').toLowerCase();
+          const desc = String(t.description || '').toLowerCase();
+          const id = String(t.id);
+          return (
+            name.includes(q) ||
+            status.includes(q) ||
+            project.includes(q) ||
+            desc.includes(q) ||
+            id.includes(q)
+          );
+        });
+
   return {
     projects: projectRows,
-    tasks,
+    tasks: filtered,
     defaultProjectId: params.defaultProjectId,
   };
 }

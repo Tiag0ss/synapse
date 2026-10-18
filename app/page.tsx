@@ -2,10 +2,12 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import AppUserMenu from '@/components/AppUserMenu';
 import InstallAppPrompt from '@/components/InstallAppPrompt';
 import PmSsoBanner from '@/components/PmSsoBanner';
 import { useI18n } from '@/lib/i18n/provider';
+import { safeNextPath } from '@/lib/sessionAuth';
 
 interface Me {
   userId: number;
@@ -45,6 +47,9 @@ interface Providers {
 
 export default function HomePage() {
   const { t } = useI18n();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnNext = safeNextPath(searchParams.get('next'));
 
   const roleLabel = (role?: string) => {
     if (!role || role === 'owner') return null;
@@ -104,6 +109,10 @@ export default function HomePage() {
       }
       const meJson = await meRes.json();
       setMe(meJson.data);
+      if (returnNext) {
+        router.replace(returnNext);
+        return;
+      }
       const [vRes, wRes] = await Promise.all([
         fetch('/api/vaults', { credentials: 'include' }),
         fetch('/api/public', { credentials: 'include' }),
@@ -190,6 +199,10 @@ export default function HomePage() {
         setError(data.message || t('status.loginFailed'));
         return;
       }
+      if (returnNext) {
+        router.replace(returnNext);
+        return;
+      }
       await load();
     } catch {
       setError(t('status.loginFailed'));
@@ -215,6 +228,10 @@ export default function HomePage() {
       const data = await res.json();
       if (!res.ok) {
         setError(data.message || t('status.registrationFailed'));
+        return;
+      }
+      if (returnNext) {
+        router.replace(returnNext);
         return;
       }
       await load();
@@ -376,7 +393,11 @@ export default function HomePage() {
                   <div className="h-px flex-1 bg-[var(--border)]" />
                 </div>
                 <a
-                  href="/api/auth/sso/start"
+                  href={
+                    returnNext
+                      ? `/api/auth/sso/start?next=${encodeURIComponent(returnNext)}`
+                      : '/api/auth/sso/start'
+                  }
                   className="btn-ghost inline-flex w-full justify-center no-underline hover:no-underline"
                 >
                   {t('home.signInMyelin')}

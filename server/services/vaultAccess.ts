@@ -76,9 +76,9 @@ export function canListVaultInWikiDirectory(
 
 /**
  * List / open a note inside an accessible wiki.
- * - private: vault edit/owner only (Share Read does not see private notes)
+ * - private: never on the public wiki (edit/manage only in `/vaults/:id`)
  * - authenticated: any signed-in viewer who passed the vault wiki gate
- * - unlisted: open by URL, not listed in sidebar (except edit/owner who see all listable)
+ * - unlisted: open by URL; listed in sidebar for edit/owner only
  * - public: everyone who passed the vault wiki gate
  */
 export function canListNoteOnWiki(
@@ -86,6 +86,7 @@ export function canListNoteOnWiki(
   isAuthed: boolean,
   canEditVault: boolean
 ): boolean {
+  if (noteVisibility === 'private') return false;
   if (canEditVault) return true;
   if (noteVisibility === 'public') return true;
   if (noteVisibility === 'authenticated' && isAuthed) return true;
@@ -97,6 +98,9 @@ export function canOpenNoteOnWiki(
   isAuthed: boolean,
   canEditVault: boolean
 ): { ok: boolean; robots: string; reason?: 'auth' | 'private' } {
+  if (noteVisibility === 'private') {
+    return { ok: false, robots: 'noindex,nofollow', reason: 'private' };
+  }
   if (canEditVault) return { ok: true, robots: 'noindex,nofollow' };
   if (noteVisibility === 'public') return { ok: true, robots: 'index,follow' };
   if (noteVisibility === 'unlisted') return { ok: true, robots: 'noindex,nofollow' };

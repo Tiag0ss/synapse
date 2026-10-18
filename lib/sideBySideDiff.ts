@@ -137,6 +137,7 @@ export function groupDiffHunks(rows: DiffRow[]): DiffHunk[] {
 /**
  * Rebuild the right-side text after taking the left (revision) side for one hunk.
  * Other hunks keep the current (right) content.
+ * Replace/delete hunks drop local inserts in that range (true “take theirs”).
  */
 export function applyHunkFromLeft(rows: DiffRow[], hunk: DiffHunk): string {
   const out: string[] = [];
@@ -148,6 +149,25 @@ export function applyHunkFromLeft(rows: DiffRow[], hunk: DiffHunk): string {
       if (row.op === 'delete' || row.op === 'replace') {
         if (row.left != null) out.push(row.left);
       }
+    } else if (row.right != null) {
+      out.push(row.right);
+    }
+  }
+  return out.join('\n');
+}
+
+/**
+ * Merge one hunk by keeping server (left) lines and local (right) lines.
+ * Use when both sides added different content at the same place — “add” instead of replace.
+ */
+export function applyHunkKeepBoth(rows: DiffRow[], hunk: DiffHunk): string {
+  const out: string[] = [];
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const inHunk = i >= hunk.start && i < hunk.end;
+    if (inHunk) {
+      if (row.left != null) out.push(row.left);
+      if (row.right != null && row.right !== row.left) out.push(row.right);
     } else if (row.right != null) {
       out.push(row.right);
     }

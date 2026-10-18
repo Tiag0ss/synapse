@@ -102,3 +102,4 @@ Do not invent PM endpoints — document new ones in `PM_API_CONTRACT.md` when Sy
 - TypeScript strict; avoid `any`.
 - Minimal diff; no drive-by refactors.
 - Commit only when user asks.
+- **PM-ACTIVE-TASK**: keep `.cursorrules` + `.git/pm-active-task.json` in sync via Myelin MCP when working tasks / before commit — see `.cursor/rules/synapse-pm-active-task.mdc` (Kanban extension no longer required).

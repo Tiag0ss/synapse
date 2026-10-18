@@ -19,6 +19,7 @@ const STATEMENTS = [
     IsAdmin TINYINT NOT NULL DEFAULT 0,
     IsActive TINYINT NOT NULL DEFAULT 1,
     SessionVersion INT NOT NULL DEFAULT 0,
+    LastSeenAppVersion VARCHAR(32) NULL,
     LastLoginAt DATETIME NULL,
     CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UpdatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -54,6 +55,8 @@ const STATEMENTS = [
     PmProjectId INT NULL,
     PmProjectName VARCHAR(512) NULL,
     PmProjectLinkedAt DATETIME NULL,
+    PmAutoAssignOnCreate TINYINT(1) NOT NULL DEFAULT 0,
+    PmDefaultSprintId INT NULL,
     IsPersonalWork TINYINT NOT NULL DEFAULT 0,
     PersonalWorkOwnerId INT GENERATED ALWAYS AS (IF(IsPersonalWork = 1, OwnerPmUserId, NULL)) STORED,
     CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -318,6 +321,17 @@ const STATEMENTS = [
     CONSTRAINT fk_decision_event_note FOREIGN KEY (NoteId) REFERENCES Notes(Id) ON DELETE CASCADE,
     CONSTRAINT fk_decision_event_vault FOREIGN KEY (VaultId) REFERENCES Vaults(Id) ON DELETE CASCADE
   )`,
+  `CREATE TABLE IF NOT EXISTS NotePresence (
+    NoteId INT NOT NULL,
+    UserId INT NOT NULL,
+    Username VARCHAR(255) NOT NULL,
+    HasFocus TINYINT(1) NOT NULL DEFAULT 0,
+    LastSeenAt DATETIME(3) NOT NULL,
+    PRIMARY KEY (NoteId, UserId),
+    KEY idx_note_presence_seen (LastSeenAt),
+    CONSTRAINT fk_note_presence_note FOREIGN KEY (NoteId) REFERENCES Notes(Id) ON DELETE CASCADE,
+    CONSTRAINT fk_note_presence_user FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
+  )`,
 ];
 
 const ALTERS = [
@@ -344,7 +358,10 @@ const ALTERS = [
   "ALTER TABLE NoteShareLinks ADD COLUMN ShareKind VARCHAR(16) NOT NULL DEFAULT 'note'",
   'ALTER TABLE NoteShareLinks ADD COLUMN FoldFront VARCHAR(512) NULL',
   'ALTER TABLE Vaults ADD COLUMN PmProjectName VARCHAR(512) NULL',
+  'ALTER TABLE Vaults ADD COLUMN PmAutoAssignOnCreate TINYINT(1) NOT NULL DEFAULT 0',
+  'ALTER TABLE Vaults ADD COLUMN PmDefaultSprintId INT NULL',
   'ALTER TABLE Notes ADD FULLTEXT INDEX ft_notes_title_body (Title, BodyMarkdown)',
+  'ALTER TABLE Users ADD COLUMN LastSeenAppVersion VARCHAR(32) NULL',
 ];
 
 /** Legacy SsoTokens used PmUserId PK — migrate rows into UserId-keyed table after Users exist. */

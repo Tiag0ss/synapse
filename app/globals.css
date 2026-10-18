@@ -1475,12 +1475,18 @@ a:hover { text-decoration: underline; }
 .diff-row-del { background: rgba(248, 113, 113, 0.12); border-left-color: #f87171; }
 .diff-row-ins { background: rgba(52, 211, 153, 0.12); border-left-color: #34d399; }
 .diff-row-empty { background: rgba(148, 163, 184, 0.06); }
-.diff-restore-btn {
+.diff-restore-actions {
   position: sticky;
   right: 0;
   align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   margin: 1px 4px 1px 0;
   flex-shrink: 0;
+  z-index: 1;
+}
+.diff-restore-btn {
   border-radius: 4px;
   border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
   background: color-mix(in srgb, var(--panel) 88%, var(--accent));
@@ -1491,10 +1497,14 @@ a:hover { text-decoration: underline; }
   line-height: 1;
   padding: 3px 6px;
   opacity: 0.55;
+  white-space: nowrap;
   transition: opacity 0.12s ease;
 }
 .diff-row:hover .diff-restore-btn,
 .diff-restore-btn:focus-visible {
+  opacity: 1;
+}
+.diff-row:hover .diff-restore-actions {
   opacity: 1;
 }
 .diff-restore-btn:disabled {

@@ -1,0 +1,24 @@
+{
+  "versions": [
+    {
+      "version": "1.0.0",
+      "date": "2026-09-01",
+      "title": "Initial release",
+      "items": [
+        "Vaults with notes, folders, wikilinks, and tags",
+        "Whiteboard notes with Excalidraw and ![[board]] embeds",
+        "Public wiki and password-protected note shares",
+        "Myelin SSO and checkbox task push/pull",
+        "Vault media, attachments, and markdown export"
+      ]
+    },
+    {
+      "version": "1.0.1",
+      "date": "2026-10-06",
+      "title": "Update i18n implementation and UI localization across the application",
+      "items": [
+        "Update i18n implementation and UI localization across the application"
+      ]
+    }
+  ]
+}

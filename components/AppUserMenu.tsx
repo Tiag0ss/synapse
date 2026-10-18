@@ -5,6 +5,7 @@ import Link from 'next/link';
 import UserMenu, { type UserMenuUser } from '@/components/UserMenu';
 import NotificationsBell from '@/components/NotificationsBell';
 import { useI18n } from '@/lib/i18n/provider';
+import { loginUrlWithReturn } from '@/lib/sessionAuth';
 
 type Props = {
   /** Skip fetch when the parent already loaded the session. */
@@ -87,7 +88,7 @@ export default function AppUserMenu({
   if (showSignInWhenGuest) {
     return (
       <Link
-        href="/"
+        href={loginUrlWithReturn()}
         className={`btn-ghost py-1.5 text-xs no-underline hover:no-underline ${className}`}
         title={t('nav.signIn')}
       >

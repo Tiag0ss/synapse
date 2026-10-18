@@ -122,6 +122,15 @@ function pickTaskId(data: {
   return id != null ? Number(id) : null;
 }
 
+async function vaultDefaultSprintId(vaultId: number): Promise<number | null> {
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    'SELECT PmDefaultSprintId FROM Vaults WHERE Id = ? LIMIT 1',
+    [vaultId]
+  );
+  const n = Number(rows[0]?.PmDefaultSprintId);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 type IndentStackEntry = { indent: number; pmTaskId: number | null };
 
 /** Nearest linked ancestor in the indent stack, else the note-level task. */
@@ -222,6 +231,7 @@ export async function pushNoteAsPmTask(params: {
     String(note.Title),
     String(note.BodyMarkdown || '')
   );
+  const sprintId = await vaultDefaultSprintId(params.vaultId);
   const created = await createPmTask(params.pmUserId, {
     projectId: params.projectId,
     taskName: title.slice(0, 512),
@@ -231,6 +241,7 @@ export async function pushNoteAsPmTask(params: {
     synapseVaultId: params.vaultId,
     synapseNoteId: params.noteId,
     synapseNoteUrl,
+    sprintId,
   });
   if (!created.ok) {
     throw Object.assign(new Error(created.data.message || 'Failed to create PM task'), {
@@ -477,6 +488,7 @@ export async function pushMissingCheckboxTasksForNote(params: {
 
     await params.onItem?.(box.text.slice(0, 80) || params.noteTitle);
 
+    const sprintId = await vaultDefaultSprintId(params.vaultId);
     const created = await createPmTask(params.pmUserId, {
       projectId: params.projectId,
       taskName: taskNameForPm(box, params.noteTitle),
@@ -492,6 +504,7 @@ export async function pushMissingCheckboxTasksForNote(params: {
       synapseNoteId: params.noteId,
       synapseMarkerId: markerId,
       synapseNoteUrl,
+      sprintId,
     });
 
     if (!created.ok) {
@@ -818,6 +831,7 @@ export async function pushSingleCheckboxTask(params: {
       throw Object.assign(new Error('Could not resolve PM task status'), { status: 400 });
     }
 
+    const sprintId = await vaultDefaultSprintId(params.vaultId);
     const created = await createPmTask(params.pmUserId, {
       projectId: params.projectId,
       taskName: taskNameForPm(box, noteTitle),
@@ -833,6 +847,7 @@ export async function pushSingleCheckboxTask(params: {
       synapseNoteId: params.noteId,
       synapseMarkerId: markerId,
       synapseNoteUrl,
+      sprintId,
     });
     if (!created.ok) {
       throw Object.assign(new Error(created.data.message || 'Failed to create PM task'), {

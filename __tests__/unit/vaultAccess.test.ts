@@ -57,7 +57,13 @@ describe('vaultAccess visibility helpers', () => {
       robots: 'noindex,nofollow',
       reason: 'private',
     });
-    expect(canOpenNoteOnWiki('private', true, true).ok).toBe(true);
+    // Private notes stay off the public wiki even for vault editors/owners.
+    expect(canListNoteOnWiki('private', true, true)).toBe(false);
+    expect(canOpenNoteOnWiki('private', true, true)).toEqual({
+      ok: false,
+      robots: 'noindex,nofollow',
+      reason: 'private',
+    });
     expect(canOpenNoteOnWiki('authenticated', false, false).reason).toBe('auth');
   });
 });

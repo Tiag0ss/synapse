@@ -172,6 +172,22 @@ export type ChromeMessages = {
   myTemplateLabel: string;
   myTemplateDescription: string;
   vaultPmLinkHint: string;
+  vaultAutoAssignLabel: string;
+  vaultAutoAssignHelp: string;
+  vaultDefaultSprintLabel: string;
+  vaultDefaultSprintHelp: string;
+  vaultDefaultSprintNone: string;
+  vaultDefaultSprintSaved: string;
+  presenceEditing: string;
+  presenceViewing: string;
+  presenceAlsoOne: string;
+  presenceAlsoMany: string;
+  presenceJustNow: string;
+  presenceSecondsAgo: string;
+  presenceMinutesAgo: string;
+  presenceSoftLockTitle: string;
+  presenceSoftLockMessage: string;
+  presenceSaveAnyway: string;
   dismiss: string;
   reconnectSso: string;
   openProfile: string;
@@ -317,6 +333,18 @@ export type ChromeMessages = {
   deleteForever: string;
   vaultNameHeading: string;
   vaultNameHint: string;
+  wikiSlugHeading: string;
+  wikiSlugHint: string;
+  wikiSlugLabel: string;
+  saveWikiSlug: string;
+  onlyOwnerChangeSlug: string;
+  savingWikiSlug: string;
+  wikiSlugUnchanged: string;
+  wikiSlugEmpty: string;
+  wikiSlugSaved: string;
+  failedUpdateWikiSlug: string;
+  vaultSettingsSaved: string;
+  vaultSettingsUnchanged: string;
   saveName: string;
   onlyOwnerRename: string;
   wikiAudienceHeading: string;
@@ -330,6 +358,15 @@ export type ChromeMessages = {
   exportZipHint: string;
   exporting: string;
   exportZip: string;
+  exportStaticWikiHint: string;
+  exportStaticWiki: string;
+  exportingStaticWiki: string;
+  whatsNew: string;
+  whatsNewSinceLastVisit: string;
+  whatsNewCurrentVersion: string;
+  whatsNewEmpty: string;
+  whatsNewGotIt: string;
+  whatsNewSaving: string;
   leaveVaultHint: string;
   deleteVaultHint: string;
   deleteVaultTypeConfirm: string;
@@ -489,6 +526,7 @@ export type ChromeMessages = {
   byCategory: string;
   noLinkableTasks: string;
   noTasksMatchFilter: string;
+  searchTasksToLoad: string;
   createNewTask: string;
   linkSelected: string;
   vaultProjectSuffix: string;
@@ -557,6 +595,19 @@ export type ChromeMessages = {
   selectNoteHintAfter: string;
   restoreFieldFromRevision: string;
   revisionDiffIntro: string;
+  noteConflictTitle: string;
+  noteConflictIntro: string;
+  noteConflictServerLabel: string;
+  noteConflictYoursLabel: string;
+  noteConflictServerBody: string;
+  noteConflictYoursBody: string;
+  noteConflictTakeServer: string;
+  noteConflictKeepMine: string;
+  noteConflictSaveMerged: string;
+  noteConflictWhiteboardHint: string;
+  takeFromServer: string;
+  /** Keep server + local lines for this hunk (add, do not replace). */
+  addFromServer: string;
   diffAddedCount: string;
   diffRemovedCount: string;
   diffChangedCount: string;
@@ -791,6 +842,25 @@ const en: ChromeMessages = {
   myTemplateLabel: 'My template',
   myTemplateDescription: 'Personal note template',
   vaultPmLinkHint: 'Link one Myelin project to this vault, then create tasks from note checkboxes.',
+  vaultAutoAssignLabel: 'Auto-assign creator on new tasks',
+  vaultAutoAssignHelp:
+    'When enabled, tasks created from this vault are assigned to the person who creates them. Off by default (leave Unassigned).',
+  vaultDefaultSprintLabel: 'Default sprint for new tasks',
+  vaultDefaultSprintHelp:
+    'When set, tasks created from this vault are placed in this Myelin sprint. My work overview groups assigned tasks by sprint.',
+  vaultDefaultSprintNone: 'No default (backlog)',
+  vaultDefaultSprintSaved: 'Default sprint updated',
+  presenceEditing: '{name} editing · last seen {ago}',
+  presenceViewing: '{name} viewing · last seen {ago}',
+  presenceAlsoOne: 'also {name}',
+  presenceAlsoMany: '+{count} others',
+  presenceJustNow: 'just now',
+  presenceSecondsAgo: '{n}s ago',
+  presenceMinutesAgo: '{n}m ago',
+  presenceSoftLockTitle: 'Someone else is editing',
+  presenceSoftLockMessage:
+    '{name} currently has this note focused. Saving may overwrite their unsaved changes. Save anyway?',
+  presenceSaveAnyway: 'Save anyway',
   dismiss: 'Dismiss',
   reconnectSso: 'Reconnect SSO',
   openProfile: 'Open Profile',
@@ -937,8 +1007,20 @@ const en: ChromeMessages = {
   restore: 'Restore',
   deleteForever: 'Delete forever',
   vaultNameHeading: 'Name',
-  vaultNameHint:
-    'Display name for this vault. The wiki slug stays the same so existing links keep working.',
+  vaultNameHint: 'Display name for this vault (does not change the wiki URL by itself).',
+  wikiSlugHeading: 'Wiki slug',
+  wikiSlugHint:
+    'Public wiki path: /w/{slug}. Changing it breaks old bookmarks and shared links until they are updated.',
+  wikiSlugLabel: 'Slug',
+  saveWikiSlug: 'Save slug',
+  onlyOwnerChangeSlug: 'Only the vault owner can change the wiki slug.',
+  savingWikiSlug: 'Saving wiki slug…',
+  wikiSlugUnchanged: 'Wiki slug unchanged.',
+  wikiSlugEmpty: 'Wiki slug cannot be empty.',
+  wikiSlugSaved: 'Wiki slug updated.',
+  failedUpdateWikiSlug: 'Failed to update wiki slug',
+  vaultSettingsSaved: 'Vault settings saved.',
+  vaultSettingsUnchanged: 'No vault settings to save.',
   saveName: 'Save name',
   onlyOwnerRename: 'Only the vault owner can rename.',
   wikiAudienceHeading: 'Wiki audience (default visibility)',
@@ -953,6 +1035,16 @@ const en: ChromeMessages = {
   exportZipHint: 'Download all notes as Markdown plus images (compatible with ZIP import).',
   exporting: 'Exporting…',
   exportZip: 'Export ZIP',
+  exportStaticWikiHint:
+    'Download a static HTML wiki (index + pages + media) you can open offline or host anywhere.',
+  exportStaticWiki: 'Export static wiki',
+  exportingStaticWiki: 'Exporting static wiki…',
+  whatsNew: "What's New",
+  whatsNewSinceLastVisit: "What's new since your last visit",
+  whatsNewCurrentVersion: 'Current version: {version}',
+  whatsNewEmpty: 'No release notes to show.',
+  whatsNewGotIt: 'Got it',
+  whatsNewSaving: 'Saving…',
   leaveVaultHint: 'Remove your access. You can be invited again later.',
   deleteVaultHint:
     'Permanently deletes this vault, all notes, revisions, and media. This cannot be undone.',
@@ -1118,6 +1210,7 @@ const en: ChromeMessages = {
   byCategory: 'By category',
   noLinkableTasks: 'No linkable Myelin tasks in this organization.',
   noTasksMatchFilter: 'No tasks match this filter.',
+  searchTasksToLoad: 'Type at least 2 characters to search tasks…',
   createNewTask: 'Create new task',
   linkSelected: 'Link selected',
   vaultProjectSuffix: ' (vault)',
@@ -1185,6 +1278,20 @@ const en: ChromeMessages = {
   selectNoteHintAfter: 'resolve in the live preview.',
   restoreFieldFromRevision: 'Restore {field} from this revision',
   revisionDiffIntro: 'Meld-style diff · left is revision #{number} · right is the current note · restore individual changes or the whole revision',
+  noteConflictTitle: 'Note conflict',
+  noteConflictIntro:
+    'This note was saved elsewhere since you opened it. Left is the version on the server; right is your unsaved edits. Take changes from the server, keep yours, or merge then save.',
+  noteConflictServerLabel: 'Server (newer)',
+  noteConflictYoursLabel: 'Your edits',
+  noteConflictServerBody: 'Server body',
+  noteConflictYoursBody: 'Your body',
+  noteConflictTakeServer: 'Use server version',
+  noteConflictKeepMine: 'Keep mine (overwrite)',
+  noteConflictSaveMerged: 'Save merged',
+  noteConflictWhiteboardHint:
+    'This whiteboard was saved elsewhere. Choose the server version or keep yours — board JSON cannot be merged line-by-line.',
+  takeFromServer: 'Replace with server',
+  addFromServer: 'Add from server',
   diffAddedCount: '+{count} added',
   diffRemovedCount: '−{count} removed',
   diffChangedCount: '~{count} changed',
@@ -1419,6 +1526,25 @@ const pt: ChromeMessages = {
   myTemplateLabel: 'O meu modelo',
   myTemplateDescription: 'Modelo de nota pessoal',
   vaultPmLinkHint: 'Associe um projecto Myelin a este cofre e depois crie tarefas a partir das caixas de verificação das notas.',
+  vaultAutoAssignLabel: 'Atribuir o criador automaticamente nas novas tarefas',
+  vaultAutoAssignHelp:
+    'Quando activo, as tarefas criadas a partir deste cofre são atribuídas a quem as cria. Desligado por defeito (ficam Sem atribuição).',
+  vaultDefaultSprintLabel: 'Sprint por defeito para novas tarefas',
+  vaultDefaultSprintHelp:
+    'Quando definido, as tarefas criadas a partir deste cofre entram neste sprint Myelin. O resumo My work agrupa as tarefas atribuídas por sprint.',
+  vaultDefaultSprintNone: 'Sem defeito (backlog)',
+  vaultDefaultSprintSaved: 'Sprint por defeito actualizado',
+  presenceEditing: '{name} a editar · visto há {ago}',
+  presenceViewing: '{name} a ver · visto há {ago}',
+  presenceAlsoOne: 'também {name}',
+  presenceAlsoMany: '+{count} outros',
+  presenceJustNow: 'agora',
+  presenceSecondsAgo: '{n}s',
+  presenceMinutesAgo: '{n} min',
+  presenceSoftLockTitle: 'Outra pessoa está a editar',
+  presenceSoftLockMessage:
+    '{name} tem esta nota em foco. Guardar pode sobrepor alterações não guardadas. Guardar na mesma?',
+  presenceSaveAnyway: 'Guardar na mesma',
   dismiss: 'Dispensar',
   reconnectSso: 'Voltar a ligar SSO',
   openProfile: 'Abrir perfil',
@@ -1566,8 +1692,20 @@ const pt: ChromeMessages = {
   restore: 'Restaurar',
   deleteForever: 'Eliminar definitivamente',
   vaultNameHeading: 'Nome',
-  vaultNameHint:
-    'Nome apresentado deste cofre. O slug da wiki mantém-se para as ligações existentes continuarem a funcionar.',
+  vaultNameHint: 'Nome apresentado deste cofre (não altera por si só o URL da wiki).',
+  wikiSlugHeading: 'Slug da wiki',
+  wikiSlugHint:
+    'Caminho da wiki pública: /w/{slug}. Alterá-lo parte favoritos e ligações partilhadas antigas até serem actualizadas.',
+  wikiSlugLabel: 'Slug',
+  saveWikiSlug: 'Guardar slug',
+  onlyOwnerChangeSlug: 'Só o dono do cofre pode alterar o slug da wiki.',
+  savingWikiSlug: 'A guardar o slug da wiki…',
+  wikiSlugUnchanged: 'Slug da wiki inalterado.',
+  wikiSlugEmpty: 'O slug da wiki não pode ficar vazio.',
+  wikiSlugSaved: 'Slug da wiki actualizado.',
+  failedUpdateWikiSlug: 'Falha ao actualizar o slug da wiki',
+  vaultSettingsSaved: 'Definições do cofre guardadas.',
+  vaultSettingsUnchanged: 'Sem alterações nas definições do cofre para guardar.',
   saveName: 'Guardar nome',
   onlyOwnerRename: 'Só o proprietário do cofre pode mudar o nome.',
   wikiAudienceHeading: 'Audiência da wiki (visibilidade predefinida)',
@@ -1582,6 +1720,16 @@ const pt: ChromeMessages = {
   exportZipHint: 'Descarregar todas as notas em Markdown e imagens (compatível com importação ZIP).',
   exporting: 'A exportar…',
   exportZip: 'Exportar ZIP',
+  exportStaticWikiHint:
+    'Descarregar uma wiki HTML estática (índice + páginas + média) para abrir offline ou alojar em qualquer sítio.',
+  exportStaticWiki: 'Exportar wiki estática',
+  exportingStaticWiki: 'A exportar wiki estática…',
+  whatsNew: 'Novidades',
+  whatsNewSinceLastVisit: 'Novidades desde a sua última visita',
+  whatsNewCurrentVersion: 'Versão actual: {version}',
+  whatsNewEmpty: 'Não há notas de versão para mostrar.',
+  whatsNewGotIt: 'Percebi',
+  whatsNewSaving: 'A guardar…',
   leaveVaultHint: 'Retira o seu acesso. Pode ser convidado novamente mais tarde.',
   deleteVaultHint:
     'Elimina permanentemente este cofre, todas as notas, revisões e multimédia. Não pode ser anulado.',
@@ -1748,6 +1896,7 @@ const pt: ChromeMessages = {
   byCategory: 'Por categoria',
   noLinkableTasks: 'Não há tarefas Myelin associáveis nesta organização.',
   noTasksMatchFilter: 'Nenhuma tarefa corresponde a este filtro.',
+  searchTasksToLoad: 'Escreva pelo menos 2 caracteres para pesquisar tarefas…',
   createNewTask: 'Criar nova tarefa',
   linkSelected: 'Ligar seleccionada',
   vaultProjectSuffix: ' (cofre)',
@@ -1815,6 +1964,20 @@ const pt: ChromeMessages = {
   selectNoteHintAfter: 'resolvem-se na pré-visualização em directo.',
   restoreFieldFromRevision: 'Restaurar {field} a partir desta revisão',
   revisionDiffIntro: 'Diferença ao estilo Meld · à esquerda a revisão #{number} · à direita a nota actual · restaure alterações individuais ou a revisão inteira',
+  noteConflictTitle: 'Conflito na nota',
+  noteConflictIntro:
+    'Esta nota foi guardada noutro sítio desde que a abriu. À esquerda está a versão no servidor; à direita as suas edições por guardar. Pode trazer alterações do servidor, manter as suas, ou fundir e guardar.',
+  noteConflictServerLabel: 'Servidor (mais recente)',
+  noteConflictYoursLabel: 'As suas edições',
+  noteConflictServerBody: 'Corpo no servidor',
+  noteConflictYoursBody: 'O seu corpo',
+  noteConflictTakeServer: 'Usar versão do servidor',
+  noteConflictKeepMine: 'Manter a minha (sobrescrever)',
+  noteConflictSaveMerged: 'Guardar fundido',
+  noteConflictWhiteboardHint:
+    'Este quadro foi guardado noutro sítio. Escolha a versão do servidor ou mantenha a sua — o JSON do quadro não se funde linha a linha.',
+  takeFromServer: 'Substituir pelo servidor',
+  addFromServer: 'Adicionar do servidor',
   diffAddedCount: '+{count} adicionadas',
   diffRemovedCount: '−{count} removidas',
   diffChangedCount: '~{count} alteradas',
@@ -2050,6 +2213,25 @@ const es: ChromeMessages = {
   myTemplateLabel: 'Mi plantilla',
   myTemplateDescription: 'Plantilla de nota personal',
   vaultPmLinkHint: 'Vincule un proyecto Myelin a esta bóveda y luego cree tareas desde las casillas de las notas.',
+  vaultAutoAssignLabel: 'Asignar al creador automáticamente en tareas nuevas',
+  vaultAutoAssignHelp:
+    'Si está activo, las tareas creadas desde esta bóveda se asignan a quien las crea. Desactivado por defecto (quedan Sin asignar).',
+  vaultDefaultSprintLabel: 'Sprint predeterminado para tareas nuevas',
+  vaultDefaultSprintHelp:
+    'Si se define, las tareas creadas desde esta bóveda se colocan en este sprint Myelin. El resumen My work agrupa las tareas asignadas por sprint.',
+  vaultDefaultSprintNone: 'Sin predeterminado (backlog)',
+  vaultDefaultSprintSaved: 'Sprint predeterminado actualizado',
+  presenceEditing: '{name} editando · visto hace {ago}',
+  presenceViewing: '{name} viendo · visto hace {ago}',
+  presenceAlsoOne: 'también {name}',
+  presenceAlsoMany: '+{count} más',
+  presenceJustNow: 'ahora',
+  presenceSecondsAgo: '{n}s',
+  presenceMinutesAgo: '{n} min',
+  presenceSoftLockTitle: 'Otra persona está editando',
+  presenceSoftLockMessage:
+    '{name} tiene esta nota enfocada. Guardar puede sobrescribir cambios no guardados. ¿Guardar de todos modos?',
+  presenceSaveAnyway: 'Guardar de todos modos',
   dismiss: 'Descartar',
   reconnectSso: 'Reconectar SSO',
   openProfile: 'Abrir perfil',
@@ -2197,8 +2379,20 @@ const es: ChromeMessages = {
   restore: 'Restaurar',
   deleteForever: 'Eliminar para siempre',
   vaultNameHeading: 'Nombre',
-  vaultNameHint:
-    'Nombre visible de esta bóveda. El slug del wiki se mantiene para que los enlaces existentes sigan funcionando.',
+  vaultNameHint: 'Nombre visible de esta bóveda (no cambia por sí solo la URL del wiki).',
+  wikiSlugHeading: 'Slug del wiki',
+  wikiSlugHint:
+    'Ruta del wiki público: /w/{slug}. Cambiarlo rompe marcadores y enlaces compartidos antiguos hasta que se actualicen.',
+  wikiSlugLabel: 'Slug',
+  saveWikiSlug: 'Guardar slug',
+  onlyOwnerChangeSlug: 'Solo el propietario de la bóveda puede cambiar el slug del wiki.',
+  savingWikiSlug: 'Guardando el slug del wiki…',
+  wikiSlugUnchanged: 'Slug del wiki sin cambios.',
+  wikiSlugEmpty: 'El slug del wiki no puede quedar vacío.',
+  wikiSlugSaved: 'Slug del wiki actualizado.',
+  failedUpdateWikiSlug: 'Error al actualizar el slug del wiki',
+  vaultSettingsSaved: 'Ajustes de la bóveda guardados.',
+  vaultSettingsUnchanged: 'No hay cambios en los ajustes de la bóveda para guardar.',
   saveName: 'Guardar nombre',
   onlyOwnerRename: 'Solo el propietario puede cambiar el nombre.',
   wikiAudienceHeading: 'Audiencia del wiki (visibilidad predeterminada)',
@@ -2213,6 +2407,16 @@ const es: ChromeMessages = {
   exportZipHint: 'Descargar todas las notas en Markdown e imágenes (compatible con importación ZIP).',
   exporting: 'Exportando…',
   exportZip: 'Exportar ZIP',
+  exportStaticWikiHint:
+    'Descargue un wiki HTML estático (índice + páginas + medios) para abrirlo sin conexión o alojarlo en cualquier sitio.',
+  exportStaticWiki: 'Exportar wiki estático',
+  exportingStaticWiki: 'Exportando wiki estático…',
+  whatsNew: 'Novedades',
+  whatsNewSinceLastVisit: 'Novedades desde su última visita',
+  whatsNewCurrentVersion: 'Versión actual: {version}',
+  whatsNewEmpty: 'No hay notas de la versión para mostrar.',
+  whatsNewGotIt: 'Entendido',
+  whatsNewSaving: 'Guardando…',
   leaveVaultHint: 'Elimina tu acceso. Pueden volver a invitarte más tarde.',
   deleteVaultHint:
     'Elimina permanentemente esta bóveda, todas las notas, revisiones y multimedia. No se puede deshacer.',
@@ -2379,6 +2583,7 @@ const es: ChromeMessages = {
   byCategory: 'Por categoría',
   noLinkableTasks: 'No hay tareas Myelin vinculables en esta organización.',
   noTasksMatchFilter: 'Ninguna tarea coincide con este filtro.',
+  searchTasksToLoad: 'Escriba al menos 2 caracteres para buscar tareas…',
   createNewTask: 'Crear tarea nueva',
   linkSelected: 'Vincular seleccionada',
   vaultProjectSuffix: ' (bóveda)',
@@ -2446,6 +2651,20 @@ const es: ChromeMessages = {
   selectNoteHintAfter: 'se resuelven en la vista previa en directo.',
   restoreFieldFromRevision: 'Restaurar {field} desde esta revisión',
   revisionDiffIntro: 'Diff al estilo Meld · a la izquierda la revisión #{number} · a la derecha la nota actual · restaure cambios individuales o toda la revisión',
+  noteConflictTitle: 'Conflicto en la nota',
+  noteConflictIntro:
+    'Esta nota se guardó en otro sitio desde que la abrió. A la izquierda está la versión del servidor; a la derecha sus ediciones sin guardar. Puede traer cambios del servidor, conservar los suyos o fusionar y guardar.',
+  noteConflictServerLabel: 'Servidor (más reciente)',
+  noteConflictYoursLabel: 'Sus ediciones',
+  noteConflictServerBody: 'Cuerpo en el servidor',
+  noteConflictYoursBody: 'Su cuerpo',
+  noteConflictTakeServer: 'Usar versión del servidor',
+  noteConflictKeepMine: 'Conservar la mía (sobrescribir)',
+  noteConflictSaveMerged: 'Guardar fusionado',
+  noteConflictWhiteboardHint:
+    'Este tablero se guardó en otro sitio. Elija la versión del servidor o conserve la suya: el JSON del tablero no se fusiona línea a línea.',
+  takeFromServer: 'Sustituir por el servidor',
+  addFromServer: 'Añadir del servidor',
   diffAddedCount: '+{count} añadidas',
   diffRemovedCount: '−{count} eliminadas',
   diffChangedCount: '~{count} cambiadas',
@@ -2681,6 +2900,25 @@ const fr: ChromeMessages = {
   myTemplateLabel: 'Mon modèle',
   myTemplateDescription: 'Modèle de note personnel',
   vaultPmLinkHint: 'Liez un projet Myelin à ce coffre, puis créez des tâches à partir des cases des notes.',
+  vaultAutoAssignLabel: 'Assigner le créateur automatiquement aux nouvelles tâches',
+  vaultAutoAssignHelp:
+    'Lorsqu’il est activé, les tâches créées depuis ce coffre sont assignées à la personne qui les crée. Désactivé par défaut (laisser Non assigné).',
+  vaultDefaultSprintLabel: 'Sprint par défaut pour les nouvelles tâches',
+  vaultDefaultSprintHelp:
+    'Lorsqu’il est défini, les tâches créées depuis ce coffre sont placées dans ce sprint Myelin. L’aperçu My work regroupe les tâches assignées par sprint.',
+  vaultDefaultSprintNone: 'Aucun défaut (backlog)',
+  vaultDefaultSprintSaved: 'Sprint par défaut mis à jour',
+  presenceEditing: '{name} en édition · vu il y a {ago}',
+  presenceViewing: '{name} en consultation · vu il y a {ago}',
+  presenceAlsoOne: 'aussi {name}',
+  presenceAlsoMany: '+{count} autres',
+  presenceJustNow: 'à l’instant',
+  presenceSecondsAgo: '{n}s',
+  presenceMinutesAgo: '{n} min',
+  presenceSoftLockTitle: 'Quelqu’un d’autre est en train d’éditer',
+  presenceSoftLockMessage:
+    '{name} a actuellement cette note au premier plan. Enregistrer peut écraser des modifications non enregistrées. Enregistrer quand même ?',
+  presenceSaveAnyway: 'Enregistrer quand même',
   dismiss: 'Ignorer',
   reconnectSso: 'Reconnecter le SSO',
   openProfile: 'Ouvrir le profil',
@@ -2828,8 +3066,20 @@ const fr: ChromeMessages = {
   restore: 'Restaurer',
   deleteForever: 'Supprimer définitivement',
   vaultNameHeading: 'Nom',
-  vaultNameHint:
-    'Nom affiché de ce coffre. Le slug du wiki reste inchangé pour que les liens existants fonctionnent.',
+  vaultNameHint: 'Nom affiché de ce coffre (ne change pas à lui seul l’URL du wiki).',
+  wikiSlugHeading: 'Slug du wiki',
+  wikiSlugHint:
+    'Chemin du wiki public : /w/{slug}. Le modifier casse les favoris et anciens liens partagés jusqu’à leur mise à jour.',
+  wikiSlugLabel: 'Slug',
+  saveWikiSlug: 'Enregistrer le slug',
+  onlyOwnerChangeSlug: 'Seul le propriétaire du coffre peut modifier le slug du wiki.',
+  savingWikiSlug: 'Enregistrement du slug du wiki…',
+  wikiSlugUnchanged: 'Slug du wiki inchangé.',
+  wikiSlugEmpty: 'Le slug du wiki ne peut pas être vide.',
+  wikiSlugSaved: 'Slug du wiki mis à jour.',
+  failedUpdateWikiSlug: 'Échec de la mise à jour du slug du wiki',
+  vaultSettingsSaved: 'Paramètres du coffre enregistrés.',
+  vaultSettingsUnchanged: 'Aucun paramètre du coffre à enregistrer.',
   saveName: 'Enregistrer le nom',
   onlyOwnerRename: 'Seul le propriétaire peut renommer.',
   wikiAudienceHeading: 'Audience du wiki (visibilité par défaut)',
@@ -2844,6 +3094,16 @@ const fr: ChromeMessages = {
   exportZipHint: 'Télécharger toutes les notes en Markdown et images (compatible import ZIP).',
   exporting: 'Export…',
   exportZip: 'Exporter ZIP',
+  exportStaticWikiHint:
+    'Téléchargez un wiki HTML statique (index + pages + médias) à ouvrir hors ligne ou à héberger n’importe où.',
+  exportStaticWiki: 'Exporter le wiki statique',
+  exportingStaticWiki: 'Exportation du wiki statique…',
+  whatsNew: 'Nouveautés',
+  whatsNewSinceLastVisit: 'Nouveautés depuis votre dernière visite',
+  whatsNewCurrentVersion: 'Version actuelle : {version}',
+  whatsNewEmpty: 'Aucune note de version à afficher.',
+  whatsNewGotIt: 'Compris',
+  whatsNewSaving: 'Enregistrement…',
   leaveVaultHint: 'Retire votre accès. Vous pourrez être invité de nouveau plus tard.',
   deleteVaultHint:
     'Supprime définitivement ce coffre, toutes les notes, révisions et médias. Irréversible.',
@@ -3010,6 +3270,7 @@ const fr: ChromeMessages = {
   byCategory: 'Par catégorie',
   noLinkableTasks: 'Aucune tâche Myelin liaisonnable dans cette organisation.',
   noTasksMatchFilter: 'Aucune tâche ne correspond à ce filtre.',
+  searchTasksToLoad: 'Saisissez au moins 2 caractères pour rechercher des tâches…',
   createNewTask: 'Créer une nouvelle tâche',
   linkSelected: 'Lier la sélection',
   vaultProjectSuffix: ' (coffre)',
@@ -3077,6 +3338,20 @@ const fr: ChromeMessages = {
   selectNoteHintAfter: 'se résolvent dans l’aperçu en direct.',
   restoreFieldFromRevision: 'Restaurer {field} depuis cette révision',
   revisionDiffIntro: 'Diff façon Meld · à gauche la révision #{number} · à droite la note actuelle · restaurez des changements individuels ou toute la révision',
+  noteConflictTitle: 'Conflit sur la note',
+  noteConflictIntro:
+    'Cette note a été enregistrée ailleurs depuis que vous l’avez ouverte. À gauche, la version sur le serveur ; à droite, vos modifications non enregistrées. Vous pouvez reprendre le serveur, garder les vôtres, ou fusionner puis enregistrer.',
+  noteConflictServerLabel: 'Serveur (plus récent)',
+  noteConflictYoursLabel: 'Vos modifications',
+  noteConflictServerBody: 'Corps serveur',
+  noteConflictYoursBody: 'Votre corps',
+  noteConflictTakeServer: 'Utiliser la version serveur',
+  noteConflictKeepMine: 'Garder la mienne (écraser)',
+  noteConflictSaveMerged: 'Enregistrer la fusion',
+  noteConflictWhiteboardHint:
+    'Ce tableau a été enregistré ailleurs. Choisissez la version serveur ou gardez la vôtre — le JSON du tableau ne se fusionne pas ligne par ligne.',
+  takeFromServer: 'Remplacer par le serveur',
+  addFromServer: 'Ajouter depuis le serveur',
   diffAddedCount: '+{count} ajoutées',
   diffRemovedCount: '−{count} supprimées',
   diffChangedCount: '~{count} modifiées',

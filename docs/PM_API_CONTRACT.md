@@ -177,6 +177,7 @@ Task fields Synapse uses:
 | `StatusHideFromPlanningAndStatistics` | When `1`, Synapse **My work** overview excludes the task (status catalog: `HideFromPlanningAndStatistics`) |
 | `ClosedAt` | Date the task was closed (`YYYY-MM-DD` on the project list). Synapse **My work** overview excludes closed/cancelled tasks whose close date is more than 7 days ago. |
 | `AssignedTo` | PM user id the task is assigned to. Synapse **My work** overview keeps tasks where this equals the signed-in user’s linked PM id (`assignedTo` / `AssignedToUserId` aliases accepted). |
+| `SprintId` / `SprintName` | Optional. Synapse **My work** overview groups assigned tasks by sprint (then by project). Tasks with no sprint appear under **Backlog**. |
 
 **Link existing (Synapse):** Only tasks with **no** Synapse refs may receive the **first** association (PM fields updated). Synapse lists projects via `GET /api/projects?organizationId=` and may link a checkbox to a task in **any** project in that organization (not only the vault’s linked project). Synapse excludes ids already stored in `NoteCheckboxTasks` / `Notes.PmTaskId`, **except** within the same vault: a task already linked on one note may be linked to additional checkboxes on other notes (Synapse DB only; Synapse fields stay on the primary link).
 
@@ -220,6 +221,36 @@ Optional create fields:
 | `unscheduledWork` | Optional. Sent as `true` only when the note explicitly marks unscheduled; missing hours does **not** imply unscheduled. |
 
 Success: `taskId` or `id` or `data.Id`.
+
+**Sprint assignment after create:** PM create does not accept `sprintId` on the task body. Synapse assigns via:
+
+`POST /api/sprints/{sprintId}/tasks` with `{ "taskIds": [newTaskId] }`.
+
+Vault option `PmDefaultSprintId` (when set) is applied after each successful create from that vault.
+
+---
+
+## Sprints
+
+### List by project
+
+`GET /api/sprints/project/{projectId}`
+
+Success: `{ success: true, sprints: Sprint[] }`.
+
+Fields Synapse uses: `Id`, `Name`, `Status`, `StartDate`, `EndDate`.
+
+### Assign tasks
+
+`POST /api/sprints/{sprintId}/tasks`
+
+```json
+{ "taskIds": [1, 2, 3] }
+```
+
+---
+
+## Tasks (continued)
 
 ### Update
 
