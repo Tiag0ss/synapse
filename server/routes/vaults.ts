@@ -28,7 +28,7 @@ import {
   rewriteWikiLinksOnRename,
   snapshotRevision,
 } from '../services/notesGraph';
-import { noteUpdatedAtIso, sameNoteUpdatedAt } from '../../lib/noteConflict';
+import { noteUpdatedAtIso, sameNoteUpdatedAt } from '../services/noteConflict';
 import {
   clearNotePresence,
   listNotePresence,
