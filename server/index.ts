@@ -18,6 +18,8 @@ import templatesRoutes from './routes/templates';
 import exportTemplatesRoutes from './routes/exportTemplates';
 import notificationsRoutes from './routes/notifications';
 import whatsNewRoutes from './routes/whatsNew';
+import mcpHttpRoutes from './mcp/mcpHttp';
+import apiTokensRoutes from './routes/apiTokens';
 import { registerHealthRoute } from './health';
 
 dotenv.config();
@@ -108,6 +110,8 @@ async function main() {
   server.use('/api/users', usersRoutes);
   server.use('/api/templates', templatesRoutes);
   server.use('/api/export-templates', exportTemplatesRoutes);
+  server.use('/api/api-tokens', apiTokensRoutes);
+  server.use('/api/mcp', mcpHttpRoutes);
 
   server.use((req, res) => handle(req, res));
 

@@ -321,6 +321,32 @@ const STATEMENTS = [
     CONSTRAINT fk_decision_event_note FOREIGN KEY (NoteId) REFERENCES Notes(Id) ON DELETE CASCADE,
     CONSTRAINT fk_decision_event_vault FOREIGN KEY (VaultId) REFERENCES Vaults(Id) ON DELETE CASCADE
   )`,
+  `CREATE TABLE IF NOT EXISTS VaultAgentSkills (
+    Id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    VaultId INT NOT NULL,
+    Name VARCHAR(255) NOT NULL,
+    Slug VARCHAR(128) NOT NULL,
+    Content MEDIUMTEXT NOT NULL,
+    SortOrder INT NOT NULL DEFAULT 0,
+    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_vault_skill_slug (VaultId, Slug),
+    KEY idx_vault_skill_vault (VaultId, SortOrder),
+    CONSTRAINT fk_vault_skill_vault FOREIGN KEY (VaultId) REFERENCES Vaults(Id) ON DELETE CASCADE
+  )`,
+  `CREATE TABLE IF NOT EXISTS VaultAgentRules (
+    Id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    VaultId INT NOT NULL,
+    Name VARCHAR(255) NOT NULL,
+    Slug VARCHAR(128) NOT NULL,
+    Content MEDIUMTEXT NOT NULL,
+    SortOrder INT NOT NULL DEFAULT 0,
+    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_vault_rule_slug (VaultId, Slug),
+    KEY idx_vault_rule_vault (VaultId, SortOrder),
+    CONSTRAINT fk_vault_rule_vault FOREIGN KEY (VaultId) REFERENCES Vaults(Id) ON DELETE CASCADE
+  )`,
   `CREATE TABLE IF NOT EXISTS NotePresence (
     NoteId INT NOT NULL,
     UserId INT NOT NULL,
@@ -331,6 +357,20 @@ const STATEMENTS = [
     KEY idx_note_presence_seen (LastSeenAt),
     CONSTRAINT fk_note_presence_note FOREIGN KEY (NoteId) REFERENCES Notes(Id) ON DELETE CASCADE,
     CONSTRAINT fk_note_presence_user FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
+  )`,
+  `CREATE TABLE IF NOT EXISTS ApiTokens (
+    Id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    UserId INT NOT NULL,
+    TokenName VARCHAR(255) NOT NULL,
+    TokenHash VARCHAR(64) NOT NULL,
+    TokenPrefix VARCHAR(16) NOT NULL,
+    IsActive TINYINT(1) NOT NULL DEFAULT 1,
+    LastUsedAt DATETIME NULL,
+    ExpiresAt DATETIME NULL,
+    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_api_token_hash (TokenHash),
+    KEY idx_api_token_user (UserId, CreatedAt),
+    CONSTRAINT fk_api_token_user FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
   )`,
 ];
 

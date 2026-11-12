@@ -12,6 +12,7 @@ import {
   fetchPmProjectTasks,
   fetchPmProjects,
   isPmTaskSynapseLinked,
+  isPmTaskDone,
   listLinkablePmTasks,
   normalizePmProjectList,
   normalizePmProjectTasks,
@@ -167,7 +168,7 @@ export async function listLinkablePmTasksForVault(params: {
         const list = listLinkablePmTasks(normalizePmProjectTasks(res.data), exclude, {
           vaultId: params.vaultId,
           vaultLinkedPmTaskIds: vaultLinked,
-        });
+        }).filter((t) => !isPmTaskDone(t));
         return list.map((t) => ({
           id: Number(t.Id),
           taskName: String(t.TaskName || `Task #${t.Id}`).trim() || `Task #${t.Id}`,

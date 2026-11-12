@@ -4,11 +4,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import VaultPmSettingsModal from '@/components/VaultPmSettingsModal';
 import VaultShareModal from '@/components/VaultShareModal';
+import VaultAgentDocsPanel from '@/components/VaultAgentDocsPanel';
 import ConfirmModal from '@/components/ConfirmModal';
 import type { NoteResolveEntry } from '@/lib/notePaths';
 import { useI18n } from '@/lib/i18n/provider';
 
-type OptionsTab = 'links' | 'share' | 'pm' | 'vault' | 'trash';
+type OptionsTab = 'links' | 'share' | 'pm' | 'vault' | 'trash' | 'agent';
 
 interface BrokenLinkItem {
   noteId: number;
@@ -97,6 +98,7 @@ export default function VaultOptionsModal({
   const [nameDraft, setNameDraft] = useState(vaultName);
   const [slugDraft, setSlugDraft] = useState(vaultSlug);
   const [savingVaultSettings, setSavingVaultSettings] = useState(false);
+  const [indexBusy, setIndexBusy] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -105,14 +107,15 @@ export default function VaultOptionsModal({
       initialTab === 'vault' ||
       initialTab === 'trash' ||
       initialTab === 'links' ||
-      initialTab === 'share'
+      initialTab === 'share' ||
+      initialTab === 'agent'
         ? initialTab
         : 'links';
     const allowed =
       nextTab === 'links' ||
       nextTab === 'vault' ||
       nextTab === 'share' ||
-      (canEdit && (nextTab === 'trash' || nextTab === 'pm'));
+      (canEdit && (nextTab === 'trash' || nextTab === 'pm' || nextTab === 'agent'));
     setTab(allowed ? nextTab : 'links');
     setVaultStatus('');
     setDeleteConfirm('');
@@ -187,6 +190,7 @@ export default function VaultOptionsModal({
     { id: 'share', label: t('chrome.share'), hidden: isPersonalWork },
     { id: 'trash', label: t('chrome.vaultOptionsTrash'), hidden: !canEdit },
     { id: 'pm', label: 'Myelin', hidden: !canEdit || isPersonalWork },
+    { id: 'agent', label: t('chrome.agentTab'), hidden: !canEdit || isPersonalWork },
     { id: 'vault', label: t('chrome.vaultTab') },
   ];
 
@@ -614,6 +618,12 @@ export default function VaultOptionsModal({
             />
           )}
 
+          {tab === 'agent' && canEdit && (
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4 sm:p-5">
+              <VaultAgentDocsPanel vaultId={vaultId} canEdit={canEdit} onStatus={onStatus} />
+            </div>
+          )}
+
           {tab === 'vault' && (
             <div className="flex h-full min-h-0 flex-col">
               <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 sm:p-5">
@@ -712,6 +722,47 @@ export default function VaultOptionsModal({
                     )}
                   </div>
                 </section>
+
+                {canEdit && (
+                  <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)]/40 p-3 sm:p-4">
+                    <h3 className="text-sm font-semibold">{t('chrome.indexNoteTitle')}</h3>
+                    <p className="mt-1 text-xs text-[var(--muted)]">{t('chrome.indexNoteHint')}</p>
+                    <button
+                      type="button"
+                      className="btn-primary mt-3 py-1.5 text-sm"
+                      disabled={indexBusy}
+                      onClick={() => {
+                        void (async () => {
+                          setIndexBusy(true);
+                          try {
+                            const res = await fetch(`/api/vaults/${vaultId}/index/refresh`, {
+                              method: 'POST',
+                              credentials: 'include',
+                            });
+                            const json = await res.json();
+                            if (!res.ok) {
+                              onStatus?.(json.message || t('chrome.indexRefreshFailed'));
+                              setVaultStatus(json.message || t('chrome.indexRefreshFailed'));
+                              return;
+                            }
+                            onStatus?.(t('chrome.indexRefreshed'));
+                            setVaultStatus(t('chrome.indexRefreshed'));
+                            onChanged();
+                            const noteId = Number(json.data?.noteId);
+                            if (noteId) {
+                              onOpenNote(noteId);
+                              onClose();
+                            }
+                          } finally {
+                            setIndexBusy(false);
+                          }
+                        })();
+                      }}
+                    >
+                      {indexBusy ? t('common.loading') : t('chrome.refreshIndexNote')}
+                    </button>
+                  </section>
+                )}
 
                 <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)]/40 p-3 sm:p-4">
                   <h3 className="text-sm font-semibold">{t('chrome.vaultOptionsExport')}</h3>

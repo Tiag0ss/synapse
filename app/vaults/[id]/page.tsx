@@ -220,7 +220,13 @@ export default function VaultWorkspacePage() {
   const zipInputRef = useRef<HTMLInputElement>(null);
   /** Shared with editor preview — filled by NoteTasksPanel (single /checkboxes fetch). */
   const [plannerLinks, setPlannerLinks] = useState<
-    Array<{ markerId: string | null; openUrl: string | null; pmTaskId?: number | null }>
+    Array<{
+      markerId: string | null;
+      openUrl: string | null;
+      pmTaskId?: number | null;
+      statusName?: string | null;
+      statusTone?: 'todo' | 'progress' | 'done' | 'cancelled' | null;
+    }>
   >([]);
   const [editorInsertRequest, setEditorInsertRequest] = useState<{
     id: number;
@@ -1989,6 +1995,7 @@ aria-label={t('chrome.info')}
                 <MarkdownNoteEditor
                   value={body}
                   onChange={setBody}
+                  onServerBody={applyServerBody}
                   vaultId={vaultId}
                   noteId={selectedId}
                   notes={noteIndex}

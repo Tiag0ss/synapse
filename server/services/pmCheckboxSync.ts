@@ -239,7 +239,11 @@ export async function syncNoteCheckboxesFromPm(params: {
   }
 
   if (updated > 0) {
-    await pool.execute('UPDATE Notes SET BodyMarkdown = ? WHERE Id = ?', [body, params.noteId]);
+    // Preserve UpdatedAt so a background PM pull does not trigger false save conflicts.
+    await pool.execute('UPDATE Notes SET BodyMarkdown = ?, UpdatedAt = UpdatedAt WHERE Id = ?', [
+      body,
+      params.noteId,
+    ]);
     logger.info('Synced Synapse checkboxes from PM task status', {
       noteId: params.noteId,
       updated,

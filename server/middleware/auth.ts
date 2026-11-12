@@ -2,6 +2,10 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { pool, RowDataPacket } from '../config/database';
 import { jwtSecret } from '../services/secrets';
+import {
+  resolveUserIdFromApiToken,
+  SYNAPSE_API_TOKEN_PREFIX,
+} from '../services/apiTokens';
 
 export interface SynapseUser {
   userId: number;
@@ -38,13 +42,13 @@ type DecodedSession = {
   sv?: number;
 };
 
-function tryDecodeToken(req: AuthRequest): DecodedSession | null {
+function bearerFromRequest(req: AuthRequest): string {
   const header = req.headers.authorization;
-  const bearer = header?.startsWith('Bearer ') ? header.slice(7) : '';
-  const cookieToken =
-    (req as AuthRequest & { cookies?: Record<string, string> }).cookies?.synapse_session || '';
-  const token = bearer || cookieToken;
-  if (!token) return null;
+  return header?.startsWith('Bearer ') ? header.slice(7).trim() : '';
+}
+
+function tryDecodeJwt(token: string): DecodedSession | null {
+  if (!token || token.startsWith(SYNAPSE_API_TOKEN_PREFIX)) return null;
   try {
     return jwt.verify(token, jwtSecret()) as DecodedSession;
   } catch {
@@ -52,8 +56,10 @@ function tryDecodeToken(req: AuthRequest): DecodedSession | null {
   }
 }
 
-async function loadActiveSessionUser(decoded: DecodedSession): Promise<SynapseUser | null> {
-  const userId = Number(decoded.userId ?? decoded.pmUserId);
+async function loadActiveUserById(
+  userId: number,
+  opts?: { requireSessionVersion?: number | null; fallbackUsername?: string; fallbackEmail?: string }
+): Promise<SynapseUser | null> {
   if (!Number.isFinite(userId) || userId <= 0) return null;
 
   const [rows] = await pool.execute<RowDataPacket[]>(
@@ -63,16 +69,38 @@ async function loadActiveSessionUser(decoded: DecodedSession): Promise<SynapseUs
   if (!rows.length || Number(rows[0].IsActive) !== 1) return null;
 
   const sessionVersion = Number(rows[0].SessionVersion ?? 0);
-  const tokenSv = Number(decoded.sv ?? 0);
-  if (tokenSv !== sessionVersion) return null;
+  if (opts?.requireSessionVersion != null && opts.requireSessionVersion !== sessionVersion) {
+    return null;
+  }
 
   return {
     userId,
-    username: String(rows[0].Username || decoded.username || ''),
-    email: String(rows[0].Email || decoded.email || ''),
+    username: String(rows[0].Username || opts?.fallbackUsername || ''),
+    email: String(rows[0].Email || opts?.fallbackEmail || ''),
     isAdmin: Number(rows[0].IsAdmin) === 1,
     sessionVersion,
   };
+}
+
+async function resolveAuthUser(req: AuthRequest): Promise<SynapseUser | null> {
+  const bearer = bearerFromRequest(req);
+  const cookieToken =
+    (req as AuthRequest & { cookies?: Record<string, string> }).cookies?.synapse_session || '';
+
+  if (bearer.startsWith(SYNAPSE_API_TOKEN_PREFIX)) {
+    const resolved = await resolveUserIdFromApiToken(bearer);
+    if (!resolved) return null;
+    return loadActiveUserById(resolved.userId);
+  }
+
+  const decoded = tryDecodeJwt(bearer || cookieToken);
+  if (!decoded) return null;
+  const userId = Number(decoded.userId ?? decoded.pmUserId);
+  return loadActiveUserById(userId, {
+    requireSessionVersion: Number(decoded.sv ?? 0),
+    fallbackUsername: decoded.username,
+    fallbackEmail: decoded.email,
+  });
 }
 
 export async function authenticateSession(
@@ -81,12 +109,7 @@ export async function authenticateSession(
   next: NextFunction
 ): Promise<void> {
   try {
-    const decoded = tryDecodeToken(req);
-    if (!decoded) {
-      res.status(401).json({ success: false, message: 'Authentication required' });
-      return;
-    }
-    const user = await loadActiveSessionUser(decoded);
+    const user = await resolveAuthUser(req);
     if (!user) {
       res.status(401).json({ success: false, message: 'Authentication required' });
       return;
@@ -105,10 +128,7 @@ export async function optionalAuthenticateSession(
   next: NextFunction
 ): Promise<void> {
   try {
-    const decoded = tryDecodeToken(req);
-    if (decoded) {
-      req.user = (await loadActiveSessionUser(decoded)) || undefined;
-    }
+    req.user = (await resolveAuthUser(req)) || undefined;
     next();
   } catch {
     next();

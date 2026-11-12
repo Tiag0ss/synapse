@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import UserAvatar from '@/components/UserAvatar';
 import AppUserMenu from '@/components/AppUserMenu';
+import ApiTokensPanel from '@/components/ApiTokensPanel';
 import { useI18n } from '@/lib/i18n/provider';
 import { LOCALES, LOCALE_LABELS, type Locale } from '@/lib/i18n/config';
 
@@ -24,6 +25,8 @@ type Profile = {
   };
 };
 
+type ProfileTab = 'account' | 'security' | 'myelin' | 'apiTokens' | 'preferences';
+
 export default function ProfilePage() {
   const router = useRouter();
   const { t, locale, setLocale } = useI18n();
@@ -32,6 +35,7 @@ export default function ProfilePage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [status, setStatus] = useState('');
+  const [tab, setTab] = useState<ProfileTab>('account');
 
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -64,11 +68,27 @@ export default function ProfilePage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [router, t]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  const myelinEnabled = profile?.pmIntegration?.enabled !== false;
+
+  const tabs: { id: ProfileTab; label: string }[] = [
+    { id: 'account', label: t('profile.tabAccount') },
+    { id: 'security', label: t('profile.tabSecurity') },
+    ...(myelinEnabled ? [{ id: 'myelin' as const, label: t('profile.tabMyelin') }] : []),
+    { id: 'apiTokens', label: t('profile.tabApiTokens') },
+    { id: 'preferences', label: t('profile.tabPreferences') },
+  ];
+
+  useEffect(() => {
+    if (!tabs.some((item) => item.id === tab)) {
+      setTab('account');
+    }
+  }, [tab, myelinEnabled]);
 
   const saveProfile = async () => {
     if (!profile) return;
@@ -122,11 +142,7 @@ export default function ProfilePage() {
         setError(json.message || t('status.failedSaveAutoAssign'));
         return;
       }
-      setStatus(
-        next
-          ? t('status.autoAssignOn')
-          : t('status.autoAssignOff')
-      );
+      setStatus(next ? t('status.autoAssignOn') : t('status.autoAssignOff'));
       await load();
     } finally {
       setBusy(false);
@@ -259,256 +275,300 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <section className="mt-8 space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--panel)]/70 p-5">
-          <h2 className="text-sm font-semibold text-[var(--text)]">{t('profile.preferences')}</h2>
-          <label className="block text-sm">
-            {t('nav.language')}
-            <select
-              className="input mt-1 w-full"
-              value={locale}
-              onChange={(e) => setLocale(e.target.value as Locale)}
-              aria-label={t('nav.language')}
+        <div
+          className="mt-8 flex flex-wrap gap-1 border-b border-[var(--border)]"
+          role="tablist"
+          aria-label={t('profile.title')}
+        >
+          {tabs.map((tabItem) => (
+            <button
+              key={tabItem.id}
+              type="button"
+              role="tab"
+              aria-selected={tab === tabItem.id}
+              className={`rounded-t-lg px-3 py-2 text-sm transition ${
+                tab === tabItem.id
+                  ? 'bg-[var(--surface)] font-medium text-[var(--text)] ring-1 ring-[var(--border)]'
+                  : 'text-[var(--muted)] hover:text-[var(--text)]'
+              }`}
+              onClick={() => {
+                setError('');
+                setStatus('');
+                setTab(tabItem.id);
+              }}
             >
-              {LOCALES.map((l) => (
-                <option key={l} value={l}>
-                  {LOCALE_LABELS[l]}
-                </option>
-              ))}
-            </select>
-            <span className="mt-1 block text-[11px] text-[var(--muted)]">{t('profile.languageHint')}</span>
-          </label>
-        </section>
+              {tabItem.label}
+            </button>
+          ))}
+        </div>
 
-        {error && (
+        {error && tab !== 'apiTokens' && (
           <p className="mt-6 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
             {error}
           </p>
         )}
-        {status && (
+        {status && tab !== 'apiTokens' && (
           <p className="mt-6 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-sm">
             {status}
           </p>
         )}
 
-        {sso && (
-          <div className="mt-6 rounded-xl border border-[color-mix(in_srgb,var(--accent)_30%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] px-4 py-3 text-sm text-[var(--muted)]">
-            <p className="font-medium text-[var(--accent-soft)]">{t('profile.ssoAccountTitle')}</p>
-            <p className="mt-1 text-[13px] leading-relaxed">{t('profile.ssoAccountBody')}</p>
-            {profile.pmUserId != null && (
-              <p className="mt-2 font-mono text-[11px] text-[var(--muted)]">
-                {t('profile.myelinUserId', { id: profile.pmUserId })}
-              </p>
-            )}
-          </div>
-        )}
-
-        <section className="mt-8 space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--panel)]/70 p-5">
-          <h2 className="text-sm font-semibold text-[var(--text)]">{t('profile.profileFields')}</h2>
-          <label className="block text-sm">
-            {t('home.username')}
-            <input
-              className="input mt-1 w-full"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              autoComplete="username"
-            />
-          </label>
-          <label className="block text-sm">
-            {t('home.email')}
-            <input
-              className="input mt-1 w-full"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={sso}
-              autoComplete="email"
-            />
-            {sso && (
-              <span className="mt-1 block text-[11px] text-[var(--muted)]">
-                {t('profile.emailManagedBySso')}
-              </span>
-            )}
-          </label>
-          <button
-            type="button"
-            className="btn-primary"
-            disabled={busy}
-            onClick={() => void saveProfile()}
-          >
-            {t('profile.saveProfile')}
-          </button>
-        </section>
-
-        {profile.pmIntegration?.enabled !== false && (
-          <section className="mt-6 space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--panel)]/70 p-5">
-            <h2 className="text-sm font-semibold text-[var(--text)]">{t('profile.myelinApiToken')}</h2>
-            <p className="text-xs leading-relaxed text-[var(--muted)]">{t('profile.pmTokenHelp')}</p>
-            <div className="flex flex-wrap gap-3 text-[12px] text-[var(--muted)]">
-              <span>
-                {t('profile.ssoStatusLabel')}{' '}
-                {profile.pmIntegration?.ssoToken ? (
-                  <span className="text-[var(--accent-soft)]">{t('profile.connectionConnected')}</span>
-                ) : (
-                  <span>{t('profile.connectionNotConnected')}</span>
-                )}
-              </span>
-              <span>
-                {t('profile.personalTokenStatusLabel')}{' '}
-                {profile.pmIntegration?.personalApiKey.configured ? (
-                  <span className="font-mono text-[var(--accent-soft)]">
-                    {profile.pmIntegration.personalApiKey.prefix ||
-                      t('profile.tokenConfiguredFallback')}
+        <div className="mt-6" role="tabpanel">
+          {tab === 'account' && (
+            <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--panel)]/70 p-5">
+              {sso && (
+                <div className="rounded-xl border border-[color-mix(in_srgb,var(--accent)_30%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] px-4 py-3 text-sm text-[var(--muted)]">
+                  <p className="font-medium text-[var(--accent-soft)]">{t('profile.ssoAccountTitle')}</p>
+                  <p className="mt-1 text-[13px] leading-relaxed">{t('profile.ssoAccountBody')}</p>
+                  {profile.pmUserId != null && (
+                    <p className="mt-2 font-mono text-[11px] text-[var(--muted)]">
+                      {t('profile.myelinUserId', { id: profile.pmUserId })}
+                    </p>
+                  )}
+                </div>
+              )}
+              <h2 className="text-sm font-semibold text-[var(--text)]">{t('profile.profileFields')}</h2>
+              <label className="block text-sm">
+                {t('home.username')}
+                <input
+                  className="input mt-1 w-full"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  autoComplete="username"
+                />
+              </label>
+              <label className="block text-sm">
+                {t('home.email')}
+                <input
+                  className="input mt-1 w-full"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={sso}
+                  autoComplete="email"
+                />
+                {sso && (
+                  <span className="mt-1 block text-[11px] text-[var(--muted)]">
+                    {t('profile.emailManagedBySso')}
                   </span>
-                ) : (
-                  <span>{t('profile.tokenNotSet')}</span>
                 )}
-              </span>
-            </div>
-            {!profile.pmIntegration?.ssoToken && (
-              <a
-                href="/api/auth/sso/start"
-                className="inline-flex text-sm font-medium text-[var(--accent-soft)] no-underline hover:underline"
-              >
-                {t('chrome.reconnectSsoArrow')}
-              </a>
-            )}
-            <label className="block text-sm">
-              {t('profile.personalApiTokenField')}
-              <input
-                className="input mt-1 w-full"
-                type="password"
-                autoComplete="off"
-                placeholder={
-                  profile.pmIntegration?.personalApiKey.configured ? '••••••••' : 'pt_…'
-                }
-                value={pmApiKey}
-                onChange={(e) => {
-                  setPmApiKey(e.target.value);
-                  setClearPmApiKey(false);
-                }}
-              />
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={clearPmApiKey}
-                onChange={(e) => {
-                  setClearPmApiKey(e.target.checked);
-                  if (e.target.checked) setPmApiKey('');
-                }}
-              />
-              {t('profile.clearStoredToken')}
-            </label>
-            <label className="flex items-start gap-2 text-sm">
-              <input
-                type="checkbox"
-                className="mt-0.5"
-                checked={autoAssignOnCreate}
-                disabled={busy}
-                onChange={(e) => void saveAutoAssign(e.target.checked)}
-              />
-              <span>
-                <span className="text-[var(--text)]">{t('profile.autoAssignLabel')}</span>
-                <span className="mt-0.5 block text-xs text-[var(--muted)]">
-                  {t('profile.autoAssignHelp')}
-                  {profile.pmUserId == null ? (
-                    <span className="mt-1 block text-amber-200/90">
-                      {t('profile.autoAssignNoPmUser')}
-                    </span>
-                  ) : null}
-                </span>
-              </span>
-            </label>
-            <div className="flex flex-wrap gap-2">
+              </label>
               <button
                 type="button"
                 className="btn-primary"
                 disabled={busy}
-                onClick={() => void savePmApiKey()}
+                onClick={() => void saveProfile()}
               >
-                {t('profile.saveToken')}
+                {t('profile.saveProfile')}
               </button>
+            </section>
+          )}
+
+          {tab === 'security' && (
+            <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--panel)]/70 p-5">
+              <h2 className="text-sm font-semibold text-[var(--text)]">
+                {profile.hasPassword ? t('profile.changePassword') : t('profile.setLocalPassword')}
+              </h2>
+              <p className="text-xs text-[var(--muted)]">
+                {profile.hasPassword
+                  ? t('profile.changePasswordHint')
+                  : t('profile.setLocalPasswordHint')}
+              </p>
+              {profile.hasPassword && (
+                <label className="block text-sm">
+                  {t('profile.currentPassword')}
+                  <input
+                    className="input mt-1 w-full"
+                    type="password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    autoComplete="current-password"
+                  />
+                </label>
+              )}
+              <label className="block text-sm">
+                {t('authPages.newPassword')}
+                <input
+                  className="input mt-1 w-full"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  autoComplete="new-password"
+                />
+              </label>
+              <label className="block text-sm">
+                {t('authPages.confirmPassword')}
+                <input
+                  className="input mt-1 w-full"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  autoComplete="new-password"
+                />
+              </label>
               <button
                 type="button"
-                className="btn-ghost"
+                className="btn-primary"
                 disabled={busy}
-                onClick={() => void testPmConnection()}
+                onClick={() => void savePassword()}
               >
-                {t('profile.testConnection')}
+                {profile.hasPassword ? t('authPages.updatePassword') : t('profile.setPassword')}
               </button>
-            </div>
-          </section>
-        )}
-
-        <section className="mt-6 space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--panel)]/70 p-5">
-          <h2 className="text-sm font-semibold text-[var(--text)]">
-            {profile.hasPassword ? t('profile.changePassword') : t('profile.setLocalPassword')}
-          </h2>
-          <p className="text-xs text-[var(--muted)]">
-            {profile.hasPassword
-              ? t('profile.changePasswordHint')
-              : t('profile.setLocalPasswordHint')}
-          </p>
-          {profile.hasPassword && (
-            <label className="block text-sm">
-              {t('profile.currentPassword')}
-              <input
-                className="input mt-1 w-full"
-                type="password"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                autoComplete="current-password"
-              />
-            </label>
+            </section>
           )}
-          <label className="block text-sm">
-            {t('authPages.newPassword')}
-            <input
-              className="input mt-1 w-full"
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              autoComplete="new-password"
-            />
-          </label>
-          <label className="block text-sm">
-            {t('authPages.confirmPassword')}
-            <input
-              className="input mt-1 w-full"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              autoComplete="new-password"
-            />
-          </label>
-          <button
-            type="button"
-            className="btn-primary"
-            disabled={busy}
-            onClick={() => void savePassword()}
-          >
-            {profile.hasPassword ? t('authPages.updatePassword') : t('profile.setPassword')}
-          </button>
-        </section>
 
-        <section className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--panel)]/70 p-5">
-          <h2 className="text-sm font-semibold text-[var(--text)]">{t('nav.templates')}</h2>
-          <p className="mt-1 text-sm text-[var(--muted)]">{t('profile.templatesHint')}</p>
-          <Link
-            href="/templates"
-            className="btn-ghost mt-4 inline-flex no-underline hover:no-underline"
-          >
-            {t('chrome.manageTemplates')}
-          </Link>
-        </section>
+          {tab === 'myelin' && myelinEnabled && (
+            <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--panel)]/70 p-5">
+              <h2 className="text-sm font-semibold text-[var(--text)]">{t('profile.myelinApiToken')}</h2>
+              <p className="text-xs leading-relaxed text-[var(--muted)]">{t('profile.pmTokenHelp')}</p>
+              <div className="flex flex-wrap gap-3 text-[12px] text-[var(--muted)]">
+                <span>
+                  {t('profile.ssoStatusLabel')}{' '}
+                  {profile.pmIntegration?.ssoToken ? (
+                    <span className="text-[var(--accent-soft)]">{t('profile.connectionConnected')}</span>
+                  ) : (
+                    <span>{t('profile.connectionNotConnected')}</span>
+                  )}
+                </span>
+                <span>
+                  {t('profile.personalTokenStatusLabel')}{' '}
+                  {profile.pmIntegration?.personalApiKey.configured ? (
+                    <span className="font-mono text-[var(--accent-soft)]">
+                      {profile.pmIntegration.personalApiKey.prefix ||
+                        t('profile.tokenConfiguredFallback')}
+                    </span>
+                  ) : (
+                    <span>{t('profile.tokenNotSet')}</span>
+                  )}
+                </span>
+              </div>
+              {!profile.pmIntegration?.ssoToken && (
+                <a
+                  href="/api/auth/sso/start"
+                  className="inline-flex text-sm font-medium text-[var(--accent-soft)] no-underline hover:underline"
+                >
+                  {t('chrome.reconnectSsoArrow')}
+                </a>
+              )}
+              <label className="block text-sm">
+                {t('profile.personalApiTokenField')}
+                <input
+                  className="input mt-1 w-full"
+                  type="password"
+                  autoComplete="off"
+                  placeholder={
+                    profile.pmIntegration?.personalApiKey.configured ? '••••••••' : 'pt_…'
+                  }
+                  value={pmApiKey}
+                  onChange={(e) => {
+                    setPmApiKey(e.target.value);
+                    setClearPmApiKey(false);
+                  }}
+                />
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={clearPmApiKey}
+                  onChange={(e) => {
+                    setClearPmApiKey(e.target.checked);
+                    if (e.target.checked) setPmApiKey('');
+                  }}
+                />
+                {t('profile.clearStoredToken')}
+              </label>
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={autoAssignOnCreate}
+                  disabled={busy}
+                  onChange={(e) => void saveAutoAssign(e.target.checked)}
+                />
+                <span>
+                  <span className="text-[var(--text)]">{t('profile.autoAssignLabel')}</span>
+                  <span className="mt-0.5 block text-xs text-[var(--muted)]">
+                    {t('profile.autoAssignHelp')}
+                    {profile.pmUserId == null ? (
+                      <span className="mt-1 block text-amber-200/90">
+                        {t('profile.autoAssignNoPmUser')}
+                      </span>
+                    ) : null}
+                  </span>
+                </span>
+              </label>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="btn-primary"
+                  disabled={busy}
+                  onClick={() => void savePmApiKey()}
+                >
+                  {t('profile.saveToken')}
+                </button>
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  disabled={busy}
+                  onClick={() => void testPmConnection()}
+                >
+                  {t('profile.testConnection')}
+                </button>
+              </div>
+            </section>
+          )}
 
-        {profile.isAdmin && (
-          <p className="mt-6 text-center text-sm text-[var(--muted)]">
-            <Link href="/settings" className="text-[var(--accent-soft)]">
-              {t('profile.openAdminSettings')}
-            </Link>
-          </p>
-        )}
+          {tab === 'apiTokens' && (
+            <section className="rounded-2xl border border-[var(--border)] bg-[var(--panel)]/70 p-5">
+              <ApiTokensPanel />
+            </section>
+          )}
+
+          {tab === 'preferences' && (
+            <div className="space-y-6">
+              <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--panel)]/70 p-5">
+                <h2 className="text-sm font-semibold text-[var(--text)]">{t('profile.preferences')}</h2>
+                <label className="block text-sm">
+                  {t('nav.language')}
+                  <select
+                    className="input mt-1 w-full"
+                    value={locale}
+                    onChange={(e) => setLocale(e.target.value as Locale)}
+                    aria-label={t('nav.language')}
+                  >
+                    {LOCALES.map((l) => (
+                      <option key={l} value={l}>
+                        {LOCALE_LABELS[l]}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="mt-1 block text-[11px] text-[var(--muted)]">
+                    {t('profile.languageHint')}
+                  </span>
+                </label>
+              </section>
+
+              <section className="rounded-2xl border border-[var(--border)] bg-[var(--panel)]/70 p-5">
+                <h2 className="text-sm font-semibold text-[var(--text)]">{t('nav.templates')}</h2>
+                <p className="mt-1 text-sm text-[var(--muted)]">{t('profile.templatesHint')}</p>
+                <Link
+                  href="/templates"
+                  className="btn-ghost mt-4 inline-flex no-underline hover:no-underline"
+                >
+                  {t('chrome.manageTemplates')}
+                </Link>
+              </section>
+
+              {profile.isAdmin && (
+                <p className="text-center text-sm text-[var(--muted)]">
+                  <Link href="/settings" className="text-[var(--accent-soft)]">
+                    {t('profile.openAdminSettings')}
+                  </Link>
+                </p>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </main>
   );

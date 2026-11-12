@@ -73,7 +73,13 @@ interface NoteTasksPanelProps {
   refreshingPlanner?: boolean;
   /** Share Planner links with the editor so it does not re-fetch /checkboxes. */
   onPlannerLinksChange?: (
-    links: Array<{ markerId: string | null; openUrl: string | null; pmTaskId: number | null }>
+    links: Array<{
+      markerId: string | null;
+      openUrl: string | null;
+      pmTaskId: number | null;
+      statusName?: string | null;
+      statusTone?: 'todo' | 'progress' | 'done' | 'cancelled' | null;
+    }>
   ) => void;
 }
 
@@ -118,9 +124,12 @@ export default function NoteTasksPanel({
 
   const applyBodyFromServer = useCallback(
     (next: unknown, updatedAt?: string | null) => {
-      if (typeof next === 'string' && next !== bodyRef.current) {
+      if (typeof next !== 'string') return;
+      if (next !== bodyRef.current) {
         onBodyChange(next, updatedAt != null ? { updatedAt } : undefined);
+        return;
       }
+      if (updatedAt) onBodyChange(next, { updatedAt });
     },
     [onBodyChange]
   );
@@ -176,10 +185,18 @@ export default function NoteTasksPanel({
       );
       onPlannerLinksChange?.(
         list.map(
-          (b: { markerId: string | null; openUrl: string | null; pmTaskId: number | null }) => ({
+          (b: {
+            markerId: string | null;
+            openUrl: string | null;
+            pmTaskId: number | null;
+            statusName?: string | null;
+            statusTone?: 'todo' | 'progress' | 'done' | 'cancelled' | null;
+          }) => ({
             markerId: b.markerId,
             openUrl: b.openUrl,
             pmTaskId: b.pmTaskId,
+            statusName: b.statusName ?? null,
+            statusTone: b.statusTone ?? null,
           })
         )
       );
@@ -194,7 +211,10 @@ export default function NoteTasksPanel({
           : null
       );
       if (payload && !Array.isArray(payload) && typeof payload.bodyMarkdown === 'string') {
-        applyBodyFromServer(payload.bodyMarkdown);
+        applyBodyFromServer(
+          payload.bodyMarkdown,
+          typeof payload.updatedAt === 'string' ? payload.updatedAt : null
+        );
         if (payload.syncedFromPm > 0) {
           onStatus?.(
             payload.syncedFromPm === 1

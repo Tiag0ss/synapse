@@ -122,6 +122,37 @@ export type Messages = {
     autoAssignNoPmUser: string;
     openAdminSettings: string;
     setLocalPasswordHint: string;
+    tabAccount: string;
+    tabSecurity: string;
+    tabMyelin: string;
+    tabApiTokens: string;
+    tabPreferences: string;
+    apiTokensTitle: string;
+    apiTokensHelp: string;
+    apiTokensLoadFailed: string;
+    apiTokenNameRequired: string;
+    apiTokenCreateFailed: string;
+    apiTokenCreatedOnce: string;
+    apiTokenActionFailed: string;
+    apiTokenRevoked: string;
+    apiTokenDeleted: string;
+    apiTokenCopied: string;
+    apiTokenCopyFailed: string;
+    apiTokenSaveNow: string;
+    apiTokenCopy: string;
+    apiTokenName: string;
+    apiTokenNamePlaceholder: string;
+    apiTokenCreate: string;
+    apiTokensEmpty: string;
+    apiTokenActive: string;
+    apiTokenInactive: string;
+    apiTokenLastUsed: string;
+    apiTokenNeverUsed: string;
+    apiTokenRevoke: string;
+    apiTokenRevokeTitle: string;
+    apiTokenDeleteTitle: string;
+    apiTokenRevokeMessage: string;
+    apiTokenDeleteMessage: string;
   };
   authPages: {
     forgotTitle: string;
@@ -266,6 +297,38 @@ const en: Messages = {
     autoAssignNoPmUser: 'No linked Myelin user id yet — reconnect SSO (or ask an admin to sync Myelin users) so assignment can resolve.',
     openAdminSettings: 'Open admin settings',
     setLocalPasswordHint: 'Optional local password so you can sign in without SSO.',
+    tabAccount: 'Account',
+    tabSecurity: 'Security',
+    tabMyelin: 'Myelin',
+    tabApiTokens: 'API tokens',
+    tabPreferences: 'Preferences',
+    apiTokensTitle: 'Synapse API tokens',
+    apiTokensHelp:
+      'Personal st_… tokens for Cursor MCP and other Synapse clients. These are not Myelin pt_… tokens — create those in Myelin and paste them under the Myelin tab when needed.',
+    apiTokensLoadFailed: 'Could not load API tokens',
+    apiTokenNameRequired: 'Enter a token name',
+    apiTokenCreateFailed: 'Could not create API token',
+    apiTokenCreatedOnce: 'Token created — copy it now; it will not be shown again',
+    apiTokenActionFailed: 'Could not update API token',
+    apiTokenRevoked: 'Token revoked',
+    apiTokenDeleted: 'Token deleted',
+    apiTokenCopied: 'Token copied to clipboard',
+    apiTokenCopyFailed: 'Could not copy token',
+    apiTokenSaveNow: 'Save this token now. It will not be shown again.',
+    apiTokenCopy: 'Copy token',
+    apiTokenName: 'Token name',
+    apiTokenNamePlaceholder: 'e.g. Cursor MCP',
+    apiTokenCreate: 'Create token',
+    apiTokensEmpty: 'No Synapse API tokens yet.',
+    apiTokenActive: 'Active',
+    apiTokenInactive: 'Revoked',
+    apiTokenLastUsed: 'Last used {when}',
+    apiTokenNeverUsed: 'Never used',
+    apiTokenRevoke: 'Revoke',
+    apiTokenRevokeTitle: 'Revoke token?',
+    apiTokenDeleteTitle: 'Delete token?',
+    apiTokenRevokeMessage: '“{name}” will stop working immediately.',
+    apiTokenDeleteMessage: 'Permanently delete “{name}”? This cannot be undone.',
   },
   authPages: {
     forgotTitle: 'Forgot password',
@@ -412,6 +475,38 @@ const pt: Messages = {
     autoAssignNoPmUser: 'Ainda sem id de utilizador Myelin associado — volte a ligar o SSO (ou peça a um administrador para sincronizar utilizadores Myelin) para a atribuição funcionar.',
     openAdminSettings: 'Abrir definições de administração',
     setLocalPasswordHint: 'Palavra-passe local opcional para entrar sem SSO.',
+    tabAccount: 'Conta',
+    tabSecurity: 'Segurança',
+    tabMyelin: 'Myelin',
+    tabApiTokens: 'Tokens API',
+    tabPreferences: 'Preferências',
+    apiTokensTitle: 'Tokens API do Synapse',
+    apiTokensHelp:
+      'Tokens pessoais st_… para o MCP do Cursor e outros clientes Synapse. Não são tokens pt_… do Myelin — crie esses no Myelin e cole-os no separador Myelin quando precisar.',
+    apiTokensLoadFailed: 'Não foi possível carregar os tokens API',
+    apiTokenNameRequired: 'Indique um nome para o token',
+    apiTokenCreateFailed: 'Não foi possível criar o token API',
+    apiTokenCreatedOnce: 'Token criado — copie-o agora; não voltará a ser mostrado',
+    apiTokenActionFailed: 'Não foi possível actualizar o token API',
+    apiTokenRevoked: 'Token revogado',
+    apiTokenDeleted: 'Token eliminado',
+    apiTokenCopied: 'Token copiado para a área de transferência',
+    apiTokenCopyFailed: 'Não foi possível copiar o token',
+    apiTokenSaveNow: 'Guarde este token agora. Não voltará a ser mostrado.',
+    apiTokenCopy: 'Copiar token',
+    apiTokenName: 'Nome do token',
+    apiTokenNamePlaceholder: 'ex.: Cursor MCP',
+    apiTokenCreate: 'Criar token',
+    apiTokensEmpty: 'Ainda sem tokens API do Synapse.',
+    apiTokenActive: 'Activo',
+    apiTokenInactive: 'Revogado',
+    apiTokenLastUsed: 'Último uso {when}',
+    apiTokenNeverUsed: 'Nunca usado',
+    apiTokenRevoke: 'Revogar',
+    apiTokenRevokeTitle: 'Revogar token?',
+    apiTokenDeleteTitle: 'Eliminar token?',
+    apiTokenRevokeMessage: '“{name}” deixa de funcionar de imediato.',
+    apiTokenDeleteMessage: 'Eliminar permanentemente “{name}”? Isto não pode ser anulado.',
   },
   authPages: {
     forgotTitle: 'Esqueceu-se da palavra-passe',
@@ -558,6 +653,38 @@ const es: Messages = {
     autoAssignNoPmUser: 'Aún no hay id de usuario Myelin vinculado — reconecte el SSO (o pida a un administrador que sincronice usuarios Myelin) para que la asignación funcione.',
     openAdminSettings: 'Abrir ajustes de administración',
     setLocalPasswordHint: 'Contraseña local opcional para iniciar sesión sin SSO.',
+    tabAccount: 'Cuenta',
+    tabSecurity: 'Seguridad',
+    tabMyelin: 'Myelin',
+    tabApiTokens: 'Tokens API',
+    tabPreferences: 'Preferencias',
+    apiTokensTitle: 'Tokens API de Synapse',
+    apiTokensHelp:
+      'Tokens personales st_… para Cursor MCP y otros clientes Synapse. No son tokens pt_… de Myelin — créalos en Myelin y pégalos en la pestaña Myelin cuando haga falta.',
+    apiTokensLoadFailed: 'No se pudieron cargar los tokens API',
+    apiTokenNameRequired: 'Introduce un nombre de token',
+    apiTokenCreateFailed: 'No se pudo crear el token API',
+    apiTokenCreatedOnce: 'Token creado — cópialo ahora; no se volverá a mostrar',
+    apiTokenActionFailed: 'No se pudo actualizar el token API',
+    apiTokenRevoked: 'Token revocado',
+    apiTokenDeleted: 'Token eliminado',
+    apiTokenCopied: 'Token copiado al portapapeles',
+    apiTokenCopyFailed: 'No se pudo copiar el token',
+    apiTokenSaveNow: 'Guarda este token ahora. No se volverá a mostrar.',
+    apiTokenCopy: 'Copiar token',
+    apiTokenName: 'Nombre del token',
+    apiTokenNamePlaceholder: 'p. ej. Cursor MCP',
+    apiTokenCreate: 'Crear token',
+    apiTokensEmpty: 'Aún no hay tokens API de Synapse.',
+    apiTokenActive: 'Activo',
+    apiTokenInactive: 'Revocado',
+    apiTokenLastUsed: 'Último uso {when}',
+    apiTokenNeverUsed: 'Nunca usado',
+    apiTokenRevoke: 'Revocar',
+    apiTokenRevokeTitle: '¿Revocar token?',
+    apiTokenDeleteTitle: '¿Eliminar token?',
+    apiTokenRevokeMessage: '“{name}” dejará de funcionar de inmediato.',
+    apiTokenDeleteMessage: '¿Eliminar permanentemente “{name}”? No se puede deshacer.',
   },
   authPages: {
     forgotTitle: 'Olvidé la contraseña',
@@ -706,6 +833,38 @@ const fr: Messages = {
     autoAssignNoPmUser: 'Pas encore d’id utilisateur Myelin lié — reconnectez le SSO (ou demandez à un admin de synchroniser les utilisateurs Myelin) pour que l’assignation fonctionne.',
     openAdminSettings: 'Ouvrir les paramètres admin',
     setLocalPasswordHint: 'Mot de passe local optionnel pour vous connecter sans SSO.',
+    tabAccount: 'Compte',
+    tabSecurity: 'Sécurité',
+    tabMyelin: 'Myelin',
+    tabApiTokens: 'Jetons API',
+    tabPreferences: 'Préférences',
+    apiTokensTitle: 'Jetons API Synapse',
+    apiTokensHelp:
+      'Jetons personnels st_… pour Cursor MCP et d’autres clients Synapse. Ce ne sont pas les jetons pt_… Myelin — créez-les dans Myelin et collez-les dans l’onglet Myelin si besoin.',
+    apiTokensLoadFailed: 'Impossible de charger les jetons API',
+    apiTokenNameRequired: 'Saisissez un nom de jeton',
+    apiTokenCreateFailed: 'Impossible de créer le jeton API',
+    apiTokenCreatedOnce: 'Jeton créé — copiez-le maintenant ; il ne sera plus affiché',
+    apiTokenActionFailed: 'Impossible de mettre à jour le jeton API',
+    apiTokenRevoked: 'Jeton révoqué',
+    apiTokenDeleted: 'Jeton supprimé',
+    apiTokenCopied: 'Jeton copié dans le presse-papiers',
+    apiTokenCopyFailed: 'Impossible de copier le jeton',
+    apiTokenSaveNow: 'Enregistrez ce jeton maintenant. Il ne sera plus affiché.',
+    apiTokenCopy: 'Copier le jeton',
+    apiTokenName: 'Nom du jeton',
+    apiTokenNamePlaceholder: 'ex. Cursor MCP',
+    apiTokenCreate: 'Créer un jeton',
+    apiTokensEmpty: 'Aucun jeton API Synapse pour l’instant.',
+    apiTokenActive: 'Actif',
+    apiTokenInactive: 'Révoqué',
+    apiTokenLastUsed: 'Dernière utilisation {when}',
+    apiTokenNeverUsed: 'Jamais utilisé',
+    apiTokenRevoke: 'Révoquer',
+    apiTokenRevokeTitle: 'Révoquer le jeton ?',
+    apiTokenDeleteTitle: 'Supprimer le jeton ?',
+    apiTokenRevokeMessage: '« {name} » cessera de fonctionner immédiatement.',
+    apiTokenDeleteMessage: 'Supprimer définitivement « {name} » ? Action irréversible.',
   },
   authPages: {
     forgotTitle: 'Mot de passe oublié',

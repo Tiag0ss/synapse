@@ -333,7 +333,7 @@ a:hover { text-decoration: underline; }
   border: 1.5px solid var(--border-strong);
   border-radius: 0.3rem;
   background: transparent;
-  cursor: default;
+  cursor: pointer;
   position: relative;
   flex-shrink: 0;
   transition: border-color 0.15s ease, background 0.15s ease;
@@ -351,8 +351,12 @@ a:hover { text-decoration: underline; }
   border: 1.5px solid var(--border-strong);
   border-radius: 0.3rem;
   background: transparent;
-  cursor: default;
+  cursor: pointer;
   position: relative;
+}
+.synapse-md-preview input[type="checkbox"]:disabled {
+  cursor: default;
+  opacity: 0.85;
 }
 /* Match sidebar task checkboxes (emerald checked state). Specificity must beat li > input rules. */
 .synapse-md-preview li.task-list-item > input[type="checkbox"]:checked,
@@ -426,6 +430,55 @@ a:hover { text-decoration: underline; }
   text-decoration: none !important;
   vertical-align: middle;
   white-space: nowrap;
+}
+
+.synapse-md-preview span.synapse-pm-status {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 0.3rem;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-family: var(--font-sans);
+  font-size: 0.65rem;
+  font-weight: 600;
+  line-height: 1.2;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.synapse-md-preview span.synapse-pm-status.is-todo {
+  border-color: color-mix(in srgb, #64748b 55%, transparent);
+  background: color-mix(in srgb, #64748b 18%, transparent);
+  color: #cbd5e1;
+}
+.synapse-md-preview span.synapse-pm-status.is-progress {
+  border-color: color-mix(in srgb, #38bdf8 55%, transparent);
+  background: color-mix(in srgb, #0ea5e9 22%, transparent);
+  color: #bae6fd;
+}
+.synapse-md-preview span.synapse-pm-status.is-done {
+  border-color: color-mix(in srgb, #34d399 55%, transparent);
+  background: color-mix(in srgb, #10b981 20%, transparent);
+  color: #a7f3d0;
+}
+.synapse-md-preview span.synapse-pm-status.is-cancelled {
+  border-color: color-mix(in srgb, #f87171 55%, transparent);
+  background: color-mix(in srgb, #ef4444 18%, transparent);
+  color: #fecaca;
+  text-decoration: line-through;
+}
+.synapse-md-preview li.synapse-pm-tone-progress > input[type="checkbox"],
+.synapse-md-preview li.synapse-pm-tone-progress > p > input[type="checkbox"] {
+  border-color: color-mix(in srgb, #38bdf8 70%, transparent) !important;
+  background: color-mix(in srgb, #0ea5e9 22%, transparent) !important;
+}
+.synapse-md-preview li.synapse-pm-tone-done > input[type="checkbox"],
+.synapse-md-preview li.synapse-pm-tone-done > p > input[type="checkbox"] {
+  border-color: color-mix(in srgb, #34d399 70%, transparent) !important;
+}
+.synapse-md-preview li.synapse-pm-tone-cancelled {
+  opacity: 0.72;
 }
 .synapse-md-preview a.synapse-open-planner:hover {
   border-color: var(--accent);

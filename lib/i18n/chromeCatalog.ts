@@ -137,6 +137,42 @@ export type ChromeMessages = {
   openVault: string;
   selectPublicNote: string;
   shareUnavailable: string;
+  shareNotFound: string;
+  incorrectPassword: string;
+  sharedFlashcard: string;
+  sharedNote: string;
+  flashcardLabel: string;
+  answerLabel: string;
+  revealAnswer: string;
+  hideAnswer: string;
+  mermaidPanZoom: string;
+  mermaidPanEsc: string;
+  zoomOn: string;
+  zoomOff: string;
+  toolbarImg: string;
+  unreadNotifications: string;
+  agentTab: string;
+  agentSkills: string;
+  agentRules: string;
+  agentSkillsHint: string;
+  agentRulesHint: string;
+  newAgentDoc: string;
+  agentDocName: string;
+  agentDocContent: string;
+  editAgentDoc: string;
+  noAgentDocs: string;
+  agentDocsLoadFailed: string;
+  agentDocsSaveFailed: string;
+  agentDocsDeleteFailed: string;
+  agentDocsSaved: string;
+  agentDocsDeleted: string;
+  deleteAgentDocTitle: string;
+  deleteAgentDocMessage: string;
+  indexNoteTitle: string;
+  indexNoteHint: string;
+  refreshIndexNote: string;
+  indexRefreshed: string;
+  indexRefreshFailed: string;
   backSynapse: string;
   enterPassword: string;
   unlock: string;
@@ -807,6 +843,42 @@ const en: ChromeMessages = {
   openVault: 'Open this vault in Synapse',
   selectPublicNote: 'Select a public note',
   shareUnavailable: 'Share unavailable',
+  shareNotFound: 'Share not found',
+  incorrectPassword: 'Incorrect password',
+  sharedFlashcard: 'Shared flashcard',
+  sharedNote: 'Shared note',
+  flashcardLabel: 'Flashcard',
+  answerLabel: 'Answer',
+  revealAnswer: 'Reveal answer',
+  hideAnswer: 'Hide answer',
+  mermaidPanZoom: 'Drag to pan · scroll to zoom',
+  mermaidPanEsc: 'Press Esc to close',
+  zoomOn: 'Zoom on',
+  zoomOff: 'Zoom off',
+  toolbarImg: 'Img',
+  unreadNotifications: '{count} unread notifications',
+  agentTab: 'Agent',
+  agentSkills: 'Skills',
+  agentRules: 'Rules',
+  agentSkillsHint: 'Skills guide how Cursor MCP agents work in this vault.',
+  agentRulesHint: 'Rules are always-on constraints for MCP agents in this vault.',
+  newAgentDoc: 'New',
+  agentDocName: 'Name',
+  agentDocContent: 'Content (markdown)',
+  editAgentDoc: 'Edit',
+  noAgentDocs: 'No documents yet.',
+  agentDocsLoadFailed: 'Could not load agent documents',
+  agentDocsSaveFailed: 'Could not save agent document',
+  agentDocsDeleteFailed: 'Could not delete agent document',
+  agentDocsSaved: 'Agent document saved',
+  agentDocsDeleted: 'Agent document deleted',
+  deleteAgentDocTitle: 'Delete document?',
+  deleteAgentDocMessage: 'This removes the skill or rule from the vault. MCP clients will stop seeing it.',
+  indexNoteTitle: 'Vault index',
+  indexNoteHint: 'Creates or refreshes root index.md with wikilinks to every note.',
+  refreshIndexNote: 'Create / refresh index.md',
+  indexRefreshed: 'index.md updated',
+  indexRefreshFailed: 'Could not refresh index.md',
   backSynapse: 'Back to Synapse',
   enterPassword: 'Enter the password to view this note.',
   unlock: 'Unlock',
@@ -1491,6 +1563,42 @@ const pt: ChromeMessages = {
   openVault: 'Abrir este cofre no Synapse',
   selectPublicNote: 'Seleccione uma nota pública',
   shareUnavailable: 'Partilha indisponível',
+  shareNotFound: 'Partilha não encontrada',
+  incorrectPassword: 'Palavra-passe incorrecta',
+  sharedFlashcard: 'Flashcard partilhada',
+  sharedNote: 'Nota partilhada',
+  flashcardLabel: 'Flashcard',
+  answerLabel: 'Resposta',
+  revealAnswer: 'Mostrar resposta',
+  hideAnswer: 'Ocultar resposta',
+  mermaidPanZoom: 'Arrastar para deslocar · scroll para zoom',
+  mermaidPanEsc: 'Prima Esc para fechar',
+  zoomOn: 'Zoom ligado',
+  zoomOff: 'Zoom desligado',
+  toolbarImg: 'Img',
+  unreadNotifications: '{count} notificações por ler',
+  agentTab: 'Agente',
+  agentSkills: 'Skills',
+  agentRules: 'Regras',
+  agentSkillsHint: 'As skills orientam como os agentes MCP do Cursor trabalham neste cofre.',
+  agentRulesHint: 'As regras são restrições permanentes para agentes MCP neste cofre.',
+  newAgentDoc: 'Novo',
+  agentDocName: 'Nome',
+  agentDocContent: 'Conteúdo (markdown)',
+  editAgentDoc: 'Editar',
+  noAgentDocs: 'Ainda sem documentos.',
+  agentDocsLoadFailed: 'Não foi possível carregar os documentos do agente',
+  agentDocsSaveFailed: 'Não foi possível guardar o documento do agente',
+  agentDocsDeleteFailed: 'Não foi possível eliminar o documento do agente',
+  agentDocsSaved: 'Documento do agente guardado',
+  agentDocsDeleted: 'Documento do agente eliminado',
+  deleteAgentDocTitle: 'Eliminar documento?',
+  deleteAgentDocMessage: 'Isto remove a skill ou regra do cofre. Os clientes MCP deixam de a ver.',
+  indexNoteTitle: 'Índice do cofre',
+  indexNoteHint: 'Cria ou actualiza o index.md na raiz com wikilinks para todas as notas.',
+  refreshIndexNote: 'Criar / actualizar index.md',
+  indexRefreshed: 'index.md actualizado',
+  indexRefreshFailed: 'Não foi possível actualizar o index.md',
   backSynapse: 'Voltar ao Synapse',
   enterPassword: 'Introduza a palavra-passe para ver esta nota.',
   unlock: 'Desbloquear',
@@ -2178,6 +2286,42 @@ const es: ChromeMessages = {
   openVault: 'Abrir esta bóveda en Synapse',
   selectPublicNote: 'Selecciona una nota pública',
   shareUnavailable: 'Compartición no disponible',
+  shareNotFound: 'Compartición no encontrada',
+  incorrectPassword: 'Contraseña incorrecta',
+  sharedFlashcard: 'Flashcard compartida',
+  sharedNote: 'Nota compartida',
+  flashcardLabel: 'Flashcard',
+  answerLabel: 'Respuesta',
+  revealAnswer: 'Mostrar respuesta',
+  hideAnswer: 'Ocultar respuesta',
+  mermaidPanZoom: 'Arrastra para desplazar · rueda para zoom',
+  mermaidPanEsc: 'Pulsa Esc para cerrar',
+  zoomOn: 'Zoom activado',
+  zoomOff: 'Zoom desactivado',
+  toolbarImg: 'Img',
+  unreadNotifications: '{count} notificaciones sin leer',
+  agentTab: 'Agente',
+  agentSkills: 'Skills',
+  agentRules: 'Reglas',
+  agentSkillsHint: 'Las skills guían cómo trabajan los agentes MCP de Cursor en este vault.',
+  agentRulesHint: 'Las reglas son restricciones permanentes para agentes MCP en este vault.',
+  newAgentDoc: 'Nuevo',
+  agentDocName: 'Nombre',
+  agentDocContent: 'Contenido (markdown)',
+  editAgentDoc: 'Editar',
+  noAgentDocs: 'Aún no hay documentos.',
+  agentDocsLoadFailed: 'No se pudieron cargar los documentos del agente',
+  agentDocsSaveFailed: 'No se pudo guardar el documento del agente',
+  agentDocsDeleteFailed: 'No se pudo eliminar el documento del agente',
+  agentDocsSaved: 'Documento del agente guardado',
+  agentDocsDeleted: 'Documento del agente eliminado',
+  deleteAgentDocTitle: '¿Eliminar documento?',
+  deleteAgentDocMessage: 'Esto quita la skill o regla del vault. Los clientes MCP dejarán de verla.',
+  indexNoteTitle: 'Índice del vault',
+  indexNoteHint: 'Crea o actualiza index.md en la raíz con wikilinks a todas las notas.',
+  refreshIndexNote: 'Crear / actualizar index.md',
+  indexRefreshed: 'index.md actualizado',
+  indexRefreshFailed: 'No se pudo actualizar index.md',
   backSynapse: 'Volver a Synapse',
   enterPassword: 'Introduce la contraseña para ver esta nota.',
   unlock: 'Desbloquear',
@@ -2865,6 +3009,42 @@ const fr: ChromeMessages = {
   openVault: 'Ouvrir ce coffre dans Synapse',
   selectPublicNote: 'Sélectionnez une note publique',
   shareUnavailable: 'Partage indisponible',
+  shareNotFound: 'Partage introuvable',
+  incorrectPassword: 'Mot de passe incorrect',
+  sharedFlashcard: 'Flashcard partagée',
+  sharedNote: 'Note partagée',
+  flashcardLabel: 'Flashcard',
+  answerLabel: 'Réponse',
+  revealAnswer: 'Afficher la réponse',
+  hideAnswer: 'Masquer la réponse',
+  mermaidPanZoom: 'Glisser pour déplacer · molette pour zoomer',
+  mermaidPanEsc: 'Appuyez sur Esc pour fermer',
+  zoomOn: 'Zoom activé',
+  zoomOff: 'Zoom désactivé',
+  toolbarImg: 'Img',
+  unreadNotifications: '{count} notifications non lues',
+  agentTab: 'Agent',
+  agentSkills: 'Skills',
+  agentRules: 'Règles',
+  agentSkillsHint: 'Les skills guident le travail des agents MCP Cursor dans ce coffre.',
+  agentRulesHint: 'Les règles sont des contraintes permanentes pour les agents MCP de ce coffre.',
+  newAgentDoc: 'Nouveau',
+  agentDocName: 'Nom',
+  agentDocContent: 'Contenu (markdown)',
+  editAgentDoc: 'Modifier',
+  noAgentDocs: 'Aucun document pour l’instant.',
+  agentDocsLoadFailed: 'Impossible de charger les documents agent',
+  agentDocsSaveFailed: 'Impossible d’enregistrer le document agent',
+  agentDocsDeleteFailed: 'Impossible de supprimer le document agent',
+  agentDocsSaved: 'Document agent enregistré',
+  agentDocsDeleted: 'Document agent supprimé',
+  deleteAgentDocTitle: 'Supprimer le document ?',
+  deleteAgentDocMessage: 'Cela retire la skill ou la règle du coffre. Les clients MCP ne la verront plus.',
+  indexNoteTitle: 'Index du coffre',
+  indexNoteHint: 'Crée ou rafraîchit index.md à la racine avec des wikilinks vers toutes les notes.',
+  refreshIndexNote: 'Créer / rafraîchir index.md',
+  indexRefreshed: 'index.md mis à jour',
+  indexRefreshFailed: 'Impossible de rafraîchir index.md',
   backSynapse: 'Retour à Synapse',
   enterPassword: 'Saisissez le mot de passe pour voir cette note.',
   unlock: 'Déverrouiller',

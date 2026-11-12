@@ -22,6 +22,12 @@ import {
   buildPmTaskOpenUrl,
   buildPmProjectOpenUrl,
   buildSynapseNoteUrl,
+  isPmTaskCancelled,
+  isPmTaskDone,
+  isPmTaskInProgress,
+  statusNameFromId,
+  type PmTaskStatusValue,
+  type PmTaskSummary,
 } from '../services/pmClient';
 import {
   rebuildNoteGraph,
@@ -115,6 +121,18 @@ import {
   setDecisionLocked,
   setOwnerDecision,
 } from '../services/noteDecisions';
+import {
+  createAgentDoc,
+  deleteAgentDoc,
+  listAgentDocs,
+  updateAgentDoc,
+  type AgentDocKind,
+} from '../services/vaultAgentDocs';
+import {
+  INDEX_NOTE_PATH,
+  refreshIndexNote,
+  refreshIndexNoteQuiet,
+} from '../services/vaultIndexNote';
 import logger from '../utils/logger';
 
 const ACTIVE_NOTE = 'DeletedAt IS NULL';
@@ -1141,6 +1159,9 @@ router.post('/:vaultId/notes', async (req: AuthRequest, res: Response) => {
     if (kind === 'note' || kind === 'whiteboard') {
       await rebuildNoteGraph(noteId, Number(vault.Id));
     }
+    if (path !== INDEX_NOTE_PATH) {
+      await refreshIndexNoteQuiet(Number(vault.Id), req.user!.userId);
+    }
 
     if (parsed.data.linkFromNoteId && parsed.data.linkFromNoteId !== noteId) {
       const [src] = await pool.execute<RowDataPacket[]>(
@@ -1346,6 +1367,9 @@ router.put('/:vaultId/notes/:noteId', async (req: AuthRequest, res: Response) =>
       String(existing.Path),
       path
     );
+    if (path !== INDEX_NOTE_PATH && existing.Path !== INDEX_NOTE_PATH) {
+      await refreshIndexNoteQuiet(Number(vault.Id), req.user!.userId);
+    }
   }
   if (existingKind === 'note') {
     await rebuildNoteGraph(Number(existing.Id), Number(vault.Id));
@@ -1455,6 +1479,9 @@ router.delete('/:vaultId/notes/:noteId', async (req: AuthRequest, res: Response)
   if (hard || existing.DeletedAt) {
     await pool.execute('DELETE FROM Notes WHERE Id = ? AND VaultId = ?', [noteId, vault.Id]);
     logger.info('Note permanently deleted', { vaultId: vault.Id, noteId, title: existing.Title });
+    if (String(existing.Path) !== INDEX_NOTE_PATH) {
+      await refreshIndexNoteQuiet(Number(vault.Id), req.user!.userId);
+    }
     return res.json({ success: true, message: 'Note permanently deleted' });
   }
   const trashPath = `__trash__/${noteId}/${String(existing.Path)}`.slice(0, 1024);
@@ -1464,6 +1491,9 @@ router.delete('/:vaultId/notes/:noteId', async (req: AuthRequest, res: Response)
   );
   await pool.execute('DELETE FROM NoteLinks WHERE FromNoteId = ? OR ToNoteId = ?', [noteId, noteId]);
   logger.info('Note moved to trash', { vaultId: vault.Id, noteId, title: existing.Title });
+  if (String(existing.Path) !== INDEX_NOTE_PATH) {
+    await refreshIndexNoteQuiet(Number(vault.Id), req.user!.userId);
+  }
   res.json({ success: true, message: 'Note moved to trash' });
 });
 
@@ -2577,6 +2607,8 @@ router.get('/:vaultId/notes/:noteId/checkboxes', async (req: AuthRequest, res: R
         bodyMarkdown: String(note.BodyMarkdown || ''),
         updated: 0,
         cleared: 0,
+        taskById: new Map<number, PmTaskSummary>(),
+        statusList: null as PmTaskStatusValue[] | null,
       }
     : await syncNoteCheckboxesFromPm({
         pmUserId: req.user!.userId,
@@ -2597,11 +2629,18 @@ router.get('/:vaultId/notes/:noteId/checkboxes', async (req: AuthRequest, res: R
   }
   const notePmTaskId = note.PmTaskId != null ? Number(note.PmTaskId) : null;
   const projectId = vault.PmProjectId ? Number(vault.PmProjectId) : null;
+  const [stampRows] = await pool.execute<RowDataPacket[]>(
+    'SELECT UpdatedAt FROM Notes WHERE Id = ? AND VaultId = ?',
+    [noteId, vault.Id]
+  );
+  const updatedAt =
+    stampRows[0]?.UpdatedAt != null ? String(stampRows[0].UpdatedAt) : String(note.UpdatedAt || '');
   res.json({
     success: true,
     data: {
       /** Always include so the sidebar can keep the editor in sync with markers. */
       bodyMarkdown: body,
+      updatedAt,
       syncedFromPm: synced.updated,
       clearedStale: synced.cleared,
       notePmTaskId,
@@ -2610,6 +2649,22 @@ router.get('/:vaultId/notes/:noteId/checkboxes', async (req: AuthRequest, res: R
       pullOnly: overview,
       items: boxes.map((box) => {
         const link = resolveCheckboxLink(noteId, box, byMarker, byText);
+        const pmTaskId = link?.PmTaskId ? Number(link.PmTaskId) : null;
+        const task = pmTaskId != null ? synced.taskById.get(pmTaskId) : undefined;
+        const statusList = synced.statusList;
+        const statusName = task
+          ? String(task.StatusName || '').trim() ||
+            (statusList && task.Status != null
+              ? statusNameFromId(statusList, Number(task.Status))
+              : null)
+          : null;
+        let statusTone: 'todo' | 'progress' | 'done' | 'cancelled' | null = null;
+        if (task) {
+          if (isPmTaskCancelled(task, statusList)) statusTone = 'cancelled';
+          else if (isPmTaskDone(task)) statusTone = 'done';
+          else if (isPmTaskInProgress(task, statusList)) statusTone = 'progress';
+          else statusTone = 'todo';
+        }
         return {
           index: box.index,
           text: box.text,
@@ -2623,14 +2678,16 @@ router.get('/:vaultId/notes/:noteId/checkboxes', async (req: AuthRequest, res: R
           category: box.category || null,
           estimateHours:
             box.estimate?.estimatedHours != null ? Number(box.estimate.estimatedHours) : null,
-          pmTaskId: link?.PmTaskId ? Number(link.PmTaskId) : null,
+          pmTaskId,
           pmProjectId: link?.PmProjectId ? Number(link.PmProjectId) : null,
-          openUrl: link?.PmTaskId
+          openUrl: pmTaskId
             ? buildPmTaskOpenUrl(
-                Number(link.PmProjectId || vault.PmProjectId),
-                Number(link.PmTaskId)
+                Number(link?.PmProjectId || vault.PmProjectId),
+                pmTaskId
               )
             : null,
+          statusName: statusName || null,
+          statusTone,
         };
       }),
     },
@@ -3370,6 +3427,95 @@ router.post('/:vaultId/notes/:noteId/unlink-pm', async (req: AuthRequest, res: R
   );
   res.json({ success: true });
 });
+
+router.post('/:vaultId/index/refresh', async (req: AuthRequest, res: Response) => {
+  const vault = await editableVault(Number(req.params.vaultId), req.user!.userId);
+  if (!vault) return res.status(404).json({ success: false, message: 'Vault not found' });
+  try {
+    const result = await refreshIndexNote(Number(vault.Id), req.user!.userId);
+    res.json({ success: true, data: result });
+  } catch (error) {
+    logger.error('Refresh index note failed', { error, vaultId: vault.Id });
+    res.status(500).json({ success: false, message: 'Failed to refresh index' });
+  }
+});
+
+function registerAgentDocRoutes(kind: AgentDocKind, pathSegment: string) {
+  router.get(`/:vaultId/${pathSegment}`, async (req: AuthRequest, res: Response) => {
+    const vault = await editableVault(Number(req.params.vaultId), req.user!.userId);
+    if (!vault) return res.status(404).json({ success: false, message: 'Vault not found' });
+    const items = await listAgentDocs(Number(vault.Id), kind);
+    res.json({ success: true, data: items });
+  });
+
+  router.post(`/:vaultId/${pathSegment}`, async (req: AuthRequest, res: Response) => {
+    const vault = await editableVault(Number(req.params.vaultId), req.user!.userId);
+    if (!vault) return res.status(404).json({ success: false, message: 'Vault not found' });
+    const parsed = z
+      .object({
+        name: z.string().min(1).max(255),
+        content: z.string().max(16_777_215).optional().nullable(),
+        sortOrder: z.coerce.number().int().optional(),
+      })
+      .safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, message: 'Invalid agent doc body' });
+    }
+    try {
+      const created = await createAgentDoc(Number(vault.Id), kind, {
+        name: parsed.data.name,
+        content: parsed.data.content ?? '',
+        sortOrder: parsed.data.sortOrder,
+      });
+      res.json({ success: true, data: created });
+    } catch (error) {
+      logger.error('Create agent doc failed', { error, kind, vaultId: vault.Id });
+      res.status(500).json({ success: false, message: 'Failed to create document' });
+    }
+  });
+
+  router.put(`/:vaultId/${pathSegment}/:docId`, async (req: AuthRequest, res: Response) => {
+    const vault = await editableVault(Number(req.params.vaultId), req.user!.userId);
+    if (!vault) return res.status(404).json({ success: false, message: 'Vault not found' });
+    const docId = Number(req.params.docId);
+    if (!Number.isFinite(docId) || docId <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid document id' });
+    }
+    const parsed = z
+      .object({
+        name: z.string().min(1).max(255).optional(),
+        content: z.string().max(16_777_215).optional().nullable(),
+        sortOrder: z.coerce.number().int().optional(),
+      })
+      .refine((v) => Object.keys(v).length > 0, { message: 'At least one field is required' })
+      .safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, message: 'Invalid agent doc body' });
+    }
+    const updated = await updateAgentDoc(Number(vault.Id), kind, docId, {
+      name: parsed.data.name,
+      content: parsed.data.content === null ? '' : parsed.data.content,
+      sortOrder: parsed.data.sortOrder,
+    });
+    if (!updated) return res.status(404).json({ success: false, message: 'Document not found' });
+    res.json({ success: true, data: updated });
+  });
+
+  router.delete(`/:vaultId/${pathSegment}/:docId`, async (req: AuthRequest, res: Response) => {
+    const vault = await editableVault(Number(req.params.vaultId), req.user!.userId);
+    if (!vault) return res.status(404).json({ success: false, message: 'Vault not found' });
+    const docId = Number(req.params.docId);
+    if (!Number.isFinite(docId) || docId <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid document id' });
+    }
+    const deleted = await deleteAgentDoc(Number(vault.Id), kind, docId);
+    if (!deleted) return res.status(404).json({ success: false, message: 'Document not found' });
+    res.json({ success: true, data: { id: docId, deleted: true } });
+  });
+}
+
+registerAgentDocRoutes('skill', 'agent-skills');
+registerAgentDocRoutes('rule', 'agent-rules');
 
 export default router;
 export { effectiveVisibility };

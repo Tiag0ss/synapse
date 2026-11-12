@@ -99,6 +99,8 @@ interface MarkdownNoteEditorProps {
   onMediaUploaded?: () => void;
   /** Bump to reload [[attach suggestions (e.g. after panel upload). */
   attachmentsRefreshToken?: number;
+  /** Apply server-authored body (e.g. preview checkbox toggle) and optional UpdatedAt stamp. */
+  onServerBody?: (body: string, meta?: { updatedAt?: string | null }) => void;
 }
 
 type WrapSpec =
@@ -301,6 +303,7 @@ export default function MarkdownNoteEditor({
   insertRequest = null,
   onMediaUploaded,
   attachmentsRefreshToken = 0,
+  onServerBody,
 }: MarkdownNoteEditorProps) {
   const { t, locale } = useI18n();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -752,10 +755,18 @@ export default function MarkdownNoteEditor({
         const list = Array.isArray(payload) ? payload : payload?.items || [];
         setFetchedPlannerLinks(
           list.map(
-            (i: { markerId?: string | null; openUrl?: string | null; pmTaskId?: number | null }) => ({
+            (i: {
+              markerId?: string | null;
+              openUrl?: string | null;
+              pmTaskId?: number | null;
+              statusName?: string | null;
+              statusTone?: PlannerLinkItem['statusTone'];
+            }) => ({
               markerId: i.markerId ?? null,
               openUrl: i.openUrl ?? null,
               pmTaskId: i.pmTaskId ?? null,
+              statusName: i.statusName ?? null,
+              statusTone: i.statusTone ?? null,
             })
           )
         );
@@ -771,9 +782,30 @@ export default function MarkdownNoteEditor({
   const previewHtml =
     html || `<p class="synapse-empty">${t('chrome.nothingToPreview')}</p>`;
 
-  const afterPreviewWrite = useCallback((root: HTMLElement) => {
-    void renderMermaidInRoot(root);
-  }, []);
+  const enablePreviewCheckboxes = useCallback(
+    (root: HTMLElement) => {
+      root.querySelectorAll<HTMLInputElement>('input[type="checkbox"]').forEach((el) => {
+        if (!readOnly) {
+          el.disabled = false;
+          el.removeAttribute('disabled');
+        }
+        if (el.classList.contains('synapse-cb-partial')) {
+          el.indeterminate = true;
+          el.checked = false;
+        }
+      });
+    },
+    [readOnly]
+  );
+
+  const afterPreviewWrite = useCallback(
+    (root: HTMLElement) => {
+      // Strip marked's disabled attrs before first paint so clicks hit the input.
+      enablePreviewCheckboxes(root);
+      void renderMermaidInRoot(root);
+    },
+    [enablePreviewCheckboxes]
+  );
 
   const { embedMounts, askMounts, decisionMounts } = useBoardEmbedPreview(previewRef, {
     html: previewHtml,
@@ -785,11 +817,8 @@ export default function MarkdownNoteEditor({
     const root = previewRef.current;
     if (!root || mode === 'edit') return;
     applyPlannerButtons(root, fetchedPlannerLinks);
-    root.querySelectorAll<HTMLInputElement>('input.synapse-cb-partial[type="checkbox"]').forEach((el) => {
-      el.indeterminate = true;
-      el.checked = false;
-    });
-  }, [fetchedPlannerLinks, mode, previewHtml, embedMounts]);
+    enablePreviewCheckboxes(root);
+  }, [fetchedPlannerLinks, mode, previewHtml, embedMounts, enablePreviewCheckboxes]);
 
   const fetchEmbedBoard = useCallback(
     async (embedNoteId: number, embedVaultId: number | null) => {
@@ -922,7 +951,129 @@ export default function MarkdownNoteEditor({
     if (mode === 'edit') return;
     const root = previewRef.current;
     if (!root) return;
+
+    const resolvePreviewCheckbox = (
+      target: EventTarget | null,
+      clientX: number,
+      clientY: number
+    ): HTMLInputElement | null => {
+      const clickEl = target as HTMLElement | null;
+      if (!clickEl || !root.contains(clickEl)) return null;
+      if (clickEl.closest('a, button, .synapse-note-ref, .synapse-open-planner')) return null;
+
+      let checkbox = clickEl.closest('input[type="checkbox"]') as HTMLInputElement | null;
+      if (checkbox && root.contains(checkbox)) return checkbox;
+
+      const li = clickEl.closest(
+        'li.task-list-item, li:has(> input[type="checkbox"]), li:has(> p > input[type="checkbox"])'
+      ) as HTMLElement | null;
+      const candidate = li?.querySelector('input[type="checkbox"]') as HTMLInputElement | null;
+      if (!candidate || !root.contains(candidate)) return null;
+      const rect = candidate.getBoundingClientRect();
+      const pad = 6;
+      if (
+        clientX >= rect.left - pad &&
+        clientX <= rect.right + pad &&
+        clientY >= rect.top - pad &&
+        clientY <= rect.bottom + pad
+      ) {
+        return candidate;
+      }
+      return null;
+    };
+
+    const togglePreviewCheckbox = (checkbox: HTMLInputElement) => {
+      if (readOnly || !vaultId || !noteId || !onServerBody) return;
+      const li = checkbox.closest('li');
+      const markerEl = li?.querySelector(
+        '.synapse-cb-marker[data-marker-id]'
+      ) as HTMLElement | null;
+      const markerId = markerEl?.getAttribute('data-marker-id') || undefined;
+      const uniqueBoxes = [
+        ...new Set([
+          ...root.querySelectorAll<HTMLInputElement>(
+            'li.task-list-item input[type="checkbox"], li:has(> input[type="checkbox"]) > input[type="checkbox"], li:has(> p > input[type="checkbox"]) input[type="checkbox"]'
+          ),
+        ]),
+      ];
+      const index = uniqueBoxes.indexOf(checkbox);
+      // Read state BEFORE the browser toggles (pointerdown) / or after we own it.
+      // Partial items are forced unchecked+indeterminate in the DOM.
+      const currentlyDone =
+        !checkbox.classList.contains('synapse-cb-partial') && checkbox.checked;
+      const nextChecked = !currentlyDone;
+      void (async () => {
+        try {
+          const res = await fetch(`/api/vaults/${vaultId}/notes/${noteId}/checkboxes`, {
+            method: 'PATCH',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ...(markerId ? { markerId } : {}),
+              ...(index >= 0 ? { index } : {}),
+              checked: nextChecked,
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok || data.data?.bodyMarkdown == null) {
+            onStatus?.(data.message || t('status.couldNotUpdateCheckbox'));
+            return;
+          }
+          onServerBody(String(data.data.bodyMarkdown), {
+            updatedAt: typeof data.data.updatedAt === 'string' ? data.data.updatedAt : null,
+          });
+          onStatus?.(nextChecked ? t('status.markedDone') : t('status.markedOpen'));
+          const refresh = await fetch(`/api/vaults/${vaultId}/notes/${noteId}/checkboxes`, {
+            credentials: 'include',
+          });
+          const refreshJson = await refresh.json();
+          if (refresh.ok) {
+            const payload = refreshJson.data;
+            const list = Array.isArray(payload) ? payload : payload?.items || [];
+            setFetchedPlannerLinks(
+              list.map(
+                (i: {
+                  markerId?: string | null;
+                  openUrl?: string | null;
+                  pmTaskId?: number | null;
+                  statusName?: string | null;
+                  statusTone?: PlannerLinkItem['statusTone'];
+                }) => ({
+                  markerId: i.markerId ?? null,
+                  openUrl: i.openUrl ?? null,
+                  pmTaskId: i.pmTaskId ?? null,
+                  statusName: i.statusName ?? null,
+                  statusTone: i.statusTone ?? null,
+                })
+              )
+            );
+          }
+        } catch {
+          onStatus?.(t('status.couldNotUpdateCheckbox'));
+        }
+      })();
+    };
+
+    // pointerdown runs before the input activation behavior, so .checked is still the
+    // current markdown state — unlike click, where the browser already flipped it.
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.button !== 0) return;
+      if (readOnly || !vaultId || !noteId || !onServerBody) return;
+      const checkbox = resolvePreviewCheckbox(e.target, e.clientX, e.clientY);
+      if (!checkbox) return;
+      e.preventDefault();
+      e.stopPropagation();
+      togglePreviewCheckbox(checkbox);
+    };
+
     const onClick = (e: MouseEvent) => {
+      // Block the native click toggle if pointerdown already handled a checkbox.
+      if (resolvePreviewCheckbox(e.target, e.clientX, e.clientY)) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
       if (handleMarkdownCodeCopyClick(e, root)) return;
 
       const tocLink = (e.target as HTMLElement).closest(
@@ -1041,8 +1192,12 @@ export default function MarkdownNoteEditor({
         onOpenNote(id);
       }
     };
+    root.addEventListener('pointerdown', onPointerDown);
     root.addEventListener('click', onClick);
-    return () => root.removeEventListener('click', onClick);
+    return () => {
+      root.removeEventListener('pointerdown', onPointerDown);
+      root.removeEventListener('click', onClick);
+    };
   }, [
     mode,
     onOpenNote,
@@ -1051,6 +1206,11 @@ export default function MarkdownNoteEditor({
     onCreateCrossVaultNote,
     html,
     vaultId,
+    noteId,
+    readOnly,
+    onServerBody,
+    onStatus,
+    t,
   ]);
 
   const onEditorKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

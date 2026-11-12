@@ -356,7 +356,7 @@ export default function LinkOrCreatePmTaskModal({
           <button
             type="button"
             className="btn-ghost"
-            disabled={busy || projectsLoading}
+            disabled={busy}
             onClick={() => void onCreate()}
           >
             {t('chrome.createNewTask')}
