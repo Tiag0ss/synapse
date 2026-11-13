@@ -106,6 +106,8 @@ interface MarkdownNoteEditorProps {
   /** Note metadata for AI edit context. */
   noteTitle?: string;
   notePath?: string;
+  /** Keep vault-page planner link cache in sync after preview checkbox toggles. */
+  onPlannerLinksChange?: (links: PlannerLinkItem[]) => void;
 }
 
 type WrapSpec =
@@ -311,6 +313,7 @@ export default function MarkdownNoteEditor({
   onServerBody,
   noteTitle = '',
   notePath = '',
+  onPlannerLinksChange,
 }: MarkdownNoteEditorProps) {
   const { t, locale } = useI18n();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -986,7 +989,7 @@ export default function MarkdownNoteEditor({
       if (!clickEl || !root.contains(clickEl)) return null;
       if (clickEl.closest('a, button, .synapse-note-ref, .synapse-open-planner')) return null;
 
-      let checkbox = clickEl.closest('input[type="checkbox"]') as HTMLInputElement | null;
+      const checkbox = clickEl.closest('input[type="checkbox"]') as HTMLInputElement | null;
       if (checkbox && root.contains(checkbox)) return checkbox;
 
       const li = clickEl.closest(
@@ -1048,6 +1051,35 @@ export default function MarkdownNoteEditor({
             updatedAt: typeof data.data.updatedAt === 'string' ? data.data.updatedAt : null,
           });
           onStatus?.(nextChecked ? t('status.markedDone') : t('status.markedOpen'));
+
+          const toggledMarker =
+            (typeof data.data.markerId === 'string' && data.data.markerId) || markerId || null;
+          const patchStatusName =
+            typeof data.data.statusName === 'string' ? data.data.statusName : null;
+          const patchStatusTone = (data.data.statusTone ??
+            (nextChecked ? 'done' : 'todo')) as PlannerLinkItem['statusTone'];
+
+          const publishLinks = (links: PlannerLinkItem[]) => {
+            setFetchedPlannerLinks(links);
+            onPlannerLinksChange?.(links);
+          };
+
+          // Immediate badge update from PATCH (don't wait for a slow PM re-fetch).
+          // Do not call onPlannerLinksChange inside a setState updater — that updates the parent during render.
+          if (toggledMarker) {
+            const optimistic = fetchedPlannerLinks.map((l) =>
+              l.markerId === toggledMarker
+                ? {
+                    ...l,
+                    statusName:
+                      patchStatusName || l.statusName || (nextChecked ? 'Done' : 'To Do'),
+                    statusTone: patchStatusTone ?? l.statusTone,
+                  }
+                : l
+            );
+            publishLinks(optimistic);
+          }
+
           const refresh = await fetch(`/api/vaults/${vaultId}/notes/${noteId}/checkboxes`, {
             credentials: 'include',
           });
@@ -1055,7 +1087,7 @@ export default function MarkdownNoteEditor({
           if (refresh.ok) {
             const payload = refreshJson.data;
             const list = Array.isArray(payload) ? payload : payload?.items || [];
-            setFetchedPlannerLinks(
+            publishLinks(
               list.map(
                 (i: {
                   markerId?: string | null;
@@ -1063,13 +1095,36 @@ export default function MarkdownNoteEditor({
                   pmTaskId?: number | null;
                   statusName?: string | null;
                   statusTone?: PlannerLinkItem['statusTone'];
-                }) => ({
-                  markerId: i.markerId ?? null,
-                  openUrl: i.openUrl ?? null,
-                  pmTaskId: i.pmTaskId ?? null,
-                  statusName: i.statusName ?? null,
-                  statusTone: i.statusTone ?? null,
-                })
+                }) => {
+                  const mid = i.markerId ?? null;
+                  const fromApi: PlannerLinkItem = {
+                    markerId: mid,
+                    openUrl: i.openUrl ?? null,
+                    pmTaskId: i.pmTaskId ?? null,
+                    statusName: i.statusName ?? null,
+                    statusTone: i.statusTone ?? null,
+                  };
+                  // Prefer PATCH status for the toggled marker if GET is briefly stale.
+                  if (
+                    toggledMarker &&
+                    mid === toggledMarker &&
+                    (fromApi.statusTone == null ||
+                      (nextChecked &&
+                        fromApi.statusTone !== 'done' &&
+                        fromApi.statusTone !== 'cancelled') ||
+                      (!nextChecked && fromApi.statusTone === 'done'))
+                  ) {
+                    return {
+                      ...fromApi,
+                      statusName:
+                        patchStatusName ||
+                        fromApi.statusName ||
+                        (nextChecked ? 'Done' : 'To Do'),
+                      statusTone: patchStatusTone ?? fromApi.statusTone,
+                    };
+                  }
+                  return fromApi;
+                }
               )
             );
           }

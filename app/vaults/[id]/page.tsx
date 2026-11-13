@@ -495,7 +495,7 @@ export default function VaultWorkspacePage() {
     if (!Number.isFinite(noteId) || noteId <= 0) return;
     deepNoteOpenedRef.current = true;
     void openNote(noteId, { force: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- open once per vault / initial ?note=
+     
   }, [searchParams, vaultId]);
 
   const saveNote = async (opts?: {
@@ -2003,6 +2003,7 @@ aria-label={t('chrome.info')}
                   notes={noteIndex}
                   linkableVaults={linkableVaults}
                   plannerLinks={plannerLinks}
+                  onPlannerLinksChange={setPlannerLinks}
                   onOpenNote={(id) => void openNote(id)}
                   onOpenCrossVaultNote={(targetVaultId, noteId) => {
                     router.push(`/vaults/${targetVaultId}?note=${noteId}`);

@@ -490,6 +490,7 @@ export type PmProjectSummary = {
   Id: number;
   ProjectName?: string | null;
   Name?: string | null;
+  OrganizationId?: number | null;
 };
 
 export function normalizePmProjectList(data: unknown): PmProjectSummary[] {
@@ -503,6 +504,11 @@ export function normalizePmProjectList(data: unknown): PmProjectSummary[] {
     const p = row as Record<string, unknown>;
     const Id = Number(p.Id ?? p.id);
     if (!Number.isFinite(Id) || Id <= 0) continue;
+    const orgRaw = p.OrganizationId ?? p.organizationId;
+    const OrganizationId =
+      orgRaw != null && Number.isFinite(Number(orgRaw)) && Number(orgRaw) > 0
+        ? Number(orgRaw)
+        : null;
     out.push({
       Id,
       ProjectName:
@@ -514,9 +520,23 @@ export function normalizePmProjectList(data: unknown): PmProjectSummary[] {
               ? String(p.Name)
               : null,
       Name: p.Name != null ? String(p.Name) : null,
+      OrganizationId,
     });
   }
   return out;
+}
+
+/** Resolve Myelin organization id for a project (My work vaults often have no vault org). */
+export async function resolveOrganizationIdForProject(
+  userId: number,
+  projectId: number
+): Promise<number | null> {
+  if (!Number.isFinite(projectId) || projectId <= 0) return null;
+  const result = await fetchPmProjects(userId);
+  if (!result.ok) return null;
+  const match = normalizePmProjectList(result.data).find((p) => p.Id === projectId);
+  const orgId = match?.OrganizationId != null ? Number(match.OrganizationId) : 0;
+  return orgId > 0 ? orgId : null;
 }
 
 /** Display label for a Myelin project row (name preferred over bare id). */

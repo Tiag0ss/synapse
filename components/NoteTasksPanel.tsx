@@ -66,7 +66,7 @@ interface NoteTasksPanelProps {
   onPeekNote?: (target: { noteId: number; vaultId: number; titleHint?: string }) => void;
   /** Open Vault Planner / PM integration settings (link/create/unlink lives there). */
   onOpenPmSettings?: () => void;
-  /** Hub overview: checkboxes are pull-only (no toggle / push). */
+  /** Hub overview: no create/link/unlink; status toggle still allowed (pushes to Myelin). */
   pullOnly?: boolean;
   /** Pull Myelin tasks into the hub overview (My work vault only). */
   onRefreshPlanner?: () => void | Promise<void>;
@@ -310,13 +310,10 @@ export default function NoteTasksPanel({
     return onEnsureSaved();
   };
 
-  const toggleLocked = readOnly || pullOnly;
+  const toggleLocked = readOnly;
 
   const toggle = async (item: NoteTaskItem) => {
-    if (pullOnly) {
-      onStatus?.(t('status.pullOnlyOverview'));
-      return;
-    }
+    if (readOnly) return;
     if (!(await ensureSaved())) {
       onStatus?.(t('status.saveBeforeUpdatingTasks'));
       return;
@@ -699,9 +696,7 @@ export default function NoteTasksPanel({
                 }`}
                 title={
                   toggleLocked
-                    ? pullOnly
-                      ? t('chrome.pullOnlyRefreshHint')
-                      : item.checked
+                    ? item.checked
                       ? t('chrome.taskDone')
                       : item.partial
                         ? t('chrome.taskInProgress')

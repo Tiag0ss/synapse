@@ -18,6 +18,7 @@ import {
   resolvePmProjectName,
   resolveTaskStatusId,
   resolveTaskStatusIdWithName,
+  resolveOrganizationIdForProject,
   updatePmTask,
   buildPmTaskOpenUrl,
   buildPmProjectOpenUrl,
@@ -47,6 +48,7 @@ import {
   titleToPath,
 } from '../services/checkboxes';
 import {
+  fetchPmTasksForCheckboxLinks,
   syncNoteCheckboxesFromPm,
 } from '../services/pmCheckboxSync';
 import { applySafeMediaHeaders, readVaultMedia, saveVaultMedia, listNoteAttachments, deleteVaultMedia } from '../services/vaultMedia';
@@ -2649,13 +2651,23 @@ router.get('/:vaultId/notes/:noteId/checkboxes', async (req: AuthRequest, res: R
     Checked: l.Checked,
   }));
   const synced = overview
-    ? {
-        bodyMarkdown: String(note.BodyMarkdown || ''),
-        updated: 0,
-        cleared: 0,
-        taskById: new Map<number, PmTaskSummary>(),
-        statusList: null as PmTaskStatusValue[] | null,
-      }
+    ? await (async () => {
+        // Overview body is managed by Refresh tasks — do not rewrite markdown here,
+        // but still load PM tasks so preview status badges work.
+        const fetched = await fetchPmTasksForCheckboxLinks({
+          pmUserId: req.user!.userId,
+          links,
+          defaultProjectId: vault.PmProjectId ? Number(vault.PmProjectId) : null,
+          organizationId: vault.PmOrganizationId ? Number(vault.PmOrganizationId) : null,
+        });
+        return {
+          bodyMarkdown: String(note.BodyMarkdown || ''),
+          updated: 0,
+          cleared: 0,
+          taskById: fetched.taskById,
+          statusList: fetched.statusList ?? null,
+        };
+      })()
     : await syncNoteCheckboxesFromPm({
         pmUserId: req.user!.userId,
         noteId,
@@ -3220,9 +3232,7 @@ router.patch('/:vaultId/notes/:noteId/checkboxes', async (req: AuthRequest, res:
   );
   if (!notes.length) return res.status(404).json({ success: false, message: 'Note not found' });
   const note = notes[0];
-  if (overviewNoteRow(note as Record<string, unknown>)) {
-    return res.status(403).json({ success: false, message: overviewPullOnlyMessage() });
-  }
+  // My work overview: allow status toggle (push to Myelin) but create/link/unlink stay blocked elsewhere.
 
   const schema = z.object({
     index: z.coerce.number().int().min(0).optional(),
@@ -3264,7 +3274,20 @@ router.patch('/:vaultId/notes/:noteId/checkboxes', async (req: AuthRequest, res:
   let next: string | null = null;
   let resolvedStatusId: number | null = null;
   let statusNameForYaml: string | null = null;
-  const orgId = Number(vault.PmOrganizationId) || 0;
+  let orgId = Number(vault.PmOrganizationId) || 0;
+
+  // Resolve org early when the checkbox is already linked (My work has no vault org).
+  if (markerId && !orgId) {
+    const [preLinks] = await pool.execute<RowDataPacket[]>(
+      'SELECT PmProjectId FROM NoteCheckboxTasks WHERE NoteId = ? AND MarkerId = ?',
+      [note.Id, markerId]
+    );
+    const linkProjectId = preLinks[0]?.PmProjectId ? Number(preLinks[0].PmProjectId) : 0;
+    if (linkProjectId > 0) {
+      orgId =
+        (await resolveOrganizationIdForProject(req.user!.userId, linkProjectId)) || 0;
+    }
+  }
 
   if (markerId && isFrontmatterTodoMarker(markerId)) {
     const todoId = frontmatterTodoIdFromMarker(markerId);
@@ -3306,6 +3329,11 @@ router.patch('/:vaultId/notes/:noteId/checkboxes', async (req: AuthRequest, res:
     visibility: note.Visibility ? String(note.Visibility) : null,
   });
 
+  let statusName: string | null = statusNameForYaml;
+  let statusTone: 'todo' | 'progress' | 'done' | 'cancelled' | null = parsed.data.checked
+    ? 'done'
+    : 'todo';
+
   if (markerId && box) {
     await pool.execute(
       `INSERT INTO NoteCheckboxTasks (NoteId, MarkerId, Text, Checked)
@@ -3315,14 +3343,28 @@ router.patch('/:vaultId/notes/:noteId/checkboxes', async (req: AuthRequest, res:
     );
 
     const [linkRows] = await pool.execute<RowDataPacket[]>(
-      'SELECT PmTaskId FROM NoteCheckboxTasks WHERE NoteId = ? AND MarkerId = ?',
+      'SELECT PmTaskId, PmProjectId FROM NoteCheckboxTasks WHERE NoteId = ? AND MarkerId = ?',
       [note.Id, markerId]
     );
     const pmTaskId = linkRows[0]?.PmTaskId ? Number(linkRows[0].PmTaskId) : null;
+    const linkProjectId = linkRows[0]?.PmProjectId ? Number(linkRows[0].PmProjectId) : 0;
+    if (pmTaskId && !orgId && linkProjectId > 0) {
+      orgId =
+        (await resolveOrganizationIdForProject(req.user!.userId, linkProjectId)) || 0;
+    }
     if (pmTaskId && orgId) {
+      const resolved =
+        resolvedStatusId != null && statusName
+          ? { statusId: resolvedStatusId, statusName }
+          : await resolveTaskStatusIdWithName(
+              req.user!.userId,
+              orgId,
+              parsed.data.checked
+            );
       const statusId =
-        resolvedStatusId ??
+        resolved.statusId ??
         (await resolveTaskStatusId(req.user!.userId, orgId, parsed.data.checked));
+      if (resolved.statusName) statusName = resolved.statusName;
       if (statusId) {
         const upd = await updatePmTask(req.user!.userId, pmTaskId, {
           status: statusId,
@@ -3339,6 +3381,9 @@ router.patch('/:vaultId/notes/:noteId/checkboxes', async (req: AuthRequest, res:
         }
       }
     }
+    if (!statusName) {
+      statusName = parsed.data.checked ? 'Done' : 'To Do';
+    }
   }
 
   const [freshRows] = await pool.execute<RowDataPacket[]>(
@@ -3351,6 +3396,8 @@ router.patch('/:vaultId/notes/:noteId/checkboxes', async (req: AuthRequest, res:
       bodyMarkdown: body,
       markerId,
       checked: parsed.data.checked,
+      statusName,
+      statusTone,
       updatedAt: noteUpdatedAtIso(freshRows[0]?.UpdatedAt),
     },
   });

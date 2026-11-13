@@ -33,6 +33,90 @@ export type CheckboxLinkRow = {
 };
 
 /**
+ * Fetch linked PM tasks (and optional org status catalog) without rewriting note markdown.
+ * Used for status badges on pull-managed notes (e.g. My work overview).
+ */
+export async function fetchPmTasksForCheckboxLinks(params: {
+  pmUserId: number;
+  links: CheckboxLinkRow[];
+  defaultProjectId?: number | null;
+  organizationId?: number | null;
+  taskById?: Map<number, PmTaskSummary>;
+  loadedProjects?: Set<number>;
+  statusList?: PmTaskStatusValue[];
+}): Promise<{
+  taskById: Map<number, PmTaskSummary>;
+  loadedProjects: Set<number>;
+  statusList?: PmTaskStatusValue[];
+}> {
+  const linked = params.links.filter((l) => l.PmTaskId && l.MarkerId);
+  const loadedProjects = params.loadedProjects ? new Set(params.loadedProjects) : new Set<number>();
+  let taskById = params.taskById;
+
+  if (!linked.length) {
+    return {
+      taskById: taskById || new Map(),
+      loadedProjects,
+      statusList: params.statusList,
+    };
+  }
+
+  if (!taskById) {
+    taskById = new Map();
+    const projectIds = new Set<number>();
+    for (const link of linked) {
+      const pid = Number(link.PmProjectId || params.defaultProjectId || 0);
+      if (pid > 0) projectIds.add(pid);
+    }
+    for (const projectId of projectIds) {
+      const res = await fetchPmProjectTasks(params.pmUserId, projectId);
+      if (!res.ok) {
+        logger.warn('Could not fetch PM tasks for checkbox status', {
+          projectId,
+          message: res.data.message,
+        });
+        continue;
+      }
+      loadedProjects.add(projectId);
+      const tasks =
+        (res.data as { tasks?: PmTaskSummary[] }).tasks ||
+        (Array.isArray(res.data) ? (res.data as PmTaskSummary[]) : []);
+      for (const t of tasks) {
+        const id = Number(t.Id);
+        if (Number.isFinite(id) && id > 0) taskById.set(id, t);
+      }
+    }
+  } else if (!params.loadedProjects) {
+    const projectIds = new Set<number>();
+    for (const link of linked) {
+      const pid = Number(link.PmProjectId || params.defaultProjectId || 0);
+      if (pid > 0 && !loadedProjects.has(pid)) projectIds.add(pid);
+    }
+    for (const projectId of projectIds) {
+      const res = await fetchPmProjectTasks(params.pmUserId, projectId);
+      if (!res.ok) continue;
+      loadedProjects.add(projectId);
+      const tasks =
+        (res.data as { tasks?: PmTaskSummary[] }).tasks ||
+        (Array.isArray(res.data) ? (res.data as PmTaskSummary[]) : []);
+      for (const t of tasks) {
+        const id = Number(t.Id);
+        if (Number.isFinite(id) && id > 0) taskById.set(id, t);
+      }
+    }
+  }
+
+  let statusList = params.statusList;
+  const orgId = Number(params.organizationId || 0);
+  if (!statusList && orgId > 0) {
+    const statusRes = await fetchPmTaskStatuses(params.pmUserId, orgId);
+    statusList = normalizePmTaskStatusList(statusRes.data);
+  }
+
+  return { taskById, loadedProjects, statusList };
+}
+
+/**
  * Pull PM task closed/cancelled state into Synapse checkboxes / YAML todos
  * (markdown or frontmatter + link table). PM stays agnostic.
  * For YAML todos, writes the Planner status Name when organizationId is available.
@@ -72,60 +156,18 @@ export async function syncNoteCheckboxesFromPm(params: {
     };
   }
 
-  let taskById = params.taskById;
-  const loadedProjects = params.loadedProjects ? new Set(params.loadedProjects) : new Set<number>();
-  if (!taskById) {
-    taskById = new Map();
-    const projectIds = new Set<number>();
-    for (const link of linked) {
-      const pid = Number(link.PmProjectId || params.defaultProjectId || 0);
-      if (pid > 0) projectIds.add(pid);
-    }
-    for (const projectId of projectIds) {
-      const res = await fetchPmProjectTasks(params.pmUserId, projectId);
-      if (!res.ok) {
-        logger.warn('Could not fetch PM tasks for checkbox sync', {
-          projectId,
-          message: res.data.message,
-        });
-        continue;
-      }
-      loadedProjects.add(projectId);
-      const tasks =
-        (res.data as { tasks?: PmTaskSummary[] }).tasks ||
-        (Array.isArray(res.data) ? (res.data as PmTaskSummary[]) : []);
-      for (const t of tasks) {
-        const id = Number(t.Id);
-        if (Number.isFinite(id) && id > 0) taskById.set(id, t);
-      }
-    }
-  } else if (!params.loadedProjects) {
-    // Pre-fetched map without provenance — fetch any missing project lists once.
-    const projectIds = new Set<number>();
-    for (const link of linked) {
-      const pid = Number(link.PmProjectId || params.defaultProjectId || 0);
-      if (pid > 0 && !loadedProjects.has(pid)) projectIds.add(pid);
-    }
-    for (const projectId of projectIds) {
-      const res = await fetchPmProjectTasks(params.pmUserId, projectId);
-      if (!res.ok) continue;
-      loadedProjects.add(projectId);
-      const tasks =
-        (res.data as { tasks?: PmTaskSummary[] }).tasks ||
-        (Array.isArray(res.data) ? (res.data as PmTaskSummary[]) : []);
-      for (const t of tasks) {
-        const id = Number(t.Id);
-        if (Number.isFinite(id) && id > 0) taskById.set(id, t);
-      }
-    }
-  }
-
-  let statusList = params.statusList;
-  const orgId = Number(params.organizationId || 0);
-  if (!statusList && orgId > 0) {
-    const statusRes = await fetchPmTaskStatuses(params.pmUserId, orgId);
-    statusList = normalizePmTaskStatusList(statusRes.data);
-  }
+  const fetched = await fetchPmTasksForCheckboxLinks({
+    pmUserId: params.pmUserId,
+    links: params.links,
+    defaultProjectId: params.defaultProjectId,
+    organizationId: params.organizationId,
+    taskById: params.taskById,
+    loadedProjects: params.loadedProjects,
+    statusList: params.statusList,
+  });
+  const taskById = fetched.taskById;
+  const loadedProjects = fetched.loadedProjects;
+  const statusList = fetched.statusList;
 
   let body = params.bodyMarkdown;
   let updated = 0;

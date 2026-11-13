@@ -1310,7 +1310,8 @@ const en: ChromeMessages = {
   wikiAudienceNoteHint: 'Wiki audience is set by vault default visibility. Override this note to public, unlisted, or authenticated to publish it; private notes stay hidden from Share Read viewers.',
   doneCount: '{count} done',
   unlinkedSuffix: ' · {count} unlinked',
-  pullOnlyTasksHint: 'Pull-only from Myelin — adds, removes, and updates tasks assigned to you. Linked notes on the overview are kept.',
+  pullOnlyTasksHint:
+    'Task list is managed from Myelin (Refresh tasks). You can still toggle checkboxes to update status in Myelin. Linked notes on the overview are kept.',
   recalculateEstimates: 'Recalculate estimates',
   suggestTodosAi: 'Suggest todos with AI',
   noteTaskLabel: 'Note task',
@@ -2054,7 +2055,8 @@ const pt: ChromeMessages = {
   wikiAudienceNoteHint: 'A audiência da wiki segue a visibilidade predefinida do cofre. Altere esta nota para pública, não listada ou autenticados para a publicar; notas privadas ficam ocultas para leitores de Partilha.',
   doneCount: '{count} concluídas',
   unlinkedSuffix: ' · {count} sem ligação',
-  pullOnlyTasksHint: 'Só leitura a partir do Myelin — adiciona, remove e actualiza tarefas atribuídas a si. As notas ligadas na visão geral são mantidas.',
+  pullOnlyTasksHint:
+    'A lista de tarefas é gerida a partir do Myelin (Actualizar tarefas). Pode ainda marcar/desmarcar caixas para actualizar o estado no Myelin. As notas ligadas na visão geral são mantidas.',
   recalculateEstimates: 'Recalcular estimativas',
   suggestTodosAi: 'Sugerir todos com IA',
   noteTaskLabel: 'Tarefa da nota',
@@ -2799,7 +2801,8 @@ const es: ChromeMessages = {
   wikiAudienceNoteHint: 'La audiencia del wiki sigue la visibilidad predeterminada de la bóveda. Cambia esta nota a pública, no listada o autenticados para publicarla; las notas privadas quedan ocultas para lectores de Compartir.',
   doneCount: '{count} hechas',
   unlinkedSuffix: ' · {count} sin vincular',
-  pullOnlyTasksHint: 'Solo lectura desde Myelin: añade, quita y actualiza tareas asignadas a ti. Las notas vinculadas en la vista general se conservan.',
+  pullOnlyTasksHint:
+    'La lista de tareas se gestiona desde Myelin (Actualizar tareas). Aún puedes marcar/desmarcar casillas para actualizar el estado en Myelin. Las notas vinculadas en la vista general se conservan.',
   recalculateEstimates: 'Recalcular estimaciones',
   suggestTodosAi: 'Sugerir todos con IA',
   noteTaskLabel: 'Tarea de la nota',
@@ -3544,7 +3547,8 @@ const fr: ChromeMessages = {
   wikiAudienceNoteHint: 'L’audience du wiki suit la visibilité par défaut du coffre. Passez cette note en public, non listé ou authentifié pour la publier ; les notes privées restent masquées aux lecteurs Partage.',
   doneCount: '{count} terminées',
   unlinkedSuffix: ' · {count} non liées',
-  pullOnlyTasksHint: 'Lecture seule depuis Myelin — ajoute, retire et met à jour les tâches qui vous sont assignées. Les notes liées de la vue d’ensemble sont conservées.',
+  pullOnlyTasksHint:
+    'La liste des tâches est gérée depuis Myelin (Actualiser les tâches). Vous pouvez toujours cocher/décocher pour mettre à jour le statut dans Myelin. Les notes liées de la vue d’ensemble sont conservées.',
   recalculateEstimates: 'Recalculer les estimations',
   suggestTodosAi: 'Suggérer des todos avec l’IA',
   noteTaskLabel: 'Tâche de la note',
