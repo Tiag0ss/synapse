@@ -57,6 +57,20 @@
         "Update various components to handle note conflicts and presence notifications",
         "Enhance the UI for better user experience during task management and note editing"
       ]
+    },
+    {
+      "version": "1.2.0",
+      "date": "2026-11-13",
+      "title": "AI note edits, Synapse API tokens, and My work status badges",
+      "items": [
+        "Ask AI to edit a note or selection, then review a before/after diff — accept, ignore, or request changes",
+        "OpenRouter as an AI provider alongside Ollama and OpenAI (settings + model/API key)",
+        "Profile tabs with Synapse API tokens (`st_`) for MCP and integrations — create, revoke, and delete",
+        "Vault agent docs panel to edit skills and rules used by agents",
+        "Toggle linked checkboxes in note preview and My work; status pushes to Myelin when linked",
+        "Myelin status badges on checkbox tasks, including live updates when you toggle done/open",
+        "Improved task linking and status handling in the My work / tasks panel"
+      ]
     }
   ]
 }
