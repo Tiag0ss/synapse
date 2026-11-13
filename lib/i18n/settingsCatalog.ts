@@ -40,6 +40,7 @@ export type SettingsMessages = {
   provider: string;
   providerOllama: string;
   providerOpenai: string;
+  providerOpenrouter: string;
   ollamaBaseUrl: string;
   model: string;
   refreshModels: string;
@@ -51,6 +52,11 @@ export type SettingsMessages = {
   openaiKeyKeep: string;
   clearApiKey: string;
   openaiModel: string;
+  openrouterApiKey: string;
+  openrouterModel: string;
+  openrouterModelsHint: string;
+  openrouterRequireZdr: string;
+  openrouterZdrHint: string;
   testApiKey: string;
   checking: string;
   pendingShareRequests: string;
@@ -207,6 +213,7 @@ export const settingsEn: SettingsMessages = {
   provider: 'Provider',
   providerOllama: 'Ollama (self-hosted)',
   providerOpenai: 'OpenAI',
+  providerOpenrouter: 'OpenRouter',
   ollamaBaseUrl: 'Ollama base URL',
   model: 'Model',
   refreshModels: 'Refresh models',
@@ -218,6 +225,13 @@ export const settingsEn: SettingsMessages = {
   openaiKeyKeep: '•••••••• (leave blank to keep)',
   clearApiKey: 'Clear stored API key',
   openaiModel: 'OpenAI model',
+  openrouterApiKey: 'OpenRouter API key',
+  openrouterModel: 'OpenRouter model',
+  openrouterModelsHint:
+    'Loaded from OpenRouter /api/v1/models. You can also type a model id (e.g. openai/gpt-4o-mini).',
+  openrouterRequireZdr: 'Require OpenRouter ZDR endpoints',
+  openrouterZdrHint:
+    'Adds provider.zdr=true. Keep off for most free models; turn on when you need Zero Data Retention.',
   testApiKey: 'Test API key',
   checking: 'Checking…',
   pendingShareRequests: 'Pending share requests',
@@ -377,6 +391,7 @@ export const settingsPt: SettingsMessages = {
   provider: 'Fornecedor',
   providerOllama: 'Ollama (auto-hospedado)',
   providerOpenai: 'OpenAI',
+  providerOpenrouter: 'OpenRouter',
   ollamaBaseUrl: 'URL base do Ollama',
   model: 'Modelo',
   refreshModels: 'Actualizar modelos',
@@ -389,6 +404,13 @@ export const settingsPt: SettingsMessages = {
   openaiKeyKeep: '•••••••• (deixe em branco para manter)',
   clearApiKey: 'Limpar chave API guardada',
   openaiModel: 'Modelo OpenAI',
+  openrouterApiKey: 'Chave API OpenRouter',
+  openrouterModel: 'Modelo OpenRouter',
+  openrouterModelsHint:
+    'Carregado de OpenRouter /api/v1/models. Também pode escrever um id de modelo (ex.: openai/gpt-4o-mini).',
+  openrouterRequireZdr: 'Exigir endpoints ZDR do OpenRouter',
+  openrouterZdrHint:
+    'Adiciona provider.zdr=true. Mantenha desligado para a maioria dos modelos gratuitos; active quando precisar de Zero Data Retention.',
   testApiKey: 'Testar chave API',
   checking: 'A verificar…',
   pendingShareRequests: 'Pedidos de partilha pendentes',
@@ -549,6 +571,7 @@ export const settingsEs: SettingsMessages = {
   provider: 'Proveedor',
   providerOllama: 'Ollama (autoalojado)',
   providerOpenai: 'OpenAI',
+  providerOpenrouter: 'OpenRouter',
   ollamaBaseUrl: 'URL base de Ollama',
   model: 'Modelo',
   refreshModels: 'Actualizar modelos',
@@ -561,6 +584,13 @@ export const settingsEs: SettingsMessages = {
   openaiKeyKeep: '•••••••• (déjalo en blanco para mantener)',
   clearApiKey: 'Borrar clave API guardada',
   openaiModel: 'Modelo OpenAI',
+  openrouterApiKey: 'Clave API de OpenRouter',
+  openrouterModel: 'Modelo OpenRouter',
+  openrouterModelsHint:
+    'Cargado desde OpenRouter /api/v1/models. También puedes escribir un id de modelo (p. ej. openai/gpt-4o-mini).',
+  openrouterRequireZdr: 'Exigir endpoints ZDR de OpenRouter',
+  openrouterZdrHint:
+    'Añade provider.zdr=true. Déjalo apagado para la mayoría de modelos gratuitos; actívalo si necesitas Zero Data Retention.',
   testApiKey: 'Probar clave API',
   checking: 'Comprobando…',
   pendingShareRequests: 'Solicitudes de compartición pendientes',
@@ -721,6 +751,7 @@ export const settingsFr: SettingsMessages = {
   provider: 'Fournisseur',
   providerOllama: 'Ollama (auto-hébergé)',
   providerOpenai: 'OpenAI',
+  providerOpenrouter: 'OpenRouter',
   ollamaBaseUrl: 'URL de base Ollama',
   model: 'Modèle',
   refreshModels: 'Actualiser les modèles',
@@ -733,6 +764,13 @@ export const settingsFr: SettingsMessages = {
   openaiKeyKeep: '•••••••• (laisser vide pour conserver)',
   clearApiKey: 'Effacer la clé API enregistrée',
   openaiModel: 'Modèle OpenAI',
+  openrouterApiKey: 'Clé API OpenRouter',
+  openrouterModel: 'Modèle OpenRouter',
+  openrouterModelsHint:
+    'Chargé depuis OpenRouter /api/v1/models. Vous pouvez aussi saisir un id de modèle (ex. openai/gpt-4o-mini).',
+  openrouterRequireZdr: 'Exiger les endpoints ZDR OpenRouter',
+  openrouterZdrHint:
+    'Ajoute provider.zdr=true. Laissez désactivé pour la plupart des modèles gratuits ; activez si vous avez besoin de Zero Data Retention.',
   testApiKey: 'Tester la clé API',
   checking: 'Vérification…',
   pendingShareRequests: 'Demandes de partage en attente',

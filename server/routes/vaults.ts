@@ -79,6 +79,7 @@ import {
   setFrontmatterTodoStatusLabel,
 } from '../services/frontmatter';
 import { AiError, suggestTodosFromNote } from '../services/aiSuggestTodos';
+import { suggestNoteEdit } from '../services/aiSuggestNoteEdit';
 import { listNoteTaskCandidates } from '../services/noteTasks';
 import {
   checkboxTextKey,
@@ -2521,7 +2522,52 @@ router.get('/:vaultId/checkboxes', async (req: AuthRequest, res: Response) => {
   });
 });
 
-/** Suggest frontmatter todos via external Ollama — does not write the note. */
+/** Suggest a note edit (whole body or selection) — does not write the note. */
+router.post('/:vaultId/notes/:noteId/ai/suggest-edit', async (req: AuthRequest, res: Response) => {
+  try {
+    const vault = await editableVault(Number(req.params.vaultId), req.user!.userId);
+    if (!vault) return res.status(404).json({ success: false, message: 'Vault not found' });
+
+    const schema = z.object({
+      instruction: z.string().trim().min(1).max(8_000),
+      bodyMarkdown: z.string().max(500_000),
+      title: z.string().max(500).optional(),
+      path: z.string().max(1_000).optional(),
+      selectionStart: z.number().int().min(0).optional(),
+      selectionEnd: z.number().int().min(0).optional(),
+    });
+    const parsed = schema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, message: 'Invalid request body' });
+    }
+
+    const [notes] = await pool.execute<RowDataPacket[]>(
+      `SELECT Id, Title, Path FROM Notes WHERE Id = ? AND VaultId = ? AND ${ACTIVE_NOTE}`,
+      [req.params.noteId, vault.Id]
+    );
+    if (!notes.length) return res.status(404).json({ success: false, message: 'Note not found' });
+    const note = notes[0];
+
+    const result = await suggestNoteEdit({
+      instruction: parsed.data.instruction,
+      bodyMarkdown: parsed.data.bodyMarkdown,
+      title: parsed.data.title ?? String(note.Title || ''),
+      path: parsed.data.path ?? String(note.Path || ''),
+      selectionStart: parsed.data.selectionStart,
+      selectionEnd: parsed.data.selectionEnd,
+    });
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    if (error instanceof AiError) {
+      return res.status(error.status).json({ success: false, message: error.message });
+    }
+    logger.error('AI suggest-edit failed', { error });
+    res.status(500).json({ success: false, message: 'Failed to suggest note edit' });
+  }
+});
+
+/** Suggest frontmatter todos via configured AI — does not write the note. */
 router.post('/:vaultId/notes/:noteId/ai/suggest-todos', async (req: AuthRequest, res: Response) => {
   try {
     const vault = await editableVault(Number(req.params.vaultId), req.user!.userId);

@@ -1,5 +1,6 @@
 import {
   applyHunkFromLeft,
+  applyHunkFromRight,
   applyHunkKeepBoth,
   buildSideBySideDiff,
   groupDiffHunks,
@@ -17,6 +18,18 @@ describe('sideBySideDiff merge hunks', () => {
     const rows = buildSideBySideDiff('common\nisto é um teste\nend', 'common\ncenas maradas\nend');
     const [hunk] = groupDiffHunks(rows);
     expect(applyHunkFromLeft(rows, hunk)).toBe('common\nisto é um teste\nend');
+  });
+
+  it('accept AI (right) replaces the before line', () => {
+    const rows = buildSideBySideDiff('common\nisto é um teste\nend', 'common\ncenas maradas\nend');
+    const [hunk] = groupDiffHunks(rows);
+    expect(applyHunkFromRight(rows, hunk)).toBe('common\ncenas maradas\nend');
+  });
+
+  it('accept AI insert adds the new line into before', () => {
+    const rows = buildSideBySideDiff('a\nb', 'a\nai only\nb');
+    const [hunk] = groupDiffHunks(rows);
+    expect(applyHunkFromRight(rows, hunk)).toBe('a\nai only\nb');
   });
 
   it('add from server keeps both lines', () => {

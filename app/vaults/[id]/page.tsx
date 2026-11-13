@@ -1998,6 +1998,8 @@ aria-label={t('chrome.info')}
                   onServerBody={applyServerBody}
                   vaultId={vaultId}
                   noteId={selectedId}
+                  noteTitle={title}
+                  notePath={notes.find((n) => n.Id === selectedId)?.Path || `${title}.md`}
                   notes={noteIndex}
                   linkableVaults={linkableVaults}
                   plannerLinks={plannerLinks}

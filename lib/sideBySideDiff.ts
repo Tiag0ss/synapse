@@ -157,6 +157,28 @@ export function applyHunkFromLeft(rows: DiffRow[], hunk: DiffHunk): string {
 }
 
 /**
+ * Rebuild the left-side text after taking the right (AI / after) side for one hunk.
+ * Other hunks keep the before (left) content.
+ * Used by AI edit review: left = before, right = after.
+ */
+export function applyHunkFromRight(rows: DiffRow[], hunk: DiffHunk): string {
+  const out: string[] = [];
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const inHunk = i >= hunk.start && i < hunk.end;
+    if (inHunk) {
+      // Accept AI text for this change: keep inserts/replaces, drop deletes.
+      if (row.op === 'insert' || row.op === 'replace') {
+        if (row.right != null) out.push(row.right);
+      }
+    } else if (row.left != null) {
+      out.push(row.left);
+    }
+  }
+  return out.join('\n');
+}
+
+/**
  * Merge one hunk by keeping server (left) lines and local (right) lines.
  * Use when both sides added different content at the same place — “add” instead of replace.
  */

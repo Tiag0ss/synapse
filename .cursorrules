@@ -1,17 +1,6 @@
 # >>> PM-ACTIVE-TASK:START
-# Managed by Myelin Kanban extension — do not edit this block by hand.
-# - Task #1401 - Editar skills/regras nas opções do vault
-# - Task #1400 - MCP: CRUD notas + regras e skills
-# - Task #1399 - index.md na raiz a agregar todas as notas
-# - Task #1398 - Modal myelin mostra tarefas completed — só open
-# - Task #1397 - MCP: contexto relacionado com tarefa Myelin
-# - Task #1396 - MCP: tarefas de uma nota + contexto de notas ligadas
-# - Task #1395 - Detecção de conflito de notas a mais
-# - Task #1394 - Falta i18n
-# - Task #1393 - No modal do myelin demora algum tempo até o botão de criar nova tarefa funcionar
-# - Task #1392 - Permitir marcar a checkbox no preview (não no wiki)
-# - Task #1391 - Mostrar a cor do estado da tarefa myelin no render
-# Always keep every of these references in the message: Task #1401, Task #1400, Task #1399, Task #1398, Task #1397, Task #1396, Task #1395, Task #1394, Task #1393, Task #1392, Task #1391
+# Managed by Project Management Kanban extension — do not edit this block by hand.
+# No active PM tasks since the last commit.
 # >>> PM-ACTIVE-TASK:END
 
 # Commit messages (Generate commit message / agents):

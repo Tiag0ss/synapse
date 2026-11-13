@@ -10,6 +10,10 @@ interface PromptModalProps {
   placeholder?: string;
   initialValue?: string;
   confirmLabel?: string;
+  /** Optional hint under the title */
+  hint?: string;
+  /** Use a textarea for longer instructions */
+  multiline?: boolean;
   /** HTML input type — use "password" to mask the value */
   inputType?: 'text' | 'password';
   onConfirm: (value: string) => void;
@@ -23,6 +27,8 @@ export default function PromptModal({
   placeholder,
   initialValue = '',
   confirmLabel,
+  hint,
+  multiline = false,
   inputType = 'text',
   onConfirm,
   onCancel,
@@ -50,17 +56,29 @@ export default function PromptModal({
         }}
       >
         <h2 className="text-lg font-semibold tracking-tight text-[var(--text)]">{title}</h2>
+        {hint ? <p className="mt-1 text-sm text-[var(--muted)]">{hint}</p> : null}
         <label className="mt-4 block text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
           {label}
-          <input
-            autoFocus
-            type={inputType}
-            autoComplete={inputType === 'password' ? 'new-password' : undefined}
-            className="input mt-1.5 w-full"
-            placeholder={placeholder}
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-          />
+          {multiline ? (
+            <textarea
+              autoFocus
+              rows={5}
+              className="input mt-1.5 w-full resize-y"
+              placeholder={placeholder}
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+            />
+          ) : (
+            <input
+              autoFocus
+              type={inputType}
+              autoComplete={inputType === 'password' ? 'new-password' : undefined}
+              className="input mt-1.5 w-full"
+              placeholder={placeholder}
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+            />
+          )}
         </label>
         <div className="mt-5 flex justify-end gap-2">
           <button type="button" className="btn-ghost" onClick={onCancel}>

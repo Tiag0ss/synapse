@@ -23,11 +23,18 @@ export const SETTING_KEYS = {
   ollamaModel: 'ollamaModel',
   openaiApiKey: 'openaiApiKey',
   openaiModel: 'openaiModel',
+  openrouterApiKey: 'openrouterApiKey',
+  openrouterModel: 'openrouterModel',
+  openrouterRequireZdr: 'openrouterRequireZdr',
 } as const;
 
 export type SettingKey = (typeof SETTING_KEYS)[keyof typeof SETTING_KEYS];
 
-const ENCRYPTED_KEYS = new Set<string>([SETTING_KEYS.smtpPassword, SETTING_KEYS.openaiApiKey]);
+const ENCRYPTED_KEYS = new Set<string>([
+  SETTING_KEYS.smtpPassword,
+  SETTING_KEYS.openaiApiKey,
+  SETTING_KEYS.openrouterApiKey,
+]);
 
 const settingsCache = new Map<string, string | null>();
 let cacheLoadedAt = 0;

@@ -494,6 +494,8 @@ async function seedDefaultAppSettings(): Promise<void> {
     ollamaBaseUrl: 'http://127.0.0.1:11434',
     ollamaModel: 'llama3.2',
     openaiModel: 'gpt-4o-mini',
+    openrouterModel: 'openai/gpt-4o-mini',
+    openrouterRequireZdr: 'false',
   };
   for (const [key, value] of Object.entries(defaults)) {
     await pool.execute(

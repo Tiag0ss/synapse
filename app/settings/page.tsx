@@ -30,11 +30,14 @@ interface SettingsData {
   };
   ai: {
     aiEnabled: boolean;
-    aiProvider?: 'ollama' | 'openai';
+    aiProvider?: 'ollama' | 'openai' | 'openrouter';
     ollamaBaseUrl: string;
     ollamaModel: string;
     hasOpenaiApiKey?: boolean;
     openaiModel?: string;
+    hasOpenrouterApiKey?: boolean;
+    openrouterModel?: string;
+    openrouterRequireZdr?: boolean;
   };
 }
 
@@ -92,7 +95,7 @@ export default function SettingsPage() {
   const [clearSmtpPassword, setClearSmtpPassword] = useState(false);
   const [pmEnabled, setPmEnabled] = useState(true);
   const [aiEnabled, setAiEnabled] = useState(false);
-  const [aiProvider, setAiProvider] = useState<'ollama' | 'openai'>('ollama');
+  const [aiProvider, setAiProvider] = useState<'ollama' | 'openai' | 'openrouter'>('ollama');
   const [ollamaBaseUrl, setOllamaBaseUrl] = useState('http://127.0.0.1:11434');
   const [ollamaModel, setOllamaModel] = useState('llama3.2');
   const [ollamaModels, setOllamaModels] = useState<string[]>([]);
@@ -107,6 +110,16 @@ export default function SettingsPage() {
   const [openaiModelsError, setOpenaiModelsError] = useState('');
   const [openaiPingBusy, setOpenaiPingBusy] = useState(false);
   const [openaiPingMsg, setOpenaiPingMsg] = useState('');
+  const [hasOpenrouterApiKey, setHasOpenrouterApiKey] = useState(false);
+  const [openrouterApiKey, setOpenrouterApiKey] = useState('');
+  const [clearOpenrouterApiKey, setClearOpenrouterApiKey] = useState(false);
+  const [openrouterModel, setOpenrouterModel] = useState('openai/gpt-4o-mini');
+  const [openrouterModels, setOpenrouterModels] = useState<string[]>([]);
+  const [openrouterModelsBusy, setOpenrouterModelsBusy] = useState(false);
+  const [openrouterModelsError, setOpenrouterModelsError] = useState('');
+  const [openrouterRequireZdr, setOpenrouterRequireZdr] = useState(false);
+  const [openrouterPingBusy, setOpenrouterPingBusy] = useState(false);
+  const [openrouterPingMsg, setOpenrouterPingMsg] = useState('');
 
   const [createOpen, setCreateOpen] = useState(false);
   const [newUsername, setNewUsername] = useState('');
@@ -178,13 +191,22 @@ export default function SettingsPage() {
     setSmtpFromName(d.email.smtpFromName);
     setPmEnabled(d.projectManagement.pmIntegrationEnabled);
     setAiEnabled(d.ai?.aiEnabled ?? false);
-    setAiProvider(d.ai?.aiProvider === 'openai' ? 'openai' : 'ollama');
+    setAiProvider(
+      d.ai?.aiProvider === 'openai' || d.ai?.aiProvider === 'openrouter'
+        ? d.ai.aiProvider
+        : 'ollama'
+    );
     setOllamaBaseUrl(d.ai?.ollamaBaseUrl || 'http://127.0.0.1:11434');
     setOllamaModel(d.ai?.ollamaModel || 'llama3.2');
     setHasOpenaiApiKey(Boolean(d.ai?.hasOpenaiApiKey));
     setOpenaiModel(d.ai?.openaiModel || 'gpt-4o-mini');
     setOpenaiApiKey('');
     setClearOpenaiApiKey(false);
+    setHasOpenrouterApiKey(Boolean(d.ai?.hasOpenrouterApiKey));
+    setOpenrouterModel(d.ai?.openrouterModel || 'openai/gpt-4o-mini');
+    setOpenrouterRequireZdr(Boolean(d.ai?.openrouterRequireZdr));
+    setOpenrouterApiKey('');
+    setClearOpenrouterApiKey(false);
     setLoading(false);
   }, []);
 
@@ -278,12 +300,54 @@ export default function SettingsPage() {
     }
   }, [t]);
 
+  const loadOpenrouterModels = useCallback(async (currentModel: string, apiKeyDraft: string) => {
+    setOpenrouterModelsBusy(true);
+    setOpenrouterModelsError('');
+    try {
+      const res = await fetch('/api/settings/ai/openrouter/models', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(apiKeyDraft.trim() ? { apiKey: apiKeyDraft.trim() } : {}),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setOpenrouterModels([]);
+        setOpenrouterModelsError(json.message || t('status.failedListModels'));
+        return;
+      }
+      const list = (json.data?.models || []) as string[];
+      setOpenrouterModels(list);
+      if (list.length > 0 && (!currentModel || !list.includes(currentModel))) {
+        const preferred =
+          list.find((m) => m === 'openai/gpt-4o-mini') ||
+          list.find((m) => m.includes('gpt-4o-mini')) ||
+          list[0];
+        if (preferred && preferred !== currentModel) setOpenrouterModel(preferred);
+      }
+    } catch {
+      setOpenrouterModels([]);
+      setOpenrouterModelsError(t('status.networkErrorListingOpenrouter'));
+    } finally {
+      setOpenrouterModelsBusy(false);
+    }
+  }, [t]);
+
   useEffect(() => {
     if (tab === 'ai' && !forbidden && !loading && aiProvider === 'ollama') {
       void loadOllamaModels(ollamaBaseUrl, ollamaModel);
     }
     if (tab === 'ai' && !forbidden && !loading && aiProvider === 'openai' && (hasOpenaiApiKey || openaiApiKey.trim())) {
       void loadOpenaiModels(openaiModel, openaiApiKey);
+    }
+    if (
+      tab === 'ai' &&
+      !forbidden &&
+      !loading &&
+      aiProvider === 'openrouter' &&
+      (hasOpenrouterApiKey || openrouterApiKey.trim())
+    ) {
+      void loadOpenrouterModels(openrouterModel, openrouterApiKey);
     }
     // Load once when opening the AI tab / switching provider.
   }, [tab, forbidden, loading, aiProvider]);
@@ -415,12 +479,16 @@ export default function SettingsPage() {
       ollamaBaseUrl,
       ollamaModel,
       openaiModel,
+      openrouterModel,
+      openrouterRequireZdr,
       ...extra,
     };
     if (clearSmtpPassword) body.smtpPassword = '';
     else if (smtpPassword) body.smtpPassword = smtpPassword;
     if (clearOpenaiApiKey) body.openaiApiKey = '';
     else if (openaiApiKey) body.openaiApiKey = openaiApiKey;
+    if (clearOpenrouterApiKey) body.openrouterApiKey = '';
+    else if (openrouterApiKey) body.openrouterApiKey = openrouterApiKey;
 
     const res = await fetch('/api/settings/general', {
       method: 'PUT',
@@ -441,6 +509,11 @@ export default function SettingsPage() {
     }
     setOpenaiApiKey('');
     setClearOpenaiApiKey(false);
+    if (openrouterApiKey || clearOpenrouterApiKey) {
+      setHasOpenrouterApiKey(Boolean(openrouterApiKey) && !clearOpenrouterApiKey);
+    }
+    setOpenrouterApiKey('');
+    setClearOpenrouterApiKey(false);
     await loadSettings();
   };
 
@@ -753,10 +826,16 @@ export default function SettingsPage() {
             <select
               className="input mt-1 w-full"
               value={aiProvider}
-              onChange={(e) => setAiProvider(e.target.value === 'openai' ? 'openai' : 'ollama')}
+              onChange={(e) => {
+                const v = e.target.value;
+                setAiProvider(
+                  v === 'openai' || v === 'openrouter' ? v : 'ollama'
+                );
+              }}
             >
               <option value="ollama">{t('settings.providerOllama')}</option>
               <option value="openai">{t('settings.providerOpenai')}</option>
+              <option value="openrouter">{t('settings.providerOpenrouter')}</option>
             </select>
           </label>
           {aiProvider === 'ollama' ? (
@@ -810,6 +889,143 @@ export default function SettingsPage() {
                 ) : (
                   <p className="mt-1 text-xs text-[var(--muted)]">{t('settings.ollamaModelsHint')}</p>
                 )}
+              </div>
+            </>
+          ) : aiProvider === 'openrouter' ? (
+            <>
+              <label className="block text-sm">
+                {t('settings.openrouterApiKey')}
+                <input
+                  className="input mt-1 w-full"
+                  type="password"
+                  autoComplete="off"
+                  value={openrouterApiKey}
+                  onChange={(e) => {
+                    setOpenrouterApiKey(e.target.value);
+                    setClearOpenrouterApiKey(false);
+                  }}
+                  placeholder={hasOpenrouterApiKey ? t('settings.openaiKeyKeep') : 'sk-or-…'}
+                />
+              </label>
+              {hasOpenrouterApiKey && (
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={clearOpenrouterApiKey}
+                    onChange={(e) => setClearOpenrouterApiKey(e.target.checked)}
+                  />
+                  {t('settings.clearApiKey')}
+                </label>
+              )}
+              <div>
+                <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                  <label className="block text-sm" htmlFor="openrouter-model-select">
+                    {t('settings.openrouterModel')}
+                  </label>
+                  <button
+                    type="button"
+                    className="btn-ghost py-1 text-xs"
+                    disabled={
+                      openrouterModelsBusy ||
+                      (!openrouterApiKey.trim() && !hasOpenrouterApiKey) ||
+                      clearOpenrouterApiKey
+                    }
+                    onClick={() => void loadOpenrouterModels(openrouterModel, openrouterApiKey)}
+                  >
+                    {openrouterModelsBusy ? t('common.loading') : t('settings.refreshModels')}
+                  </button>
+                </div>
+                {openrouterModels.length > 0 ? (
+                  <select
+                    id="openrouter-model-select"
+                    className="input w-full"
+                    value={openrouterModel}
+                    disabled={openrouterModelsBusy && openrouterModels.length === 0}
+                    onChange={(e) => setOpenrouterModel(e.target.value)}
+                  >
+                    {openrouterModel && !openrouterModels.includes(openrouterModel) && (
+                      <option value={openrouterModel}>
+                        {openrouterModel} {t('settings.modelSaved')}
+                      </option>
+                    )}
+                    {openrouterModels.map((name) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    id="openrouter-model-select"
+                    className="input w-full"
+                    value={openrouterModel}
+                    onChange={(e) => setOpenrouterModel(e.target.value)}
+                    placeholder="openai/gpt-4o-mini"
+                  />
+                )}
+                {openrouterModelsError ? (
+                  <p className="mt-1 text-xs text-red-300">{openrouterModelsError}</p>
+                ) : (
+                  <p className="mt-1 text-xs text-[var(--muted)]">{t('settings.openrouterModelsHint')}</p>
+                )}
+              </div>
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={openrouterRequireZdr}
+                  onChange={(e) => setOpenrouterRequireZdr(e.target.checked)}
+                />
+                <span>
+                  <span className="text-[var(--text)]">{t('settings.openrouterRequireZdr')}</span>
+                  <span className="mt-0.5 block text-xs text-[var(--muted)]">
+                    {t('settings.openrouterZdrHint')}
+                  </span>
+                </span>
+              </label>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  className="btn-ghost py-1 text-xs"
+                  disabled={
+                    openrouterPingBusy ||
+                    openrouterModelsBusy ||
+                    (!openrouterApiKey.trim() && !hasOpenrouterApiKey) ||
+                    clearOpenrouterApiKey
+                  }
+                  onClick={() => {
+                    void (async () => {
+                      setOpenrouterPingBusy(true);
+                      setOpenrouterPingMsg('');
+                      try {
+                        const res = await fetch('/api/settings/ai/openrouter/ping', {
+                          method: 'POST',
+                          credentials: 'include',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify(
+                            openrouterApiKey.trim() ? { apiKey: openrouterApiKey.trim() } : {}
+                          ),
+                        });
+                        const json = await res.json();
+                        setOpenrouterPingMsg(
+                          json.message || (res.ok ? t('status.connectionOk') : t('status.genericFailed'))
+                        );
+                        if (res.ok) {
+                          void loadOpenrouterModels(openrouterModel, openrouterApiKey);
+                        }
+                      } catch {
+                        setOpenrouterPingMsg(t('status.networkError'));
+                      } finally {
+                        setOpenrouterPingBusy(false);
+                      }
+                    })();
+                  }}
+                >
+                  {openrouterPingBusy ? t('settings.checking') : t('settings.testApiKey')}
+                </button>
+                {openrouterPingMsg ? (
+                  <span className="text-xs text-[var(--muted)]">{openrouterPingMsg}</span>
+                ) : null}
               </div>
             </>
           ) : (

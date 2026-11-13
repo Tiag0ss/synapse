@@ -184,6 +184,7 @@ export type StatusMessages = {
   noteCopiedDestination: string;
   networkErrorListingOllama: string;
   networkErrorListingOpenai: string;
+  networkErrorListingOpenrouter: string;
   connectionOk: string;
   uploadedNamed: string;
 
@@ -375,6 +376,7 @@ export const statusEn: StatusMessages = {
   noteCopiedDestination: 'Note copied to destination vault',
   networkErrorListingOllama: 'Network error listing Ollama models',
   networkErrorListingOpenai: 'Network error listing OpenAI models',
+  networkErrorListingOpenrouter: 'Network error listing OpenRouter models',
   connectionOk: 'OK',
   uploadedNamed: 'Uploaded {name}',
   couldNotReadImage: 'Could not read image',
@@ -565,6 +567,7 @@ export const statusPt: StatusMessages = {
   noteCopiedDestination: 'Nota copiada para o cofre de destino',
   networkErrorListingOllama: 'Erro de rede ao listar modelos Ollama',
   networkErrorListingOpenai: 'Erro de rede ao listar modelos OpenAI',
+  networkErrorListingOpenrouter: 'Erro de rede ao listar modelos OpenRouter',
   connectionOk: 'OK',
   uploadedNamed: 'Enviado {name}',
   couldNotReadImage: 'Não foi possível ler a imagem',
@@ -755,6 +758,7 @@ export const statusEs: StatusMessages = {
   noteCopiedDestination: 'Nota copiada a la bóveda de destino',
   networkErrorListingOllama: 'Error de red al listar modelos Ollama',
   networkErrorListingOpenai: 'Error de red al listar modelos OpenAI',
+  networkErrorListingOpenrouter: 'Error de red al listar modelos OpenRouter',
   connectionOk: 'OK',
   uploadedNamed: 'Subido {name}',
   couldNotReadImage: 'No se pudo leer la imagen',
@@ -945,6 +949,7 @@ export const statusFr: StatusMessages = {
   noteCopiedDestination: 'Note copiée vers le coffre de destination',
   networkErrorListingOllama: 'Erreur réseau lors de la liste des modèles Ollama',
   networkErrorListingOpenai: 'Erreur réseau lors de la liste des modèles OpenAI',
+  networkErrorListingOpenrouter: 'Erreur réseau lors de la liste des modèles OpenRouter',
   connectionOk: 'OK',
   uploadedNamed: 'Téléversé {name}',
   couldNotReadImage: 'Impossible de lire l’image',

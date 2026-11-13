@@ -33,6 +33,8 @@ import {
 import ImageLightbox from '@/components/ImageLightbox';
 import MermaidLightbox from '@/components/MermaidLightbox';
 import NoteLinkSuggest from '@/components/NoteLinkSuggest';
+import PromptModal from '@/components/PromptModal';
+import AiNoteEditDiffModal, { type AiNoteEditMode } from '@/components/AiNoteEditDiffModal';
 import { useI18n } from '@/lib/i18n/provider';
 import { legendSections } from '@/lib/i18n/legendCatalog';
 import NotePeekModal, { type NotePeekTarget } from '@/components/NotePeekModal';
@@ -101,6 +103,9 @@ interface MarkdownNoteEditorProps {
   attachmentsRefreshToken?: number;
   /** Apply server-authored body (e.g. preview checkbox toggle) and optional UpdatedAt stamp. */
   onServerBody?: (body: string, meta?: { updatedAt?: string | null }) => void;
+  /** Note metadata for AI edit context. */
+  noteTitle?: string;
+  notePath?: string;
 }
 
 type WrapSpec =
@@ -304,6 +309,8 @@ export default function MarkdownNoteEditor({
   onMediaUploaded,
   attachmentsRefreshToken = 0,
   onServerBody,
+  noteTitle = '',
+  notePath = '',
 }: MarkdownNoteEditorProps) {
   const { t, locale } = useI18n();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -331,6 +338,24 @@ export default function MarkdownNoteEditor({
     Record<string, DecisionEventView[]>
   >({});
   const [decisionReloadToken, setDecisionReloadToken] = useState(0);
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const [aiPromptOpen, setAiPromptOpen] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiSelection, setAiSelection] = useState<{ start: number; end: number } | null>(null);
+  const [aiReview, setAiReview] = useState<{
+    mode: AiNoteEditMode;
+    /** Original region text when the review opened (left pane baseline). */
+    before: string;
+    after: string;
+    instruction: string;
+    /** Indices into baselineBody for the original selection (fixed for revise). */
+    selectionStart: number | null;
+    selectionEnd: number | null;
+    /** Applied span end in the live editor after partial accepts. */
+    appliedEnd: number | null;
+    /** Full note body when the review opened — used to refine selection suggestions. */
+    baselineBody: string;
+  } | null>(null);
   const onOpenNoteRef = useRef(onOpenNote);
   const onOpenCrossVaultNoteRef = useRef(onOpenCrossVaultNote);
   onOpenNoteRef.current = onOpenNote;
@@ -1285,6 +1310,191 @@ export default function MarkdownNoteEditor({
     void uploadFiles(files);
   };
 
+  useEffect(() => {
+    if (readOnly) {
+      setAiEnabled(false);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch('/api/auth/me', { credentials: 'include' });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!cancelled) setAiEnabled(Boolean(json.data?.ai?.enabled));
+      } catch {
+        if (!cancelled) setAiEnabled(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [readOnly]);
+
+  const openAiEditPrompt = () => {
+    if (readOnly || !vaultId || !noteId || !aiEnabled) return;
+    const el = textareaRef.current;
+    const start = el?.selectionStart ?? 0;
+    const end = el?.selectionEnd ?? 0;
+    setAiSelection(start !== end ? { start, end } : null);
+    setAiPromptOpen(true);
+  };
+
+  const runAiEdit = async (instruction: string) => {
+    if (!vaultId || !noteId) return;
+    setAiPromptOpen(false);
+    setAiBusy(true);
+    onStatus?.(t('chrome.aiEditGenerating'));
+    try {
+      const body: Record<string, unknown> = {
+        instruction,
+        bodyMarkdown: value,
+        title: noteTitle,
+        path: notePath,
+      };
+      if (aiSelection) {
+        body.selectionStart = aiSelection.start;
+        body.selectionEnd = aiSelection.end;
+      }
+      const res = await fetch(`/api/vaults/${vaultId}/notes/${noteId}/ai/suggest-edit`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        onStatus?.(json.message || t('chrome.aiEditFailed'));
+        return;
+      }
+      const data = json.data as {
+        mode: AiNoteEditMode;
+        before: string;
+        after: string;
+        selectionStart: number | null;
+        selectionEnd: number | null;
+      };
+      setAiReview({
+        mode: data.mode,
+        before: data.before,
+        after: data.after,
+        instruction,
+        selectionStart: data.selectionStart,
+        selectionEnd: data.selectionEnd,
+        appliedEnd: data.selectionEnd,
+        baselineBody: value,
+      });
+      onStatus?.('');
+    } catch {
+      onStatus?.(t('chrome.aiEditFailed'));
+    } finally {
+      setAiBusy(false);
+    }
+  };
+
+  const requestAiChanges = async (followUp: string) => {
+    if (!vaultId || !noteId || !aiReview) return;
+    setAiBusy(true);
+    onStatus?.(t('chrome.aiEditGenerating'));
+    try {
+      const combinedInstruction = [
+        aiReview.instruction ? `Previous instruction: ${aiReview.instruction}` : null,
+        `Follow-up: ${followUp}`,
+        'Revise the current draft accordingly.',
+        'Respect Synapse syntax: preserve [[wikilinks]], ![[whiteboard embeds]], <!--synapse:cb:…--> markers, YAML frontmatter, :::fold/:::ask fences, #tags, and media URLs unless this follow-up explicitly asks to change them.',
+      ]
+        .filter(Boolean)
+        .join('\n');
+
+      let bodyMarkdown: string;
+      let selectionStart: number | undefined;
+      let selectionEnd: number | undefined;
+
+      if (
+        aiReview.mode === 'selection' &&
+        aiReview.selectionStart != null &&
+        aiReview.selectionEnd != null
+      ) {
+        // Refine After inside the original note context (fixed original span).
+        const start = aiReview.selectionStart;
+        const end = aiReview.selectionEnd;
+        bodyMarkdown =
+          aiReview.baselineBody.slice(0, start) +
+          aiReview.after +
+          aiReview.baselineBody.slice(end);
+        selectionStart = start;
+        selectionEnd = start + aiReview.after.length;
+      } else {
+        bodyMarkdown = aiReview.after;
+      }
+
+      const res = await fetch(`/api/vaults/${vaultId}/notes/${noteId}/ai/suggest-edit`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          instruction: combinedInstruction,
+          bodyMarkdown,
+          title: noteTitle,
+          path: notePath,
+          ...(selectionStart != null && selectionEnd != null
+            ? { selectionStart, selectionEnd }
+            : {}),
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        onStatus?.(json.message || t('chrome.aiEditFailed'));
+        return;
+      }
+      const data = json.data as {
+        after: string;
+      };
+      setAiReview((prev) =>
+        prev
+          ? {
+              ...prev,
+              after: data.after,
+              instruction: followUp,
+              appliedEnd:
+                prev.mode === 'selection' && prev.selectionStart != null
+                  ? prev.selectionStart + data.after.length
+                  : prev.appliedEnd,
+            }
+          : prev
+      );
+      onStatus?.('');
+    } catch {
+      onStatus?.(t('chrome.aiEditFailed'));
+    } finally {
+      setAiBusy(false);
+    }
+  };
+
+  const applyAiRegion = (regionText: string) => {
+    if (!aiReview) return;
+    if (
+      aiReview.mode === 'selection' &&
+      aiReview.selectionStart != null &&
+      aiReview.appliedEnd != null
+    ) {
+      const start = aiReview.selectionStart;
+      const end = aiReview.appliedEnd;
+      const next = value.slice(0, start) + regionText + value.slice(end);
+      onChange(next);
+      setAiReview((prev) =>
+        prev
+          ? {
+              ...prev,
+              appliedEnd: start + regionText.length,
+            }
+          : prev
+      );
+      return;
+    }
+    onChange(regionText);
+  };
+
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-inner shadow-black/20">
       <div className="flex flex-wrap items-center gap-2 border-b border-[var(--border)] bg-[var(--panel)]/80 px-2 py-1.5 backdrop-blur">
@@ -1328,6 +1538,17 @@ export default function MarkdownNoteEditor({
             >
               {t('chrome.attach')}
             </button>
+            {aiEnabled && vaultId && noteId ? (
+              <button
+                type="button"
+                title={t('chrome.aiEdit')}
+                className="toolbar-btn"
+                disabled={aiBusy || uploading}
+                onClick={openAiEditPrompt}
+              >
+                {aiBusy ? '…' : t('chrome.aiEditShort')}
+              </button>
+            ) : null}
             <input
               ref={fileInputRef}
               type="file"
@@ -1566,6 +1787,32 @@ export default function MarkdownNoteEditor({
         onPeekNote={(next) => setPeekTarget(next)}
         onCreateNoteFromWikilink={onCreateNoteFromWikilink}
         onCreateCrossVaultNote={onCreateCrossVaultNote}
+      />
+      <PromptModal
+        open={aiPromptOpen}
+        title={t('chrome.aiEdit')}
+        label={t('chrome.aiEditInstruction')}
+        hint={
+          aiSelection
+            ? t('chrome.aiEditHintSelection')
+            : t('chrome.aiEditHintWhole')
+        }
+        placeholder={t('chrome.aiEditInstructionPlaceholder')}
+        confirmLabel={t('chrome.aiEditGenerate')}
+        multiline
+        onCancel={() => setAiPromptOpen(false)}
+        onConfirm={(instruction) => void runAiEdit(instruction)}
+      />
+      <AiNoteEditDiffModal
+        open={aiReview != null}
+        mode={aiReview?.mode || 'whole'}
+        before={aiReview?.before || ''}
+        after={aiReview?.after || ''}
+        instruction={aiReview?.instruction}
+        busy={aiBusy}
+        onClose={() => setAiReview(null)}
+        onApply={applyAiRegion}
+        onRequestChanges={(followUp) => void requestAiChanges(followUp)}
       />
     </div>
   );

@@ -23,7 +23,14 @@ import {
 } from '../services/adminVaults';
 import { bulkAddAllActiveUsers } from '../services/vaultMembersBulk';
 import { OllamaError, listOllamaModels } from '../services/ollamaClient';
-import { AiError, listOpenAiModels, pingOpenAiApiKey } from '../services/aiSuggestTodos';
+import {
+  AiError,
+  listOpenAiModels,
+  pingOpenAiApiKey,
+  listOpenRouterModels,
+  pingOpenRouterApiKey,
+  normalizeAiProvider,
+} from '../services/aiSuggestTodos';
 import logger from '../utils/logger';
 
 const router = Router();
@@ -52,6 +59,9 @@ router.get('/general', async (_req: AuthRequest, res: Response) => {
       ollamaModel,
       openaiApiKey,
       openaiModel,
+      openrouterApiKey,
+      openrouterModel,
+      openrouterRequireZdr,
     ] = await Promise.all([
       getSetting(SETTING_KEYS.siteName),
       getSettingBool(SETTING_KEYS.allowPublicWikiDirectory, true),
@@ -72,6 +82,9 @@ router.get('/general', async (_req: AuthRequest, res: Response) => {
       getSetting(SETTING_KEYS.ollamaModel),
       getDecryptedSetting(SETTING_KEYS.openaiApiKey),
       getSetting(SETTING_KEYS.openaiModel),
+      getDecryptedSetting(SETTING_KEYS.openrouterApiKey),
+      getSetting(SETTING_KEYS.openrouterModel),
+      getSettingBool(SETTING_KEYS.openrouterRequireZdr, false),
     ]);
 
     res.json({
@@ -102,11 +115,14 @@ router.get('/general', async (_req: AuthRequest, res: Response) => {
         },
         ai: {
           aiEnabled,
-          aiProvider: aiProvider === 'openai' ? 'openai' : 'ollama',
+          aiProvider: normalizeAiProvider(aiProvider),
           ollamaBaseUrl: ollamaBaseUrl || 'http://127.0.0.1:11434',
           ollamaModel: ollamaModel || 'llama3.2',
           hasOpenaiApiKey: Boolean(openaiApiKey),
           openaiModel: openaiModel || 'gpt-4o-mini',
+          hasOpenrouterApiKey: Boolean(openrouterApiKey),
+          openrouterModel: openrouterModel || 'openai/gpt-4o-mini',
+          openrouterRequireZdr,
         },
       },
     });
@@ -134,12 +150,15 @@ router.put('/general', async (req: AuthRequest, res: Response) => {
       smtpPassword: z.string().max(500).nullable().optional(),
       pmIntegrationEnabled: z.boolean().optional(),
       aiEnabled: z.boolean().optional(),
-      aiProvider: z.enum(['ollama', 'openai']).optional(),
+      aiProvider: z.enum(['ollama', 'openai', 'openrouter']).optional(),
       ollamaBaseUrl: z.string().max(512).optional(),
       ollamaModel: z.string().max(128).optional(),
       /** omit = leave unchanged; empty string = clear */
       openaiApiKey: z.string().max(500).nullable().optional(),
       openaiModel: z.string().max(128).optional(),
+      openrouterApiKey: z.string().max(500).nullable().optional(),
+      openrouterModel: z.string().max(256).optional(),
+      openrouterRequireZdr: z.boolean().optional(),
     });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) {
@@ -198,6 +217,22 @@ router.put('/general', async (req: AuthRequest, res: Response) => {
       const model = d.openaiModel.trim();
       await setSetting(SETTING_KEYS.openaiModel, model || null);
     }
+    if (d.openrouterApiKey !== undefined) {
+      await setSetting(
+        SETTING_KEYS.openrouterApiKey,
+        d.openrouterApiKey === '' || d.openrouterApiKey == null ? null : d.openrouterApiKey
+      );
+    }
+    if (d.openrouterModel != null) {
+      const model = d.openrouterModel.trim();
+      await setSetting(SETTING_KEYS.openrouterModel, model || null);
+    }
+    if (d.openrouterRequireZdr != null) {
+      await setSetting(
+        SETTING_KEYS.openrouterRequireZdr,
+        d.openrouterRequireZdr ? 'true' : 'false'
+      );
+    }
 
     invalidateSettingsCache();
     res.json({ success: true, message: 'Settings saved' });
@@ -255,6 +290,42 @@ router.post('/ai/openai/models', async (req: AuthRequest, res: Response) => {
     }
     logger.error('POST settings/ai/openai/models failed', { error });
     res.status(500).json({ success: false, message: 'Failed to list OpenAI models' });
+  }
+});
+
+/** Validate OpenRouter API key (optional body.apiKey uses form value before save). */
+router.post('/ai/openrouter/ping', async (req: AuthRequest, res: Response) => {
+  try {
+    const key =
+      typeof req.body?.apiKey === 'string' && req.body.apiKey.trim()
+        ? String(req.body.apiKey).trim()
+        : null;
+    await pingOpenRouterApiKey(key);
+    res.json({ success: true, message: 'OpenRouter API key accepted' });
+  } catch (error) {
+    if (error instanceof AiError) {
+      return res.status(error.status).json({ success: false, message: error.message });
+    }
+    logger.error('POST settings/ai/openrouter/ping failed', { error });
+    res.status(500).json({ success: false, message: 'Failed to validate OpenRouter key' });
+  }
+});
+
+/** List models from OpenRouter (optional body.apiKey uses form value before save). */
+router.post('/ai/openrouter/models', async (req: AuthRequest, res: Response) => {
+  try {
+    const key =
+      typeof req.body?.apiKey === 'string' && req.body.apiKey.trim()
+        ? String(req.body.apiKey).trim()
+        : null;
+    const models = await listOpenRouterModels(key);
+    res.json({ success: true, data: { models } });
+  } catch (error) {
+    if (error instanceof AiError) {
+      return res.status(error.status).json({ success: false, message: error.message });
+    }
+    logger.error('POST settings/ai/openrouter/models failed', { error });
+    res.status(500).json({ success: false, message: 'Failed to list OpenRouter models' });
   }
 });
 

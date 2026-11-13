@@ -109,6 +109,28 @@ export type ChromeMessages = {
   restoreAll: string;
   restoreChange: string;
   reviewAiTodos: string;
+  aiEdit: string;
+  aiEditShort: string;
+  aiEditInstruction: string;
+  aiEditInstructionPlaceholder: string;
+  aiEditInstructionLabel: string;
+  aiEditHintSelection: string;
+  aiEditHintWhole: string;
+  aiEditGenerate: string;
+  aiEditGenerating: string;
+  aiEditFailed: string;
+  aiEditReviewTitle: string;
+  aiEditReviewIntroWhole: string;
+  aiEditReviewIntroSelection: string;
+  aiEditBefore: string;
+  aiEditAfter: string;
+  aiEditAcceptHunk: string;
+  aiEditAcceptAll: string;
+  aiEditDiscard: string;
+  aiEditRequestChanges: string;
+  aiEditRequestChangesHint: string;
+  aiEditRequestChangesPlaceholder: string;
+  aiEditRequestChangesSubmit: string;
   analyzingAi: string;
   existingTodos: string;
   proposed: string;
@@ -815,6 +837,28 @@ const en: ChromeMessages = {
   restoreAll: 'Restore all',
   restoreChange: 'Restore only this change',
   reviewAiTodos: 'Review AI todo suggestions',
+  aiEdit: 'Edit with AI',
+  aiEditShort: 'AI',
+  aiEditInstruction: 'Instruction',
+  aiEditInstructionPlaceholder: 'e.g. Clarify this section and fix grammar',
+  aiEditInstructionLabel: 'Instruction',
+  aiEditHintSelection: 'AI will edit the selected text only. Review the before/after diff before anything is kept.',
+  aiEditHintWhole: 'AI will suggest edits for the whole note. Review the before/after diff before anything is kept.',
+  aiEditGenerate: 'Generate suggestion',
+  aiEditGenerating: 'Generating AI suggestion…',
+  aiEditFailed: 'AI edit failed',
+  aiEditReviewTitle: 'Review AI edit',
+  aiEditReviewIntroWhole: 'Left is the current note · right is the AI suggestion · accept individual changes or all · nothing is saved until you save the note',
+  aiEditReviewIntroSelection: 'Left is the current selection · right is the AI suggestion · accept individual changes or all · nothing is saved until you save the note',
+  aiEditBefore: 'Before',
+  aiEditAfter: 'After (AI)',
+  aiEditAcceptHunk: 'Accept change',
+  aiEditAcceptAll: 'Accept all',
+  aiEditDiscard: 'Discard',
+  aiEditRequestChanges: 'Request changes',
+  aiEditRequestChangesHint: 'Describe what to change in the After suggestion. The left side stays the original text.',
+  aiEditRequestChangesPlaceholder: 'e.g. Make it shorter and keep the wikilinks',
+  aiEditRequestChangesSubmit: 'Revise suggestion',
   analyzingAi: 'Analyzing note with AI…',
   existingTodos: 'Existing frontmatter todos',
   proposed: 'Proposed',
@@ -1535,6 +1579,28 @@ const pt: ChromeMessages = {
   restoreAll: 'Restaurar tudo',
   restoreChange: 'Restaurar só esta alteração',
   reviewAiTodos: 'Rever sugestões de tarefas IA',
+  aiEdit: 'Editar com IA',
+  aiEditShort: 'IA',
+  aiEditInstruction: 'Instrução',
+  aiEditInstructionPlaceholder: 'ex.: Clarificar esta secção e corrigir a gramática',
+  aiEditInstructionLabel: 'Instrução',
+  aiEditHintSelection: 'A IA edita só o texto seleccionado. Reveja a diferença antes/depois antes de manter alterações.',
+  aiEditHintWhole: 'A IA sugere edições para a nota inteira. Reveja a diferença antes/depois antes de manter alterações.',
+  aiEditGenerate: 'Gerar sugestão',
+  aiEditGenerating: 'A gerar sugestão da IA…',
+  aiEditFailed: 'A edição com IA falhou',
+  aiEditReviewTitle: 'Rever edição da IA',
+  aiEditReviewIntroWhole: 'À esquerda a nota actual · à direita a sugestão da IA · aceite alterações individuais ou todas · nada é guardado até guardar a nota',
+  aiEditReviewIntroSelection: 'À esquerda a selecção actual · à direita a sugestão da IA · aceite alterações individuais ou todas · nada é guardado até guardar a nota',
+  aiEditBefore: 'Antes',
+  aiEditAfter: 'Depois (IA)',
+  aiEditAcceptHunk: 'Aceitar alteração',
+  aiEditAcceptAll: 'Aceitar tudo',
+  aiEditDiscard: 'Ignorar',
+  aiEditRequestChanges: 'Pedir alterações',
+  aiEditRequestChangesHint: 'Descreva o que alterar na sugestão Depois. O lado esquerdo mantém o texto original.',
+  aiEditRequestChangesPlaceholder: 'ex.: Encurtar e manter os wikilinks',
+  aiEditRequestChangesSubmit: 'Rever sugestão',
   analyzingAi: 'A analisar a nota com IA…',
   existingTodos: 'Tarefas existentes no frontmatter',
   proposed: 'Propostas',
@@ -2258,6 +2324,28 @@ const es: ChromeMessages = {
   restoreAll: 'Restaurar todo',
   restoreChange: 'Restaurar solo este cambio',
   reviewAiTodos: 'Revisar sugerencias de tareas IA',
+  aiEdit: 'Editar con IA',
+  aiEditShort: 'IA',
+  aiEditInstruction: 'Instrucción',
+  aiEditInstructionPlaceholder: 'p. ej. Aclarar esta sección y corregir la gramática',
+  aiEditInstructionLabel: 'Instrucción',
+  aiEditHintSelection: 'La IA editará solo el texto seleccionado. Revisa el diff antes/después antes de conservar cambios.',
+  aiEditHintWhole: 'La IA sugerirá ediciones para toda la nota. Revisa el diff antes/después antes de conservar cambios.',
+  aiEditGenerate: 'Generar sugerencia',
+  aiEditGenerating: 'Generando sugerencia de IA…',
+  aiEditFailed: 'La edición con IA falló',
+  aiEditReviewTitle: 'Revisar edición de IA',
+  aiEditReviewIntroWhole: 'Izquierda: nota actual · derecha: sugerencia de IA · acepta cambios individuales o todos · nada se guarda hasta que guardes la nota',
+  aiEditReviewIntroSelection: 'Izquierda: selección actual · derecha: sugerencia de IA · acepta cambios individuales o todos · nada se guarda hasta que guardes la nota',
+  aiEditBefore: 'Antes',
+  aiEditAfter: 'Después (IA)',
+  aiEditAcceptHunk: 'Aceptar cambio',
+  aiEditAcceptAll: 'Aceptar todo',
+  aiEditDiscard: 'Descartar',
+  aiEditRequestChanges: 'Pedir cambios',
+  aiEditRequestChangesHint: 'Describe qué cambiar en la sugerencia Después. El lado izquierdo conserva el texto original.',
+  aiEditRequestChangesPlaceholder: 'p. ej. Acortar y conservar los wikilinks',
+  aiEditRequestChangesSubmit: 'Revisar sugerencia',
   analyzingAi: 'Analizando la nota con IA…',
   existingTodos: 'Todos existentes en el frontmatter',
   proposed: 'Propuestas',
@@ -2981,6 +3069,28 @@ const fr: ChromeMessages = {
   restoreAll: 'Tout restaurer',
   restoreChange: 'Restaurer uniquement ce changement',
   reviewAiTodos: 'Examiner les suggestions de tâches IA',
+  aiEdit: 'Modifier avec l’IA',
+  aiEditShort: 'IA',
+  aiEditInstruction: 'Instruction',
+  aiEditInstructionPlaceholder: 'ex. Clarifier cette section et corriger la grammaire',
+  aiEditInstructionLabel: 'Instruction',
+  aiEditHintSelection: 'L’IA modifiera uniquement le texte sélectionné. Examinez le diff avant/après avant de conserver.',
+  aiEditHintWhole: 'L’IA proposera des modifications pour toute la note. Examinez le diff avant/après avant de conserver.',
+  aiEditGenerate: 'Générer la suggestion',
+  aiEditGenerating: 'Génération de la suggestion IA…',
+  aiEditFailed: 'Échec de la modification IA',
+  aiEditReviewTitle: 'Examiner la modification IA',
+  aiEditReviewIntroWhole: 'À gauche la note actuelle · à droite la suggestion IA · acceptez des changements individuels ou tout · rien n’est enregistré tant que vous n’enregistrez pas la note',
+  aiEditReviewIntroSelection: 'À gauche la sélection actuelle · à droite la suggestion IA · acceptez des changements individuels ou tout · rien n’est enregistré tant que vous n’enregistrez pas la note',
+  aiEditBefore: 'Avant',
+  aiEditAfter: 'Après (IA)',
+  aiEditAcceptHunk: 'Accepter le changement',
+  aiEditAcceptAll: 'Tout accepter',
+  aiEditDiscard: 'Ignorer',
+  aiEditRequestChanges: 'Demander des modifications',
+  aiEditRequestChangesHint: 'Décrivez ce qu’il faut changer dans la suggestion Après. Le côté gauche conserve le texte d’origine.',
+  aiEditRequestChangesPlaceholder: 'ex. Raccourcir et conserver les wikilinks',
+  aiEditRequestChangesSubmit: 'Réviser la suggestion',
   analyzingAi: 'Analyse de la note avec l’IA…',
   existingTodos: 'Todos frontmatter existants',
   proposed: 'Proposées',
