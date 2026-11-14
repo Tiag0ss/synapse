@@ -71,6 +71,21 @@
         "Myelin status badges on checkbox tasks, including live updates when you toggle done/open",
         "Improved task linking and status handling in the My work / tasks panel"
       ]
+    },
+    {
+      "version": "1.3.0",
+      "date": "2026-11-14",
+      "title": "Flow notes with React Flow, run mode, and Mermaid import/export",
+      "items": [
+        "New Flow note kind alongside notes and whiteboards — node graphs with named objects, inputs/outputs, and shapes",
+        "Canvas extras: minimap, controls, themed styling, undo/redo, and delete edges without the browser context menu",
+        "Port sides and optional labels; connect edges from specific input/output handles",
+        "Run a flow with branching questions and stop/continue controls",
+        "Embed flows in markdown with ![[Flow]] (nodes visible in preview)",
+        "Import/export Mermaid flowcharts and sequence diagrams; export JSON and SVG",
+        "Sequence-style participants for message docks between actors",
+        "When pushing checkboxes to Myelin, skip tasks that are already done"
+      ]
     }
   ]
 }
