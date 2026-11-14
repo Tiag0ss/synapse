@@ -1,14 +1,6 @@
 # >>> PM-ACTIVE-TASK:START
 # Managed by Project Management Kanban extension — do not edit this block by hand.
-# - Task #1409 - No modal de criação de tarefas no myelin ainda aparece tarefas marcadas como concluidas
-# - Task #1408 - Implementar uma funcionalidade de undo/redo para o reactflow
-# - Task #1407 - Adicionar a possibilidade de exportar o flow do reactflow para outros formatos
-# - Task #1406 - Seria interessante conseguir converter diagramas do mermaid em reactflow e vice versa
-# - Task #1405 - Era interessante conseguir correr o flow e conforme as opções ele fazia perguntas
-# - Task #1404 - Quero aproveitar o máximo das funcionalidades do reactflow
-# - Task #1403 - No reactflow deve permitir definir as entradas e saidas, tal como o nome dos objectos
-# - Task #1402 - Um novo tipo de nota similar ao whiteboard mas vai usar o reactflow
-# Always keep every of these references in the message: Task #1409, Task #1408, Task #1407, Task #1406, Task #1405, Task #1404, Task #1403, Task #1402
+# No active PM tasks since the last commit.
 # >>> PM-ACTIVE-TASK:END
 
 # Commit messages (Generate commit message / agents):
