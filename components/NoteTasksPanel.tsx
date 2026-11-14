@@ -412,7 +412,8 @@ export default function NoteTasksPanel({
     }
   };
 
-  const missingCount = items.filter((i) => !i.pmTaskId).length;
+  // Done checkboxes are not offered for Myelin create (open + unlinked only).
+  const missingCount = items.filter((i) => !i.pmTaskId && !i.checked).length;
   const totalHours = useMemo(() => sumNoteTaskEstimateHours(body), [body]);
   const categoryEstimates = useMemo(
     () => computeFrontmatterCategoryEstimates(body),
@@ -864,7 +865,8 @@ export default function NoteTasksPanel({
               ) : (
                 !readOnly &&
                 !pullOnly &&
-                hasProject && (
+                hasProject &&
+                !item.checked && (
                   <button
                     type="button"
                     className="shrink-0 text-[10px] font-medium text-[var(--accent-soft)] disabled:opacity-40"

@@ -113,6 +113,18 @@ function NoteRowButton({
               strokeLinejoin="round"
             />
           </svg>
+        ) : note.kind === 'flow' ? (
+          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" aria-hidden>
+            <circle cx="6" cy="12" r="2.5" stroke="currentColor" strokeWidth="1.75" />
+            <circle cx="18" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.75" />
+            <circle cx="18" cy="16" r="2.5" stroke="currentColor" strokeWidth="1.75" />
+            <path
+              d="M8.5 11.5l7-2.5M8.5 12.5l7 2.5"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              strokeLinecap="round"
+            />
+          </svg>
         ) : (
           <NoteIcon icon={note.icon} size={14} />
         )}

@@ -83,6 +83,63 @@ export type ChromeMessages = {
   manageTemplates: string;
   note: string;
   whiteboard: string;
+  flow: string;
+  createFlowTitle: string;
+  createFlowHint: string;
+  blankFlowPreview: string;
+  maximizeFlow: string;
+  flowKindProcess: string;
+  flowKindDecision: string;
+  flowKindQuestion: string;
+  flowKindStart: string;
+  flowKindEnd: string;
+  flowKindParticipant: string;
+  flowSeqTemplate: string;
+  flowSeqActorUser: string;
+  flowSeqActorSystem: string;
+  flowSeqActorOther: string;
+  flowEdgeLabel: string;
+  flowUndo: string;
+  flowRedo: string;
+  flowDeleteNode: string;
+  flowDeleteEdge: string;
+  flowDeleteHint: string;
+  flowEdgeProps: string;
+  flowCtxPaneHint: string;
+  flowRun: string;
+  flowStop: string;
+  flowExportJson: string;
+  flowExportMermaid: string;
+  flowExportSvg: string;
+  flowImportMermaid: string;
+  flowImportMermaidHint: string;
+  flowImportFile: string;
+  flowImportApply: string;
+  flowMermaidLabel: string;
+  flowRunPrompt: string;
+  flowRunDone: string;
+  flowRunError: string;
+  flowNodeProps: string;
+  flowNodeName: string;
+  flowNodeKind: string;
+  flowNodeShape: string;
+  flowShapeAuto: string;
+  flowShapeRounded: string;
+  flowShapeRectangle: string;
+  flowShapePill: string;
+  flowShapeDiamond: string;
+  flowShapeCircle: string;
+  flowQuestion: string;
+  flowInputs: string;
+  flowOutputs: string;
+  flowPortsPlaceholder: string;
+  flowInputsSide: string;
+  flowOutputsSide: string;
+  flowSideLeft: string;
+  flowSideRight: string;
+  flowSideTop: string;
+  flowSideBottom: string;
+  flowSelectNodeHint: string;
   title: string;
   noMatchingTemplates: string;
   system: string;
@@ -811,6 +868,63 @@ const en: ChromeMessages = {
   manageTemplates: 'Manage templates',
   note: 'Note',
   whiteboard: 'Whiteboard',
+  flow: 'Flow',
+  createFlowTitle: 'New flow',
+  createFlowHint: 'A React Flow canvas for processes, decisions, and runnable questions.',
+  blankFlowPreview: 'Empty flow with Start and End nodes.',
+  maximizeFlow: 'Maximize flow',
+  flowKindProcess: 'Process',
+  flowKindDecision: 'Decision',
+  flowKindQuestion: 'Question',
+  flowKindStart: 'Start',
+  flowKindEnd: 'End',
+  flowKindParticipant: 'Participant',
+  flowSeqTemplate: 'Sequence (3)',
+  flowSeqActorUser: 'User',
+  flowSeqActorSystem: 'Synapse',
+  flowSeqActorOther: 'PM',
+  flowEdgeLabel: 'Message',
+  flowUndo: 'Undo',
+  flowRedo: 'Redo',
+  flowDeleteNode: 'Delete node',
+  flowDeleteEdge: 'Delete connection',
+  flowDeleteHint: 'Delete selected node or connection (Delete / Backspace)',
+  flowEdgeProps: 'Connection',
+  flowCtxPaneHint: 'Right-click a node or connection for actions.',
+  flowRun: 'Run',
+  flowStop: 'Stop',
+  flowExportJson: 'Export JSON',
+  flowExportMermaid: 'Export Mermaid',
+  flowExportSvg: 'Export SVG',
+  flowImportMermaid: 'Import Mermaid',
+  flowImportMermaidHint: 'Paste a Mermaid flowchart or sequenceDiagram. Existing nodes will be replaced.',
+  flowImportFile: 'Import file',
+  flowImportApply: 'Import',
+  flowMermaidLabel: 'Mermaid',
+  flowRunPrompt: 'Flow question',
+  flowRunDone: 'Flow finished',
+  flowRunError: 'Flow error',
+  flowNodeProps: 'Node',
+  flowNodeName: 'Name',
+  flowNodeKind: 'Kind',
+  flowNodeShape: 'Shape',
+  flowShapeAuto: 'Auto (from kind)',
+  flowShapeRounded: 'Rounded',
+  flowShapeRectangle: 'Rectangle',
+  flowShapePill: 'Pill',
+  flowShapeDiamond: 'Diamond',
+  flowShapeCircle: 'Circle',
+  flowQuestion: 'Question',
+  flowInputs: 'Inputs (comma-separated)',
+  flowOutputs: 'Outputs (comma-separated)',
+  flowPortsPlaceholder: 'optional labels, … (empty = no label)',
+  flowInputsSide: 'Inputs side',
+  flowOutputsSide: 'Outputs side',
+  flowSideLeft: 'Left',
+  flowSideRight: 'Right',
+  flowSideTop: 'Top',
+  flowSideBottom: 'Bottom',
+  flowSelectNodeHint: 'Select a node to edit its name, ports, and question.',
   title: 'Title',
   noMatchingTemplates: 'No matching templates',
   system: 'System',
@@ -1554,6 +1668,63 @@ const pt: ChromeMessages = {
   manageTemplates: 'Gerir modelos',
   note: 'Nota',
   whiteboard: 'Quadro',
+  flow: 'Fluxo',
+  createFlowTitle: 'Novo fluxo',
+  createFlowHint: 'Uma tela React Flow para processos, decisões e perguntas executáveis.',
+  blankFlowPreview: 'Fluxo vazio com nós Início e Fim.',
+  maximizeFlow: 'Maximizar fluxo',
+  flowKindProcess: 'Processo',
+  flowKindDecision: 'Decisão',
+  flowKindQuestion: 'Pergunta',
+  flowKindStart: 'Início',
+  flowKindEnd: 'Fim',
+  flowKindParticipant: 'Participante',
+  flowSeqTemplate: 'Sequência (3)',
+  flowSeqActorUser: 'User',
+  flowSeqActorSystem: 'Synapse',
+  flowSeqActorOther: 'PM',
+  flowEdgeLabel: 'Mensagem',
+  flowUndo: 'Anular',
+  flowRedo: 'Refazer',
+  flowDeleteNode: 'Eliminar nó',
+  flowDeleteEdge: 'Eliminar ligação',
+  flowDeleteHint: 'Eliminar o nó ou a ligação seleccionados (Delete / Backspace)',
+  flowEdgeProps: 'Ligação',
+  flowCtxPaneHint: 'Clique com o botão direito num nó ou ligação para acções.',
+  flowRun: 'Executar',
+  flowStop: 'Parar',
+  flowExportJson: 'Exportar JSON',
+  flowExportMermaid: 'Exportar Mermaid',
+  flowExportSvg: 'Exportar SVG',
+  flowImportMermaid: 'Importar Mermaid',
+  flowImportMermaidHint: 'Cole um fluxograma ou sequenceDiagram Mermaid. Os nós actuais serão substituídos.',
+  flowImportFile: 'Importar ficheiro',
+  flowImportApply: 'Importar',
+  flowMermaidLabel: 'Mermaid',
+  flowRunPrompt: 'Pergunta do fluxo',
+  flowRunDone: 'Fluxo concluído',
+  flowRunError: 'Erro no fluxo',
+  flowNodeProps: 'Nó',
+  flowNodeName: 'Nome',
+  flowNodeKind: 'Tipo',
+  flowNodeShape: 'Formato',
+  flowShapeAuto: 'Automático (pelo tipo)',
+  flowShapeRounded: 'Arredondado',
+  flowShapeRectangle: 'Rectângulo',
+  flowShapePill: 'Cápsula',
+  flowShapeDiamond: 'Losango',
+  flowShapeCircle: 'Círculo',
+  flowQuestion: 'Pergunta',
+  flowInputs: 'Entradas (separadas por vírgulas)',
+  flowOutputs: 'Saídas (separadas por vírgulas)',
+  flowPortsPlaceholder: 'rótulos opcionais, … (vazio = sem rótulo)',
+  flowInputsSide: 'Lado das entradas',
+  flowOutputsSide: 'Lado das saídas',
+  flowSideLeft: 'Esquerda',
+  flowSideRight: 'Direita',
+  flowSideTop: 'Cima',
+  flowSideBottom: 'Baixo',
+  flowSelectNodeHint: 'Seleccione um nó para editar o nome, as portas e a pergunta.',
   title: 'Título',
   noMatchingTemplates: 'Sem modelos correspondentes',
   system: 'Sistema',
@@ -2300,6 +2471,63 @@ const es: ChromeMessages = {
   manageTemplates: 'Gestionar plantillas',
   note: 'Nota',
   whiteboard: 'Pizarra',
+  flow: 'Flujo',
+  createFlowTitle: 'Nuevo flujo',
+  createFlowHint: 'Un lienzo React Flow para procesos, decisiones y preguntas ejecutables.',
+  blankFlowPreview: 'Flujo vacío con nodos Inicio y Fin.',
+  maximizeFlow: 'Maximizar flujo',
+  flowKindProcess: 'Proceso',
+  flowKindDecision: 'Decisión',
+  flowKindQuestion: 'Pregunta',
+  flowKindStart: 'Inicio',
+  flowKindEnd: 'Fin',
+  flowKindParticipant: 'Participante',
+  flowSeqTemplate: 'Secuencia (3)',
+  flowSeqActorUser: 'User',
+  flowSeqActorSystem: 'Synapse',
+  flowSeqActorOther: 'PM',
+  flowEdgeLabel: 'Mensaje',
+  flowUndo: 'Deshacer',
+  flowRedo: 'Rehacer',
+  flowDeleteNode: 'Eliminar nodo',
+  flowDeleteEdge: 'Eliminar conexión',
+  flowDeleteHint: 'Eliminar el nodo o la conexión seleccionados (Delete / Backspace)',
+  flowEdgeProps: 'Conexión',
+  flowCtxPaneHint: 'Clic derecho en un nodo o conexión para acciones.',
+  flowRun: 'Ejecutar',
+  flowStop: 'Detener',
+  flowExportJson: 'Exportar JSON',
+  flowExportMermaid: 'Exportar Mermaid',
+  flowExportSvg: 'Exportar SVG',
+  flowImportMermaid: 'Importar Mermaid',
+  flowImportMermaidHint: 'Pegue un diagrama Mermaid. Se reemplazarán los nodos actuales.',
+  flowImportFile: 'Importar archivo',
+  flowImportApply: 'Importar',
+  flowMermaidLabel: 'Mermaid',
+  flowRunPrompt: 'Pregunta del flujo',
+  flowRunDone: 'Flujo terminado',
+  flowRunError: 'Error del flujo',
+  flowNodeProps: 'Nodo',
+  flowNodeName: 'Nombre',
+  flowNodeKind: 'Tipo',
+  flowNodeShape: 'Forma',
+  flowShapeAuto: 'Automática (según el tipo)',
+  flowShapeRounded: 'Redondeada',
+  flowShapeRectangle: 'Rectángulo',
+  flowShapePill: 'Cápsula',
+  flowShapeDiamond: 'Rombo',
+  flowShapeCircle: 'Círculo',
+  flowQuestion: 'Pregunta',
+  flowInputs: 'Entradas (separadas por comas)',
+  flowOutputs: 'Salidas (separadas por comas)',
+  flowPortsPlaceholder: 'etiquetas opcionales, … (vacío = sin etiqueta)',
+  flowInputsSide: 'Lado de entradas',
+  flowOutputsSide: 'Lado de salidas',
+  flowSideLeft: 'Izquierda',
+  flowSideRight: 'Derecha',
+  flowSideTop: 'Arriba',
+  flowSideBottom: 'Abajo',
+  flowSelectNodeHint: 'Seleccione un nodo para editar nombre, puertos y pregunta.',
   title: 'Título',
   noMatchingTemplates: 'No hay plantillas coincidentes',
   system: 'Sistema',
@@ -3046,6 +3274,63 @@ const fr: ChromeMessages = {
   manageTemplates: 'Gérer les modèles',
   note: 'Note',
   whiteboard: 'Tableau',
+  flow: 'Flux',
+  createFlowTitle: 'Nouveau flux',
+  createFlowHint: 'Un canevas React Flow pour processus, décisions et questions exécutables.',
+  blankFlowPreview: 'Flux vide avec nœuds Début et Fin.',
+  maximizeFlow: 'Maximiser le flux',
+  flowKindProcess: 'Processus',
+  flowKindDecision: 'Décision',
+  flowKindQuestion: 'Question',
+  flowKindStart: 'Début',
+  flowKindEnd: 'Fin',
+  flowKindParticipant: 'Participant',
+  flowSeqTemplate: 'Séquence (3)',
+  flowSeqActorUser: 'User',
+  flowSeqActorSystem: 'Synapse',
+  flowSeqActorOther: 'PM',
+  flowEdgeLabel: 'Message',
+  flowUndo: 'Annuler',
+  flowRedo: 'Rétablir',
+  flowDeleteNode: 'Supprimer le nœud',
+  flowDeleteEdge: 'Supprimer la liaison',
+  flowDeleteHint: 'Supprimer le nœud ou la liaison sélectionnés (Delete / Backspace)',
+  flowEdgeProps: 'Liaison',
+  flowCtxPaneHint: 'Clic droit sur un nœud ou une liaison pour les actions.',
+  flowRun: 'Exécuter',
+  flowStop: 'Arrêter',
+  flowExportJson: 'Exporter JSON',
+  flowExportMermaid: 'Exporter Mermaid',
+  flowExportSvg: 'Exporter SVG',
+  flowImportMermaid: 'Importer Mermaid',
+  flowImportMermaidHint: 'Collez un flowchart Mermaid. Les nœuds actuels seront remplacés.',
+  flowImportFile: 'Importer un fichier',
+  flowImportApply: 'Importer',
+  flowMermaidLabel: 'Mermaid',
+  flowRunPrompt: 'Question du flux',
+  flowRunDone: 'Flux terminé',
+  flowRunError: 'Erreur du flux',
+  flowNodeProps: 'Nœud',
+  flowNodeName: 'Nom',
+  flowNodeKind: 'Type',
+  flowNodeShape: 'Forme',
+  flowShapeAuto: 'Auto (selon le type)',
+  flowShapeRounded: 'Arrondie',
+  flowShapeRectangle: 'Rectangle',
+  flowShapePill: 'Pilule',
+  flowShapeDiamond: 'Losange',
+  flowShapeCircle: 'Cercle',
+  flowQuestion: 'Question',
+  flowInputs: 'Entrées (séparées par des virgules)',
+  flowOutputs: 'Sorties (séparées par des virgules)',
+  flowPortsPlaceholder: 'libellés optionnels, … (vide = sans libellé)',
+  flowInputsSide: 'Côté des entrées',
+  flowOutputsSide: 'Côté des sorties',
+  flowSideLeft: 'Gauche',
+  flowSideRight: 'Droite',
+  flowSideTop: 'Haut',
+  flowSideBottom: 'Bas',
+  flowSelectNodeHint: 'Sélectionnez un nœud pour éditer le nom, les ports et la question.',
   title: 'Titre',
   noMatchingTemplates: 'Aucun modèle correspondant',
   system: 'Système',

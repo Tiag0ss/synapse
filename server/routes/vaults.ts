@@ -137,10 +137,11 @@ import {
   refreshIndexNoteQuiet,
 } from '../services/vaultIndexNote';
 import logger from '../utils/logger';
+import { isCanvasKind, normalizeNoteKind } from '../services/noteKinds';
 
 const ACTIVE_NOTE = 'DeletedAt IS NULL';
 
-const noteKindEnum = z.enum(['note', 'whiteboard']);
+const noteKindEnum = z.enum(['note', 'whiteboard', 'flow']);
 
 /** Match Synapse `--bg` — never ship a white Excalidraw canvas. */
 export const SYNAPSE_BOARD_BG = '#0a0e13';
@@ -153,6 +154,42 @@ const EMPTY_BOARD_JSON = JSON.stringify({
   appState: { viewBackgroundColor: SYNAPSE_BOARD_BG, theme: 'dark' },
   files: {},
 });
+
+const EMPTY_FLOW_JSON = JSON.stringify({
+  type: 'reactflow',
+  version: 1,
+  source: 'synapse',
+  nodes: [
+    {
+      id: 'start',
+      type: 'flowObject',
+      position: { x: 80, y: 120 },
+      data: {
+        label: 'Start',
+        kind: 'start',
+        inputs: [],
+        outputs: [{ id: 'out', name: 'out' }],
+      },
+    },
+    {
+      id: 'end',
+      type: 'flowObject',
+      position: { x: 420, y: 120 },
+      data: {
+        label: 'End',
+        kind: 'end',
+        inputs: [{ id: 'in', name: 'in' }],
+        outputs: [],
+      },
+    },
+  ],
+  edges: [],
+  viewport: { x: 0, y: 0, zoom: 1 },
+});
+
+function emptyBoardJsonForKind(kind: 'whiteboard' | 'flow'): string {
+  return kind === 'flow' ? EMPTY_FLOW_JSON : EMPTY_BOARD_JSON;
+}
 
 function parseBoardJson(raw: unknown): string | null {
   if (raw == null) return null;
@@ -1100,13 +1137,14 @@ router.post('/:vaultId/notes', async (req: AuthRequest, res: Response) => {
     return res.status(400).json({ success: false, message: 'Invalid note path' });
   }
   path = safePath;
+  const canvasKind = isCanvasKind(kind) ? normalizeNoteKind(kind) : null;
   const bodyMarkdown =
-    kind === 'whiteboard'
+    canvasKind
       ? parsed.data.bodyMarkdown || `# ${parsed.data.title}\n\n`
       : ensureAskMarkers(ensureDecisionMarkers(parsed.data.bodyMarkdown));
   const boardJson =
-    kind === 'whiteboard'
-      ? parseBoardJson(parsed.data.boardJson) || EMPTY_BOARD_JSON
+    canvasKind === 'whiteboard' || canvasKind === 'flow'
+      ? parseBoardJson(parsed.data.boardJson) || emptyBoardJsonForKind(canvasKind)
       : null;
   const fmJson = frontmatterJsonString(parseFrontmatter(bodyMarkdown).data);
   const icon =
@@ -1159,7 +1197,7 @@ router.post('/:vaultId/notes', async (req: AuthRequest, res: Response) => {
       frontmatterJson: fmJson,
       visibility: parsed.data.visibility || null,
     });
-    if (kind === 'note' || kind === 'whiteboard') {
+    if (kind === 'note' || isCanvasKind(kind)) {
       await rebuildNoteGraph(noteId, Number(vault.Id));
     }
     if (path !== INDEX_NOTE_PATH) {
@@ -1292,7 +1330,7 @@ router.put('/:vaultId/notes/:noteId', async (req: AuthRequest, res: Response) =>
     !parsed.data.overwriteConflict &&
     !sameNoteUpdatedAt(parsed.data.expectedUpdatedAt, existing.UpdatedAt)
   ) {
-    const kind = String(existing.Kind || 'note') === 'whiteboard' ? 'whiteboard' : 'note';
+    const kind = normalizeNoteKind(existing.Kind);
     return res.status(409).json({
       success: false,
       message: 'Note was modified elsewhere',
@@ -1310,7 +1348,7 @@ router.put('/:vaultId/notes/:noteId', async (req: AuthRequest, res: Response) =>
     });
   }
 
-  const existingKind = String(existing.Kind || 'note') === 'whiteboard' ? 'whiteboard' : 'note';
+  const existingKind = normalizeNoteKind(existing.Kind);
   const titleRaw = parsed.data.title ?? String(existing.Title);
   const hubNote = isPlannerOverviewNote(String(existing.Path), String(existing.BodyMarkdown));
   const title = hubNote ? HUB_NOTE_TITLE : titleRaw;
@@ -1325,15 +1363,15 @@ router.put('/:vaultId/notes/:noteId', async (req: AuthRequest, res: Response) =>
   }
   path = safePath;
   const bodyRaw = parsed.data.bodyMarkdown ?? String(existing.BodyMarkdown);
-  const body = existingKind === 'whiteboard' ? bodyRaw : ensureAskMarkers(ensureDecisionMarkers(bodyRaw));
-  const boardJson =
-    existingKind === 'whiteboard'
-      ? parsed.data.boardJson !== undefined
-        ? parseBoardJson(parsed.data.boardJson) || EMPTY_BOARD_JSON
-        : existing.BoardJson != null
-          ? String(existing.BoardJson)
-          : EMPTY_BOARD_JSON
-      : null;
+  const body = isCanvasKind(existingKind) ? bodyRaw : ensureAskMarkers(ensureDecisionMarkers(bodyRaw));
+  const boardJson = isCanvasKind(existingKind)
+    ? parsed.data.boardJson !== undefined
+      ? parseBoardJson(parsed.data.boardJson) ||
+        emptyBoardJsonForKind(existingKind === 'flow' ? 'flow' : 'whiteboard')
+      : existing.BoardJson != null
+        ? String(existing.BoardJson)
+        : emptyBoardJsonForKind(existingKind === 'flow' ? 'flow' : 'whiteboard')
+    : null;
   const visibility =
     parsed.data.visibility !== undefined ? parsed.data.visibility : existing.Visibility;
   const aliasesJson = JSON.stringify(
@@ -1377,7 +1415,7 @@ router.put('/:vaultId/notes/:noteId', async (req: AuthRequest, res: Response) =>
   if (existingKind === 'note') {
     await rebuildNoteGraph(Number(existing.Id), Number(vault.Id));
     await syncCheckboxRows(Number(existing.Id), body);
-  } else if (existingKind === 'whiteboard') {
+  } else if (isCanvasKind(existingKind)) {
     await rebuildNoteGraph(Number(existing.Id), Number(vault.Id));
   }
 

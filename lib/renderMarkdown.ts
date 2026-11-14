@@ -20,6 +20,7 @@ import {
   resolveMarkdownUi,
   type SynapseMarkdownUi,
 } from '@/lib/markdownUi';
+import { isCanvasKind, normalizeNoteKind } from '@/lib/noteKinds';
 
 export type NoteIndexEntry = NoteResolveEntry;
 export type { SynapseMarkdownUi };
@@ -216,6 +217,7 @@ function renderBoardEmbedHtml(
     displayTitle?: string;
     vaultId?: number | null;
     missing?: boolean;
+    boardKind?: 'whiteboard' | 'flow';
   },
   ui: ReturnType<typeof resolveMarkdownUi>
 ): string {
@@ -224,6 +226,7 @@ function renderBoardEmbedHtml(
   const missingCls = params.missing ? ' is-missing' : '';
   const noteId = params.noteId !== '' && params.noteId != null ? String(params.noteId) : '';
   const display = String(params.displayTitle || params.noteTitle).trim() || params.noteTitle;
+  const boardKind = params.boardKind || 'whiteboard';
   const label = params.missing
     ? `${ui.missingWhiteboard}: ${display}`
     : `${ui.whiteboardLabel}: ${display}`;
@@ -232,6 +235,7 @@ function renderBoardEmbedHtml(
     `\n\n<div class="synapse-board-embed${missingCls}" data-note-id="${escapeAttr(noteId)}"` +
     ` data-note-title="${escapeAttr(params.noteTitle)}"` +
     ` data-display-title="${escapeAttr(display)}"` +
+    ` data-board-kind="${escapeAttr(boardKind)}"` +
     (vaultId ? ` data-vault-id="${escapeAttr(vaultId)}"` : '') +
     (params.missing ? ' data-missing="1"' : '') +
     ` aria-label="${escapeAttr(label)}">${escapeHtml(body)}</div>\n\n`
@@ -318,7 +322,8 @@ export function preprocessSynapseMarkdown(
         }
         const vault = linkableVaults.find((v) => v.vaultId === r.vaultId);
         const kind = vault ? noteKindById(vault.notes, r.noteId) : 'note';
-        if (kind !== 'whiteboard') return asWikilink;
+        if (!isCanvasKind(kind)) return asWikilink;
+        const boardKind = normalizeNoteKind(kind) === 'flow' ? 'flow' : 'whiteboard';
         return stashHtml(
           renderBoardEmbedHtml(
             {
@@ -326,6 +331,7 @@ export function preprocessSynapseMarkdown(
               noteTitle: r.label,
               displayTitle: aliasLabel || r.label,
               vaultId: r.vaultId,
+              boardKind,
             },
             ui
           )
@@ -346,13 +352,16 @@ export function preprocessSynapseMarkdown(
           )
         );
       }
-      if (noteKindById(notes, id) !== 'whiteboard') return asWikilink;
+      const embedKind = noteKindById(notes, id);
+      if (!isCanvasKind(embedKind)) return asWikilink;
+      const boardKind = normalizeNoteKind(embedKind) === 'flow' ? 'flow' : 'whiteboard';
       return stashHtml(
         renderBoardEmbedHtml(
           {
             noteId: id,
             noteTitle: t,
             displayTitle: aliasLabel || t,
+            boardKind,
           },
           ui
         )

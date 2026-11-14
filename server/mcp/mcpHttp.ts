@@ -101,7 +101,7 @@ function createServerForRequest(req: AuthRequest): McpServer {
         title: z.string(),
         path: z.string().optional(),
         bodyMarkdown: z.string().optional(),
-        kind: z.enum(['note', 'whiteboard']).optional(),
+        kind: z.enum(['note', 'whiteboard', 'flow']).optional(),
       },
     },
     async (args) => run('create_note', () => toolCreateNote(ctxFromReq(req), args as Record<string, unknown>))

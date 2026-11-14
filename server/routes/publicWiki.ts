@@ -25,6 +25,7 @@ import { buildPmTaskOpenUrl } from '../services/pmClient';
 import { buildWikiFlashcards } from '../services/wikiFlashcards';
 import { listAskAnswersGroupedForWiki } from '../services/noteAskAnswers';
 import { listDecisionsGroupedForWiki } from '../services/noteDecisions';
+import { isCanvasKind, normalizeNoteKind } from '../services/noteKinds';
 
 const router = Router();
 
@@ -347,9 +348,8 @@ router.get('/notes/:noteId', async (req: AuthRequest, res: Response) => {
     return res.status(404).json({ success: false, message: 'Note not found' });
   }
 
-  const noteKind = String(note.Kind || 'note') === 'whiteboard' ? 'whiteboard' : 'note';
-  const boardJson =
-    noteKind === 'whiteboard' ? boardJsonToString(note.BoardJson) : null;
+  const noteKind = normalizeNoteKind(note.Kind);
+  const boardJson = isCanvasKind(noteKind) ? boardJsonToString(note.BoardJson) : null;
   const wikiSlug =
     Number(note.AllowPublicPages) === 1 ? String(note.VaultSlug || '') || null : null;
 
@@ -369,8 +369,7 @@ router.get('/notes/:noteId', async (req: AuthRequest, res: Response) => {
   ]);
   const peekable = new Set(guestPeekNoteIds);
   const bodyMd = String(note.BodyMarkdown || '');
-  const html =
-    noteKind === 'whiteboard'
+  const html = isCanvasKind(noteKind)
       ? ''
       : rewriteWikiMediaUrls(
           markdownToSafeHtml(bodyMd, noteIndex, linkableVaults, noteId, { guestPeekNoteIds }),
@@ -379,14 +378,14 @@ router.get('/notes/:noteId', async (req: AuthRequest, res: Response) => {
         );
 
   const embeddedBoards: Record<string, string> = {};
-  if (noteKind !== 'whiteboard') {
+  if (!isCanvasKind(noteKind)) {
     const byId = new Map(allNotes.map((n) => [Number(n.Id), n]));
     for (const target of extractBoardEmbedTargets(bodyMd)) {
       if (target.startsWith('@')) continue;
       const id = resolveNoteId(target, noteIndex);
       if (id == null || !peekable.has(id)) continue;
       const row = byId.get(id);
-      if (!row || String(row.Kind || 'note') !== 'whiteboard') continue;
+      if (!row || !isCanvasKind(row.Kind)) continue;
       const bj = boardJsonToString(row.BoardJson);
       if (bj != null) embeddedBoards[String(id)] = bj;
     }
@@ -444,9 +443,9 @@ router.get('/:slug/notes/:noteId', async (req: AuthRequest, res: Response) => {
     return res.status(404).json({ success: false, message: 'Note not found' });
   }
 
-  const noteKind = String(note.Kind || 'note') === 'whiteboard' ? 'whiteboard' : 'note';
+  const noteKind = normalizeNoteKind(note.Kind);
   const boardJson =
-    noteKind === 'whiteboard' && note.BoardJson != null ? String(note.BoardJson) : null;
+    isCanvasKind(noteKind) && note.BoardJson != null ? String(note.BoardJson) : null;
 
   const [allNotes] = await pool.execute<RowDataPacket[]>(
     'SELECT Id, Title, Path, Visibility, Kind, BoardJson FROM Notes WHERE VaultId = ? AND DeletedAt IS NULL',
@@ -471,8 +470,7 @@ router.get('/:slug/notes/:noteId', async (req: AuthRequest, res: Response) => {
   ]);
 
   const bodyMd = String(note.BodyMarkdown || '');
-  const html =
-    noteKind === 'whiteboard'
+  const html = isCanvasKind(noteKind)
       ? ''
       : rewriteWikiMediaUrls(
           markdownToSafeHtml(bodyMd, noteIndex, linkableVaults, Number(note.Id), {
@@ -483,7 +481,7 @@ router.get('/:slug/notes/:noteId', async (req: AuthRequest, res: Response) => {
         );
 
   const embeddedBoards: Record<string, string> = {};
-  if (noteKind !== 'whiteboard') {
+  if (!isCanvasKind(noteKind)) {
     const byId = new Map(allNotes.map((n) => [Number(n.Id), n]));
     const visible = new Set(guestPeekNoteIds);
     for (const target of extractBoardEmbedTargets(bodyMd)) {
@@ -491,7 +489,7 @@ router.get('/:slug/notes/:noteId', async (req: AuthRequest, res: Response) => {
       const id = resolveNoteId(target, noteIndex);
       if (id == null || !visible.has(id)) continue;
       const row = byId.get(id);
-      if (!row || String(row.Kind || 'note') !== 'whiteboard') continue;
+      if (!row || !isCanvasKind(row.Kind)) continue;
       const bj = boardJsonToString(row.BoardJson);
       if (bj != null) embeddedBoards[String(id)] = bj;
     }
@@ -557,8 +555,7 @@ router.get('/:slug/notes/:noteId', async (req: AuthRequest, res: Response) => {
     }));
   };
 
-  const askGrouped =
-    noteKind === 'whiteboard'
+  const askGrouped = isCanvasKind(noteKind)
       ? {}
       : await listAskAnswersGroupedForWiki({
           noteId: Number(note.Id),
@@ -578,8 +575,7 @@ router.get('/:slug/notes/:noteId', async (req: AuthRequest, res: Response) => {
     }));
   }
 
-  const decisions =
-    noteKind === 'whiteboard'
+  const decisions = isCanvasKind(noteKind)
       ? {}
       : await listDecisionsGroupedForWiki({
           noteId: Number(note.Id),
@@ -760,7 +756,7 @@ router.get('/:slug/flashcards', async (req: AuthRequest, res: Response) => {
   const [notes] = await pool.execute<RowDataPacket[]>(
     `SELECT Id, Title, Path, BodyMarkdown, Visibility, Kind
      FROM Notes
-     WHERE VaultId = ? AND DeletedAt IS NULL AND Kind <> 'whiteboard'
+     WHERE VaultId = ? AND DeletedAt IS NULL AND Kind NOT IN ('whiteboard', 'flow')
      ORDER BY Path ASC`,
     [vault.Id]
   );

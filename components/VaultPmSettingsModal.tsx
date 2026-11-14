@@ -278,14 +278,15 @@ export default function VaultPmSettingsModal({
     return projects.find((p) => p.Id === id)?.Name || '';
   }, [projects, linkProjectId]);
 
-  const missingCount = items.filter((i) => !i.pmTaskId).length;
+  // Done checkboxes are ignored when creating Myelin tasks.
+  const missingCount = items.filter((i) => !i.pmTaskId && !i.checked).length;
   const linkedCount = items.filter((i) => i.pmTaskId).length;
   const openLinkedCount = items.filter((i) => i.pmTaskId && !i.checked).length;
 
   const notesWithUnlinked = useMemo(() => {
     const map = new Map<number, string>();
     for (const item of items) {
-      if (!item.pmTaskId) map.set(item.noteId, item.noteTitle);
+      if (!item.pmTaskId && !item.checked) map.set(item.noteId, item.noteTitle);
     }
     return [...map.entries()]
       .map(([id, title]) => ({ id, title }))
@@ -293,13 +294,14 @@ export default function VaultPmSettingsModal({
   }, [items]);
 
   const autoLinkCandidates = autoLinkNoteId
-    ? items.filter((i) => i.noteId === autoLinkNoteId && !i.pmTaskId).length
+    ? items.filter((i) => i.noteId === autoLinkNoteId && !i.pmTaskId && !i.checked)
+        .length
     : 0;
 
   if (!open) return null;
 
   const visible = items.filter((i) => {
-    if (filter === 'unlinked') return !i.pmTaskId;
+    if (filter === 'unlinked') return !i.pmTaskId && !i.checked;
     if (filter === 'open') return !i.checked;
     return true;
   });
@@ -556,7 +558,7 @@ export default function VaultPmSettingsModal({
       setStatus(t('status.linkMyelinProjectFirst'));
       return;
     }
-    const missingItems = items.filter((i) => !i.pmTaskId);
+    const missingItems = items.filter((i) => !i.pmTaskId && !i.checked);
     const missing = missingItems.length;
     if (!missing) {
       setStatus(t('status.noMissingTasks'));
@@ -1236,6 +1238,13 @@ export default function VaultPmSettingsModal({
                           {t('chrome.unlink')}
                         </button>
                       </div>
+                    ) : item.checked ? (
+                      <span
+                        className="shrink-0 text-[10px] text-[var(--muted)]"
+                        title={t('chrome.taskDone')}
+                      >
+                        {t('chrome.taskDone')}
+                      </span>
                     ) : (
                       <button
                         type="button"

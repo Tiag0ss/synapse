@@ -20,6 +20,8 @@ import {
   setActivePeekHit,
 } from '@/lib/peekFindInPreview';
 import WhiteboardPeekCanvas from '@/components/WhiteboardPeekCanvas';
+import FlowPeekCanvas from '@/components/FlowPeekCanvas';
+import { isCanvasKind, normalizeNoteKind } from '@/lib/noteKinds';
 import { useI18n } from '@/lib/i18n/provider';
 
 export type NotePeekTarget = {
@@ -72,7 +74,7 @@ export default function NotePeekModal({
   /** Public wiki API returns sanitized HTML (media URLs rewritten); prefer over re-render. */
   const [bodyHtml, setBodyHtml] = useState<string | null>(null);
   const [embeddedBoards, setEmbeddedBoards] = useState<Record<string, string | null>>({});
-  const [itemKind, setItemKind] = useState<'note' | 'whiteboard'>('note');
+  const [itemKind, setItemKind] = useState<'note' | 'whiteboard' | 'flow'>('note');
   const [boardJson, setBoardJson] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [matchIndex, setMatchIndex] = useState(0);
@@ -82,6 +84,8 @@ export default function NotePeekModal({
   onOpenNoteRef.current = onOpenNote;
 
   const isWhiteboard = itemKind === 'whiteboard';
+  const isFlow = itemKind === 'flow';
+  const isCanvas = isCanvasKind(itemKind);
 
   useEffect(() => {
     if (!open) setMaximized(false);
@@ -140,10 +144,9 @@ export default function NotePeekModal({
         }
         const n = data.data || data;
         setTitle(String(n.Title || n.title || target.titleHint || t('chrome.note')));
-        const kind =
-          String(n.Kind || n.kind || 'note') === 'whiteboard' ? 'whiteboard' : 'note';
+        const kind = normalizeNoteKind(n.Kind || n.kind);
         setItemKind(kind);
-        if (kind === 'whiteboard') {
+        if (isCanvasKind(kind)) {
           setBoardJson(
             n.BoardJson != null
               ? String(n.BoardJson)
@@ -185,19 +188,19 @@ export default function NotePeekModal({
   }, [open, target]);
 
   useEffect(() => {
-    if (!open || loading || error || isWhiteboard) return;
+    if (!open || loading || error || isCanvas) return;
     const t = window.setTimeout(() => searchRef.current?.focus(), 50);
     return () => window.clearTimeout(t);
-  }, [open, loading, error, isWhiteboard, target?.noteId]);
+  }, [open, loading, error, isCanvas, target?.noteId]);
 
   const markdownUi = useMemo(() => synapseMarkdownUiFromT(t), [t]);
   const html = useMemo(() => {
-    if (isWhiteboard) return '';
+    if (isCanvas) return '';
     if (bodyHtml != null) return bodyHtml;
     return renderSynapseMarkdown(bodyMarkdown, notes, linkableVaults, target?.noteId ?? null, {
       ui: markdownUi,
     });
-  }, [isWhiteboard, bodyHtml, bodyMarkdown, notes, linkableVaults, target?.noteId, markdownUi]);
+  }, [isCanvas, bodyHtml, bodyMarkdown, notes, linkableVaults, target?.noteId, markdownUi]);
 
   const afterPeekWrite = useCallback((root: HTMLElement) => {
     void renderMermaidInRoot(root);
@@ -205,7 +208,7 @@ export default function NotePeekModal({
 
   const { embedMounts, askMounts, decisionMounts } = useBoardEmbedPreview(bodyRef, {
     html,
-    enabled: open && !isWhiteboard,
+    enabled: open && !isCanvas,
     afterWrite: afterPeekWrite,
   });
 
@@ -222,7 +225,7 @@ export default function NotePeekModal({
           const json = await res.json().catch(() => ({}));
           if (!res.ok) return null;
           const kind = String(json.data?.kind || 'note');
-          if (kind !== 'whiteboard') return null;
+          if (!isCanvasKind(kind)) return null;
           return json.data?.boardJson != null ? String(json.data.boardJson) : null;
         } catch {
           return null;
@@ -238,7 +241,7 @@ export default function NotePeekModal({
           const json = await res.json().catch(() => ({}));
           if (!res.ok) return null;
           const kind = String(json.data?.kind || 'note');
-          if (kind !== 'whiteboard') return null;
+          if (!isCanvasKind(kind)) return null;
           return json.data?.boardJson != null ? String(json.data.boardJson) : null;
         } catch {
           return null;
@@ -259,7 +262,7 @@ export default function NotePeekModal({
 
   useLayoutEffect(() => {
     const root = bodyRef.current;
-    if (!root || !open || loading || error || isWhiteboard) return;
+    if (!root || !open || loading || error || isCanvas) return;
 
     const q = query.trim();
     if (!q) {
@@ -276,10 +279,10 @@ export default function NotePeekModal({
     const nextIndex = hits.length ? 0 : 0;
     setMatchIndex(nextIndex);
     if (hits.length) setActivePeekHit(hits, nextIndex);
-  }, [query, html, open, loading, error, isWhiteboard]);
+  }, [query, html, open, loading, error, isCanvas]);
 
   useEffect(() => {
-    if (!open || !target || isWhiteboard) return;
+    if (!open || !target || isCanvas) return;
     const root = bodyRef.current;
     if (!root) return;
 
@@ -363,7 +366,7 @@ export default function NotePeekModal({
     open,
     target,
     html,
-    isWhiteboard,
+    isCanvas,
     onClose,
     onOpenNote,
     onPeekNote,
@@ -381,7 +384,7 @@ export default function NotePeekModal({
 
   if (!open || !target) return null;
 
-  const canSearch = !loading && !error && !isWhiteboard;
+  const canSearch = !loading && !error && !isCanvas;
 
   return (
     <div
@@ -392,25 +395,32 @@ export default function NotePeekModal({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={title || (isWhiteboard ? t('chrome.whiteboardPreview') : t('chrome.notePreview'))}
+        aria-label={
+          title ||
+          (isCanvas
+            ? isFlow
+              ? t('chrome.flow')
+              : t('chrome.whiteboardPreview')
+            : t('chrome.notePreview'))
+        }
         className={`flex flex-col overflow-hidden border border-[var(--border)] bg-[var(--panel)] shadow-2xl shadow-black/40 ${
           maximized
             ? 'h-dvh w-full max-h-dvh max-w-none rounded-none border-0'
-            : isWhiteboard
+            : isCanvas
               ? 'h-[min(90dvh,52rem)] w-full max-w-5xl rounded-xl'
               : 'max-h-[min(90dvh,48rem)] w-full max-w-3xl rounded-xl'
         }`}
       >
         <div className="flex shrink-0 items-center gap-2 border-b border-[var(--border)] px-3 py-2 sm:gap-3 sm:px-4">
           <h2 className="min-w-0 max-w-[40%] shrink truncate text-sm font-semibold tracking-tight text-[var(--text)] sm:text-base">
-            {title || (isWhiteboard ? t('chrome.whiteboard') : t('chrome.note'))}
-            {isWhiteboard ? (
+            {title || (isCanvas ? (isFlow ? t('chrome.flow') : t('chrome.whiteboard')) : t('chrome.note'))}
+            {isCanvas ? (
               <span className="ml-2 text-[10px] font-medium uppercase tracking-wide text-[var(--muted)]">
-                {t('chrome.whiteboard')}
+                {isFlow ? t('chrome.flow') : t('chrome.whiteboard')}
               </span>
             ) : null}
           </h2>
-          {!isWhiteboard ? (
+          {!isCanvas ? (
             <div className="flex min-w-0 flex-1 items-center gap-1">
               <input
                 ref={searchRef}
@@ -481,7 +491,7 @@ export default function NotePeekModal({
                   onClose();
                 }}
               >
-                {isWhiteboard ? t('chrome.openBoard') : t('chrome.openNoteAction')}
+                {isCanvas ? t('chrome.openBoard') : t('chrome.openNoteAction')}
               </button>
             ) : null}
             <button type="button" className="btn-ghost text-xs sm:text-sm" onClick={onClose}>
@@ -492,13 +502,20 @@ export default function NotePeekModal({
 
         <div
           className={
-            isWhiteboard
+            isCanvas
               ? 'flex min-h-0 flex-1 flex-col overflow-hidden p-3 sm:p-4'
               : 'min-h-0 flex-1 overflow-y-auto px-4 py-3'
           }
         >
           {loading && <p className="text-sm text-[var(--muted)]">{t('common.loading')}</p>}
           {!loading && error && <p className="text-sm text-[var(--danger)]">{error}</p>}
+          {!loading && !error && isFlow && (
+            <FlowPeekCanvas
+              boardJson={boardJson}
+              allowRun
+              className="synapse-flow-embed min-h-0 w-full flex-1 overflow-hidden rounded-xl border border-[var(--border)]"
+            />
+          )}
           {!loading && !error && isWhiteboard && (
             <WhiteboardPeekCanvas
               noteId={target.noteId}
@@ -510,7 +527,7 @@ export default function NotePeekModal({
               }}
             />
           )}
-          {!loading && !error && !isWhiteboard && (
+          {!loading && !error && !isCanvas && (
             <div
               ref={bodyRef}
               className="synapse-md-preview prose-synapse text-sm leading-relaxed text-[var(--text)]"

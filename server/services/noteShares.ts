@@ -11,6 +11,7 @@ import {
   listLinkableVaultNotesForGuestShare,
 } from './linkableNotes';
 import { isPlannerOverviewNote } from './personalWorkVault';
+import { isCanvasKind, normalizeNoteKind } from './noteKinds';
 import {
   listAskAnswersGroupedForShare,
   softDeleteShareAskAnswer,
@@ -35,7 +36,7 @@ const UNLIMITED_COOKIE_SEC = 90 * 24 * 60 * 60;
 
 export { SHARE_COOKIE, MIN_EXPIRES_SEC, MAX_EXPIRES_SEC };
 
-export type ShareKind = 'note' | 'whiteboard' | 'flashcard';
+export type ShareKind = 'note' | 'whiteboard' | 'flow' | 'flashcard';
 
 export type NoteShareRow = {
   Id: number;
@@ -458,7 +459,7 @@ export async function getShareContent(params: {
   if (!notes.length) return { ok: false, reason: 'not_found' };
   const note = notes[0];
   const noteId = Number(note.Id);
-  const noteKind = String(note.Kind || 'note') === 'whiteboard' ? 'whiteboard' : 'note';
+  const noteKind = normalizeNoteKind(note.Kind);
   const shareKind = rowShareKind(found.share.ShareKind);
   const token = params.rawToken;
 
@@ -506,11 +507,11 @@ export async function getShareContent(params: {
     };
   }
 
-  if (noteKind === 'whiteboard') {
+  if (isCanvasKind(noteKind)) {
     return {
       ok: true,
-      title: String(note.Title || 'Whiteboard'),
-      kind: 'whiteboard',
+      title: String(note.Title || (noteKind === 'flow' ? 'Flow' : 'Whiteboard')),
+      kind: noteKind,
       noteId,
       vaultId,
       html: '',
@@ -553,7 +554,7 @@ export async function getShareContent(params: {
     const id = resolveNoteId(target, noteIndex);
     if (id == null) continue;
     const row = byId.get(id);
-    if (!row || String(row.Kind || 'note') !== 'whiteboard') continue;
+    if (!row || !isCanvasKind(row.Kind)) continue;
     // Shared note may embed any vault board; linked peeks stay visibility-gated.
     const bj = boardJsonToString(row.BoardJson);
     if (bj != null) embeddedBoards[String(id)] = bj;
@@ -891,7 +892,7 @@ export async function getShareLinkedNote(params: {
   | {
       ok: true;
       title: string;
-      kind: 'note' | 'whiteboard';
+      kind: 'note' | 'whiteboard' | 'flow';
       noteId: number;
       vaultId: number;
       html: string;
@@ -942,12 +943,12 @@ export async function getShareLinkedNote(params: {
   ]);
   const peekable = new Set(guestPeekNoteIds);
   const token = params.rawToken;
-  const kind = String(note.Kind || 'note') === 'whiteboard' ? 'whiteboard' : 'note';
+  const kind = normalizeNoteKind(note.Kind);
 
-  if (kind === 'whiteboard') {
+  if (isCanvasKind(kind)) {
     return {
       ok: true,
-      title: String(note.Title || 'Whiteboard'),
+      title: String(note.Title || (kind === 'flow' ? 'Flow' : 'Whiteboard')),
       kind,
       noteId,
       vaultId,
@@ -971,7 +972,7 @@ export async function getShareLinkedNote(params: {
     const id = resolveNoteId(target, noteIndex);
     if (id == null || !peekable.has(id)) continue;
     const row = byId.get(id);
-    if (!row || String(row.Kind || 'note') !== 'whiteboard') continue;
+    if (!row || !isCanvasKind(row.Kind)) continue;
     const bj = boardJsonToString(row.BoardJson);
     if (bj != null) embeddedBoards[String(id)] = bj;
   }

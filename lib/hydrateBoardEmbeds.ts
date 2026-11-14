@@ -1,6 +1,8 @@
 'use client';
 
-/** Vault note API → board JSON (or null if not a whiteboard). */
+import { isCanvasKind } from '@/lib/noteKinds';
+
+/** Vault note API → board JSON (or null if not a canvas note). */
 export async function fetchVaultBoardJson(
   vaultId: number,
   noteId: number
@@ -12,7 +14,7 @@ export async function fetchVaultBoardJson(
   if (!res.ok) return null;
   const row = data.data || {};
   const kind = String(row.Kind || row.kind || 'note');
-  if (kind !== 'whiteboard') return null;
+  if (!isCanvasKind(kind)) return null;
   const bj = row.BoardJson ?? row.boardJson;
   return bj != null ? String(bj) : '';
 }
@@ -29,7 +31,7 @@ export async function fetchWikiBoardJson(
   if (!res.ok) return null;
   const row = data.data || {};
   const kind = String(row.kind || row.Kind || 'note');
-  if (kind !== 'whiteboard') return null;
+  if (!isCanvasKind(kind)) return null;
   const bj = row.boardJson ?? row.BoardJson;
   return bj != null ? String(bj) : '';
 }

@@ -1670,6 +1670,21 @@ a:hover { text-decoration: underline; }
   border-radius: 0;
   position: relative;
 }
+/* Flow embeds inside markdown: fill frame height so React Flow can measure + fitView */
+.synapse-board-embed-frame .synapse-flow-embed,
+.synapse-board-embed-frame .synapse-flow-peek {
+  min-height: 0;
+  height: auto;
+  flex: 1 1 auto;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+}
+.synapse-flow-peek .react-flow,
+.synapse-flow-embed .react-flow {
+  width: 100%;
+  height: 100%;
+}
 /* Keep zoom / footer / main menu visible inside markdown embeds */
 .synapse-board-embed-frame .excalidraw .layer-ui__wrapper,
 .synapse-board-embed-frame .excalidraw .App-menu_bottom,
@@ -1731,4 +1746,100 @@ a:hover { text-decoration: underline; }
 .synapse-whiteboard-viewer .excalidraw .sidebar-trigger__label-element,
 .synapse-whiteboard-viewer .excalidraw .layer-ui__wrapper__top-right .sidebar-trigger__label-element {
   display: none !important;
+}
+
+/* React Flow — match Synapse dark/light theme (controls + minimap) */
+.synapse-flow .react-flow__controls {
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  overflow: hidden;
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--bg) 55%, transparent);
+}
+.synapse-flow .react-flow__controls-button {
+  background: var(--panel) !important;
+  border-bottom: 1px solid var(--border) !important;
+  width: 28px !important;
+  height: 28px !important;
+}
+.synapse-flow .react-flow__controls-button:last-child {
+  border-bottom: none !important;
+}
+.synapse-flow .react-flow__controls-button:hover {
+  background: var(--surface-2) !important;
+}
+.synapse-flow .react-flow__controls-button svg {
+  fill: var(--text) !important;
+  max-width: 12px;
+  max-height: 12px;
+}
+.synapse-flow .react-flow__controls-button path {
+  fill: var(--text) !important;
+}
+.synapse-flow .react-flow__minimap {
+  background: var(--panel) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  overflow: hidden;
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--bg) 55%, transparent);
+}
+.synapse-flow .react-flow__minimap-mask {
+  fill: color-mix(in srgb, var(--bg) 55%, transparent) !important;
+}
+.synapse-flow .react-flow__edge-path {
+  stroke: var(--accent-soft);
+}
+.synapse-flow .react-flow__attribution {
+  display: none;
+}
+
+.synapse-flow .synapse-flow-port-handle {
+  z-index: 5;
+}
+.synapse-flow .react-flow__edge-text {
+  fill: var(--text) !important;
+}
+.synapse-flow .react-flow__edge-textbg {
+  fill: var(--panel) !important;
+}
+
+
+.synapse-flow .react-flow__edge-text {
+  fill: var(--text) !important;
+  font-size: 10px !important;
+}
+.synapse-flow .react-flow__edge-textbg {
+  fill: var(--panel) !important;
+  stroke: var(--border);
+  stroke-width: 1px;
+}
+
+/* Custom flow nodes: never show the default RF node chrome (square selection frame). */
+.synapse-flow .react-flow__node-flowObject {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+.synapse-flow .react-flow__node-flowObject.selected,
+.synapse-flow .react-flow__node-flowObject:focus,
+.synapse-flow .react-flow__node-flowObject:focus-visible {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+.synapse-flow .synapse-flow-object-node .react-flow__handle {
+  z-index: 5;
+  margin: 0 !important;
+}
+/* Let inline left/top from the node win over RF’s centered defaults */
+.synapse-flow .synapse-flow-object-node .react-flow__handle-left,
+.synapse-flow .synapse-flow-object-node .react-flow__handle-right,
+.synapse-flow .synapse-flow-object-node .react-flow__handle-top,
+.synapse-flow .synapse-flow-object-node .react-flow__handle-bottom {
+  left: auto;
+  right: auto;
+  top: auto;
+  bottom: auto;
 }

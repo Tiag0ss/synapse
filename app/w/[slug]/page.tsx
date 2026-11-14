@@ -20,6 +20,8 @@ import ImageLightbox from '@/components/ImageLightbox';
 import MermaidLightbox from '@/components/MermaidLightbox';
 import NotePeekModal, { type NotePeekTarget } from '@/components/NotePeekModal';
 import WhiteboardPeekCanvas from '@/components/WhiteboardPeekCanvas';
+import FlowPeekCanvas from '@/components/FlowPeekCanvas';
+import { isCanvasKind, normalizeNoteKind } from '@/lib/noteKinds';
 import AppUserMenu from '@/components/AppUserMenu';
 import FlashcardsStudy from '@/components/FlashcardsStudy';
 import type { FoldCard } from '@/lib/extractFoldCards';
@@ -49,7 +51,7 @@ export default function PublicWikiPage() {
   const [error, setError] = useState('');
   const [html, setHtml] = useState('');
   const [title, setTitle] = useState('');
-  const [itemKind, setItemKind] = useState<'note' | 'whiteboard'>('note');
+  const [itemKind, setItemKind] = useState<'note' | 'whiteboard' | 'flow'>('note');
   const [boardJson, setBoardJson] = useState<string | null>(null);
   const [embeddedBoards, setEmbeddedBoards] = useState<Record<string, string | null>>({});
   const [askAnswers, setAskAnswers] = useState<Record<string, AskAnswerView[]>>({});
@@ -84,6 +86,8 @@ export default function PublicWikiPage() {
   }));
 
   const isWhiteboard = itemKind === 'whiteboard';
+  const isFlow = itemKind === 'flow';
+  const isCanvas = isCanvasKind(itemKind);
 
   const filteredNotes = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -154,11 +158,10 @@ export default function PublicWikiPage() {
       setNotesOpen(false);
       setContextOpen(false);
       setTitle(data.data.title);
-      const kind =
-        String(data.data.kind || 'note') === 'whiteboard' ? 'whiteboard' : 'note';
+      const kind = normalizeNoteKind(data.data.kind || 'note');
       setItemKind(kind);
       setBoardJson(
-        kind === 'whiteboard' && data.data.boardJson != null
+        isCanvasKind(kind) && data.data.boardJson != null
           ? String(data.data.boardJson)
           : null
       );
@@ -166,18 +169,18 @@ export default function PublicWikiPage() {
         data.data.embeddedBoards && typeof data.data.embeddedBoards === 'object'
           ? (data.data.embeddedBoards as Record<string, string | null>)
           : {};
-      setEmbeddedBoards(kind === 'whiteboard' ? {} : boards);
+      setEmbeddedBoards(isCanvasKind(kind) ? {} : boards);
       const asks =
         data.data.askAnswers && typeof data.data.askAnswers === 'object'
           ? (data.data.askAnswers as Record<string, AskAnswerView[]>)
           : {};
-      setAskAnswers(kind === 'whiteboard' ? {} : asks);
+      setAskAnswers(isCanvasKind(kind) ? {} : asks);
       const decisionsPayload =
         data.data.decisions && typeof data.data.decisions === 'object'
           ? (data.data.decisions as Record<string, DecisionView>)
           : {};
-      setDecisions(kind === 'whiteboard' ? {} : decisionsPayload);
-      setHtml(kind === 'whiteboard' ? '' : data.data.html || '');
+      setDecisions(isCanvasKind(kind) ? {} : decisionsPayload);
+      setHtml(isCanvasKind(kind) ? '' : data.data.html || '');
       setBacklinks(data.data.backlinks || []);
       setReferences(data.data.references || []);
       setPlannerLinks(
@@ -352,16 +355,16 @@ export default function PublicWikiPage() {
 
   const { embedMounts, askMounts, decisionMounts } = useBoardEmbedPreview(articleRef, {
     html,
-    enabled: !isWhiteboard && centerMode === 'note',
+    enabled: !isCanvas && centerMode === 'note',
     afterWrite: afterWikiWrite,
   });
 
   // Planner buttons must not remount board embeds (that left them stuck on "Loading board…").
   useLayoutEffect(() => {
     const root = articleRef.current;
-    if (!root || isWhiteboard) return;
+    if (!root || isCanvas) return;
     applyPlannerButtons(root, plannerLinks);
-  }, [plannerLinks, html, isWhiteboard, embedMounts]);
+  }, [plannerLinks, html, isCanvas, embedMounts]);
 
   const fetchEmbedBoard = useCallback(
     async (embedNoteId: number, _embedVaultId: number | null) =>
@@ -611,7 +614,7 @@ export default function PublicWikiPage() {
 
         <section
           className={`min-h-0 px-4 py-4 sm:px-5 sm:py-5 lg:px-8 lg:py-6 ${
-            centerMode === 'flashcards' || isWhiteboard
+            centerMode === 'flashcards' || isCanvas
               ? 'flex flex-col overflow-hidden'
               : 'overflow-auto'
           }`}
@@ -664,7 +667,13 @@ export default function PublicWikiPage() {
                   </button>
                 </div>
               )}
-              {isWhiteboard && activeId ? (
+              {isFlow && activeId ? (
+                <FlowPeekCanvas
+                  boardJson={boardJson}
+                  allowRun
+                  className="synapse-flow-viewer min-h-[min(70dvh,36rem)] h-[min(70dvh,36rem)] w-full overflow-hidden rounded-xl border border-[var(--border)]"
+                />
+              ) : isWhiteboard && activeId ? (
                 <WhiteboardPeekCanvas
                   noteId={activeId}
                   boardJson={boardJson}
@@ -744,7 +753,7 @@ export default function PublicWikiPage() {
                 {t('chrome.references')}
               </h2>
               <p className="mt-0.5 text-[11px] text-[var(--muted)]">
-                {isWhiteboard ? t('chrome.notesLinkedFromBoard') : t('chrome.linksFromThisNote')}
+                {isCanvas ? t('chrome.notesLinkedFromBoard') : t('chrome.linksFromThisNote')}
               </p>
               <div className="mt-2 space-y-1">
                 {references.length === 0 && <p className="text-[var(--muted)]">{t('chrome.none')}</p>}

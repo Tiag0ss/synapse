@@ -441,6 +441,12 @@ export async function pushMissingCheckboxTasksForNote(params: {
     const parentTaskId = resolveParentTaskId(stack, params.notePmTaskId);
 
     const existing = findExistingLink(params.noteId, box, links);
+    // Skip already-done Synapse checkboxes when creating Myelin tasks (keep existing links).
+    if (box.checked && !existing) {
+      result.skipped += 1;
+      stack.push({ indent: box.indent, pmTaskId: null });
+      continue;
+    }
     if (existing) {
       const stale =
         projectTaskIds != null && !projectTaskIds.has(existing.PmTaskId);
@@ -777,6 +783,11 @@ export async function pushSingleCheckboxTask(params: {
     params.organizationId
   );
   const links = await linkRowsForNote(params.noteId);
+  if (target.checked && !findExistingLink(params.noteId, target, links)) {
+    throw Object.assign(new Error('Done checkboxes are not created as Myelin tasks'), {
+      status: 400,
+    });
+  }
   const projectTaskIds = await loadProjectTaskIdSet(params.pmUserId, params.projectId);
   const synapseNoteUrl = buildSynapseNoteUrl(params.vaultId, params.noteId);
   let parentTaskId: number | null = notePmTaskId;

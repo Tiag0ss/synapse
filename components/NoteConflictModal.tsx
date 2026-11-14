@@ -90,12 +90,13 @@ export default function NoteConflictModal({
   const [onlyChanges, setOnlyChanges] = useState(false);
 
   const busy = Boolean(saving);
-  const isWhiteboard = server?.kind === 'whiteboard';
+  const isCanvas =
+    server?.kind === 'whiteboard' || server?.kind === 'flow';
 
   const rows = useMemo(() => {
-    if (!server || !draft || isWhiteboard) return [];
+    if (!server || !draft || isCanvas) return [];
     return buildSideBySideDiff(String(server.bodyMarkdown || ''), draft.bodyMarkdown || '');
-  }, [server, draft, isWhiteboard]);
+  }, [server, draft, isCanvas]);
 
   const hunks = useMemo(() => groupDiffHunks(rows), [rows]);
 
@@ -171,9 +172,9 @@ export default function NoteConflictModal({
               {t('chrome.noteConflictTitle')}
             </h2>
             <p className="mt-1 text-sm text-[var(--muted)]">
-              {isWhiteboard ? t('chrome.noteConflictWhiteboardHint') : t('chrome.noteConflictIntro')}
+              {isCanvas ? t('chrome.noteConflictWhiteboardHint') : t('chrome.noteConflictIntro')}
             </p>
-            {!isWhiteboard && (
+            {!isCanvas && (
               <div className="mt-2 flex flex-wrap gap-3 text-[11px]">
                 <span className="text-emerald-300">
                   {t('chrome.diffAddedCount', { count: stats.added })}
@@ -193,7 +194,7 @@ export default function NoteConflictModal({
             )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {!isWhiteboard && (
+            {!isCanvas && (
               <label className="flex items-center gap-2 text-xs text-[var(--muted)]">
                 <input
                   type="checkbox"
@@ -213,7 +214,7 @@ export default function NoteConflictModal({
             <button type="button" className="btn-danger" onClick={onKeepMine} disabled={busy}>
               {busy ? t('chrome.saving') : t('chrome.noteConflictKeepMine')}
             </button>
-            {!isWhiteboard && (
+            {!isCanvas && (
               <button type="button" className="btn-primary" onClick={onSaveMerged} disabled={busy}>
                 {busy ? t('chrome.saving') : t('chrome.noteConflictSaveMerged')}
               </button>
@@ -221,7 +222,7 @@ export default function NoteConflictModal({
           </div>
         </header>
 
-        {isWhiteboard ? (
+        {isCanvas ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center text-sm text-[var(--muted)]">
             <p>{t('chrome.noteConflictWhiteboardHint')}</p>
             <p className="font-mono text-xs text-[var(--text)]">

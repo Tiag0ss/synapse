@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import WhiteboardPeekCanvas from '@/components/WhiteboardPeekCanvas';
+import FlowPeekCanvas from '@/components/FlowPeekCanvas';
 import {
   fetchVaultBoardJson,
   fetchWikiBoardJson,
@@ -19,7 +20,19 @@ export type BoardEmbedMount = {
   createTitle: string;
   vaultId: number | null;
   missing: boolean;
+  boardKind: 'whiteboard' | 'flow';
 };
+
+function peekKindFromJson(json: string | null, fallback: 'whiteboard' | 'flow'): 'whiteboard' | 'flow' {
+  if (!json) return fallback;
+  try {
+    const type = (JSON.parse(json) as { type?: string })?.type;
+    if (type === 'reactflow') return 'flow';
+  } catch {
+    /* ignore */
+  }
+  return fallback;
+}
 
 /** Session cache so preview remounts don't flash Loading board… */
 const boardJsonSessionCache = new Map<string, string | null>();
@@ -56,6 +69,7 @@ export function collectBoardEmbedMounts(container: HTMLElement): BoardEmbedMount
       // Clear preprocess placeholder text before React portals in.
       el.replaceChildren();
       el.className = missing ? 'synapse-board-embed is-missing' : 'synapse-board-embed';
+      const boardKind = el.dataset.boardKind === 'flow' ? 'flow' : 'whiteboard';
       return {
         key: `${missing ? 'm' : 'b'}-${noteId || 'x'}-${index}-${createTitle}`,
         el,
@@ -64,6 +78,7 @@ export function collectBoardEmbedMounts(container: HTMLElement): BoardEmbedMount
         createTitle,
         vaultId: vaultIdRaw > 0 ? vaultIdRaw : null,
         missing,
+        boardKind,
       };
     }
   );
@@ -73,6 +88,7 @@ function BoardEmbedFrame({
   noteId,
   title,
   boardJson,
+  boardKind,
   loading,
   error,
   missing,
@@ -84,6 +100,7 @@ function BoardEmbedFrame({
   noteId: number;
   title: string;
   boardJson: string | null;
+  boardKind: 'whiteboard' | 'flow';
   loading: boolean;
   error: string | null;
   missing: boolean;
@@ -155,6 +172,12 @@ function BoardEmbedFrame({
         <div className="flex min-h-0 flex-1 items-center justify-center px-3 text-center text-sm text-[var(--danger)]">
           {error}
         </div>
+      ) : peekKindFromJson(boardJson, boardKind) === 'flow' ? (
+        <FlowPeekCanvas
+          boardJson={boardJson}
+          allowRun
+          className="synapse-flow-embed min-h-0 w-full flex-1 overflow-hidden"
+        />
       ) : (
         <WhiteboardPeekCanvas
           noteId={noteId}
@@ -301,6 +324,7 @@ function BoardEmbedPortalItem({
       noteId={mount.noteId}
       title={mount.title}
       boardJson={boardJson}
+      boardKind={mount.boardKind}
       loading={loading}
       error={error}
       missing={mount.missing}

@@ -155,7 +155,9 @@ export async function toolCreateNote(ctx: McpToolContext, args: Record<string, u
 
   const title = String(args.title ?? '').trim();
   if (!title) return fail('title is required');
-  const kind = args.kind === 'whiteboard' ? 'whiteboard' : 'note';
+  const rawKind = String(args.kind ?? 'note');
+  const kind =
+    rawKind === 'whiteboard' || rawKind === 'flow' ? rawKind : 'note';
   const rawPath = args.path != null ? String(args.path) : titleToPath(title);
   const path = sanitizeNotePath(rawPath);
   if (!path) return fail('Invalid note path');

@@ -20,7 +20,7 @@ export interface NoteConflictServerSnapshot {
   boardJson: string | null;
   visibility: string;
   icon: string | null;
-  kind: 'note' | 'whiteboard';
+  kind: 'note' | 'whiteboard' | 'flow';
 }
 
 export interface NoteConflictLocalDraft {

@@ -23,7 +23,7 @@ export type SelectedTemplate = {
   bodyMarkdown: string;
 };
 
-export type CreateItemKind = 'note' | 'whiteboard';
+export type CreateItemKind = 'note' | 'whiteboard' | 'flow';
 
 interface CreateNoteModalProps {
   open: boolean;
@@ -85,7 +85,7 @@ export default function CreateNoteModal({
     setTitle(initialTitle);
     setFilter('');
     setError('');
-    if (initialKind === 'whiteboard') {
+    if (initialKind === 'whiteboard' || initialKind === 'flow') {
       setTemplates([]);
       setSelectedId(null);
       setLoading(false);
@@ -154,6 +154,9 @@ export default function CreateNoteModal({
     if (itemKind === 'whiteboard') {
       return `<p class="text-[var(--muted)]">${t('chrome.blankCanvasPreview')}</p>`;
     }
+    if (itemKind === 'flow') {
+      return `<p class="text-[var(--muted)]">${t('chrome.blankFlowPreview')}</p>`;
+    }
     if (!selected) return `<p class="text-[var(--muted)]">${t('chrome.selectTemplatePreview')}</p>`;
     const leaf = title.trim() || t('chrome.noteTitle');
     const md = applyNoteTemplateBody(selected.bodyMarkdown, leaf);
@@ -163,22 +166,38 @@ export default function CreateNoteModal({
   if (!open) return null;
 
   const canSubmit =
-    Boolean(title.trim()) && (itemKind === 'whiteboard' || Boolean(selected));
+    Boolean(title.trim()) &&
+    (itemKind === 'whiteboard' || itemKind === 'flow' || Boolean(selected));
+
+  const dialogTitle =
+    itemKind === 'whiteboard'
+      ? t('chrome.createWhiteboardTitle')
+      : itemKind === 'flow'
+        ? t('chrome.createFlowTitle')
+        : t('chrome.createNoteTitle');
+  const dialogHint =
+    itemKind === 'whiteboard'
+      ? t('chrome.createWhiteboardHint')
+      : itemKind === 'flow'
+        ? t('chrome.createFlowHint')
+        : t('chrome.createNoteHint');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
       <form
         role="dialog"
         aria-modal="true"
-        aria-label={
-          itemKind === 'whiteboard' ? t('chrome.createWhiteboardTitle') : t('chrome.createNoteTitle')
-        }
+        aria-label={dialogTitle}
         className="flex max-h-[min(90vh,720px)] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-2xl shadow-black/40"
         onSubmit={(e) => {
           e.preventDefault();
           if (!title.trim()) return;
           if (itemKind === 'whiteboard') {
             onConfirm(title.trim(), { kind: 'whiteboard' });
+            return;
+          }
+          if (itemKind === 'flow') {
+            onConfirm(title.trim(), { kind: 'flow' });
             return;
           }
           if (!selected) return;
@@ -192,15 +211,9 @@ export default function CreateNoteModal({
           <div className="flex items-start justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold tracking-tight text-[var(--text)]">
-                {itemKind === 'whiteboard'
-                  ? t('chrome.createWhiteboardTitle')
-                  : t('chrome.createNoteTitle')}
+                {dialogTitle}
               </h2>
-              <p className="mt-0.5 text-xs text-[var(--muted)]">
-                {itemKind === 'whiteboard'
-                  ? t('chrome.createWhiteboardHint')
-                  : t('chrome.createNoteHint')}
-              </p>
+              <p className="mt-0.5 text-xs text-[var(--muted)]">{dialogHint}</p>
             </div>
             {itemKind === 'note' ? (
               <Link
@@ -240,6 +253,17 @@ export default function CreateNoteModal({
                 onClick={() => setItemKind('whiteboard')}
               >
                 {t('chrome.whiteboard')}
+              </button>
+              <button
+                type="button"
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${
+                  itemKind === 'flow'
+                    ? 'bg-[var(--surface-2)] text-[var(--text)]'
+                    : 'text-[var(--muted)] hover:text-[var(--text)]'
+                }`}
+                onClick={() => setItemKind('flow')}
+              >
+                {t('chrome.flow')}
               </button>
             </div>
           ) : null}

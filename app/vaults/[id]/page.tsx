@@ -9,6 +9,9 @@ import CreateNoteModal, { type CreateItemKind, type SelectedTemplate } from '@/c
 import WhiteboardEditor, {
   type WhiteboardEditorHandle,
 } from '@/components/WhiteboardEditor';
+import FlowEditor from '@/components/FlowEditor';
+import { EMPTY_FLOW_JSON } from '@/lib/flowDocument';
+import { isCanvasKind, isFlowKind, normalizeNoteKind } from '@/lib/noteKinds';
 import QuickSwitcher from '@/components/QuickSwitcher';
 import { pushRecentNoteId } from '@/lib/recentNotes';
 import NoteGraphMindmap, { type GraphNode } from '@/components/NoteGraphMindmap';
@@ -190,7 +193,9 @@ export default function VaultWorkspacePage() {
   const isLgUp = useIsLgUp();
   const mindmapFull = centerMode === 'mindmap';
   const isWhiteboard = itemKind === 'whiteboard';
-  const boardFull = isWhiteboard && boardMaximized && centerMode === 'editor';
+  const isFlow = itemKind === 'flow';
+  const isCanvas = isCanvasKind(itemKind);
+  const boardFull = isCanvas && boardMaximized && centerMode === 'editor';
   const chromeFull = mindmapFull || boardFull;
 
   const [vaultFoldCards, setVaultFoldCards] = useState<FoldCard[]>([]);
@@ -284,7 +289,7 @@ export default function VaultWorkspacePage() {
       : notes.find((n) => n.Path === 'planner/overview.md')?.Id ?? null;
   const isHubNote = selectedId != null && hubNoteId != null && selectedId === hubNoteId;
   const notePublicUrl =
-    !isWhiteboard &&
+    !isCanvas &&
     vaultMeta.slug &&
     selectedId &&
     Number(vaultMeta.AllowPublicPages) === 1 &&
@@ -298,7 +303,7 @@ export default function VaultWorkspacePage() {
     selectedId != null &&
     canEdit &&
     (title !== savedSnapshot.title ||
-      (isWhiteboard
+      (isCanvas
         ? boardJson !== savedSnapshot.boardJson
         : body !== savedSnapshot.body) ||
       visibility !== savedSnapshot.visibility ||
@@ -423,13 +428,14 @@ export default function VaultWorkspacePage() {
     setSelectedId(n.Id);
     setPlannerLinks([]);
     setTitle(n.Title);
-    const kind: CreateItemKind = String(n.Kind || 'note') === 'whiteboard' ? 'whiteboard' : 'note';
+    const kind = normalizeNoteKind(n.Kind) as CreateItemKind;
     setItemKind(kind);
     const nextBody = n.BodyMarkdown || '';
-    const nextBoard =
-      kind === 'whiteboard'
-        ? n.BoardJson != null
-          ? String(n.BoardJson)
+    const nextBoard = isCanvasKind(kind)
+      ? n.BoardJson != null
+        ? String(n.BoardJson)
+        : isFlowKind(kind)
+          ? EMPTY_FLOW_JSON
           : JSON.stringify({
               type: 'excalidraw',
               version: 2,
@@ -438,7 +444,7 @@ export default function VaultWorkspacePage() {
               appState: { viewBackgroundColor: '#0a0e13', theme: 'dark' },
               files: {},
             })
-        : null;
+      : null;
     setBody(nextBody);
     setBoardJson(nextBoard);
     setVisibility(n.Visibility || '');
@@ -530,7 +536,7 @@ export default function VaultWorkspacePage() {
     setSaveState('saving');
     setStatus(reason === 'auto' ? t('status.autosaving') : t('chrome.saving'));
     const payload =
-      itemKind === 'whiteboard'
+      isCanvas
         ? {
             title: nextTitle,
             boardJson: nextBoard,
@@ -566,7 +572,7 @@ export default function VaultWorkspacePage() {
       setConflictServer({
         ...server,
         updatedAt: noteUpdatedAtIso(server.updatedAt) || String(server.updatedAt || ''),
-        kind: server.kind === 'whiteboard' ? 'whiteboard' : 'note',
+        kind: normalizeNoteKind(server.kind) as CreateItemKind,
       });
       setConflictDraft({
         title: nextTitle,
@@ -585,7 +591,7 @@ export default function VaultWorkspacePage() {
       return false;
     }
     const savedBody =
-      itemKind !== 'whiteboard' &&
+      !isCanvas &&
       data.data &&
       typeof data.data.bodyMarkdown === 'string'
         ? String(data.data.bodyMarkdown)
@@ -628,7 +634,7 @@ export default function VaultWorkspacePage() {
       }
     }
     if (reason === 'manual') await loadGraph();
-    if (itemKind === 'whiteboard' && selectedId) {
+    if (isCanvas && selectedId) {
       invalidateBoardEmbedCache(selectedId, Number(vaultId));
     }
     return true;
@@ -724,7 +730,7 @@ export default function VaultWorkspacePage() {
   /** Client rewrite (e.g. Recalculate estimates) — update editor and persist immediately. */
   const commitLocalBody = useCallback(
     async (next: string) => {
-      if (!selectedId || !canEdit || itemKind === 'whiteboard') return false;
+      if (!selectedId || !canEdit || isCanvas) return false;
       setBody(next);
       return saveNote({ reason: 'manual', body: next });
     },
@@ -739,7 +745,7 @@ export default function VaultWorkspacePage() {
   }, [selectedId, canEdit, dirty, title, body, boardJson, visibility, noteIcon, vaultId, itemKind]);
 
   const applyPartialRestore = async (patch: PartialRestorePatch) => {
-    if (!selectedId || !canEdit || diffApplying || diffRestoring || isWhiteboard) return;
+    if (!selectedId || !canEdit || diffApplying || diffRestoring || isCanvas) return;
     const nextTitle = patch.title ?? title;
     const nextBody = patch.bodyMarkdown ?? body;
     const nextVisibility = patch.visibility !== undefined ? patch.visibility : visibility;
@@ -841,7 +847,7 @@ export default function VaultWorkspacePage() {
     const destVaultId = opts?.targetVaultId ? Number(opts.targetVaultId) : Number(vaultId);
     const isCrossVault = destVaultId !== Number(vaultId);
     const bodyMarkdown =
-      kind === 'whiteboard'
+      kind === 'whiteboard' || kind === 'flow'
         ? `# ${noteLeafName(trimmed)}\n\n`
         : opts?.template
           ? applyNoteTemplateBody(opts.template.bodyMarkdown, noteLeafName(trimmed))
@@ -1016,7 +1022,7 @@ export default function VaultWorkspacePage() {
         return;
       }
       setDeleteOpen(false);
-      const wasWhiteboard = isWhiteboard;
+      const wasCanvas = isCanvas;
       setSelectedId(null);
       setTitle('');
       setBody('');
@@ -1029,7 +1035,7 @@ export default function VaultWorkspacePage() {
       setRevisions([]);
       setBacklinks([]);
       setReferences([]);
-      setStatus(wasWhiteboard ? t('status.whiteboardMovedTrash') : t('status.noteMovedTrash'));
+      setStatus(wasCanvas ? t('status.whiteboardMovedTrash') : t('status.noteMovedTrash'));
       await loadNotes();
       await loadGraph();
     } finally {
@@ -1098,7 +1104,7 @@ export default function VaultWorkspacePage() {
   };
 
   const toggleBoardMaximize = () => {
-    if (!isWhiteboard) return;
+    if (!isCanvas) return;
     setCenterMode('editor');
     setBoardMaximized((v) => !v);
     setNotesOpen(false);
@@ -1766,13 +1772,13 @@ aria-label={t('chrome.info')}
                           : t('common.save')}
                     </button>
                   )}
-                  {isWhiteboard && (
+                  {isCanvas && (
                     <button
                       type="button"
                       className="btn-ghost shrink-0 px-2.5 py-1.5 text-sm"
                       onClick={() => toggleBoardMaximize()}
-                      title={t('chrome.maximizeWhiteboard')}
-                      aria-label={t('chrome.maximizeWhiteboard')}
+                      title={isFlow ? t('chrome.maximizeFlow') : t('chrome.maximizeWhiteboard')}
+                      aria-label={isFlow ? t('chrome.maximizeFlow') : t('chrome.maximizeWhiteboard')}
                     >
                       Max
                     </button>
@@ -1783,7 +1789,7 @@ aria-label={t('chrome.info')}
                     onClick={() => setExportOpen(true)}
                   title={t('chrome.exportNote')}
                   aria-label={t('chrome.export')}
-                    hidden={isWhiteboard}
+                    hidden={isCanvas}
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
                       <path
@@ -1806,7 +1812,7 @@ aria-label={t('chrome.info')}
                       {t('chrome.share')}
                     </button>
                   )}
-                  {canEdit && isPersonalWork && selectedId && !isHubNote && !isWhiteboard && (
+                  {canEdit && isPersonalWork && selectedId && !isHubNote && !isCanvas && (
                     <button
                       type="button"
                       className="btn-ghost shrink-0 px-2.5 py-1.5 text-sm"
@@ -1889,14 +1895,14 @@ aria-label={t('chrome.info')}
                         : t('common.save')}
                   </button>
                 )}
-                {isWhiteboard && (
+                {isCanvas && (
                   <button
                     type="button"
                     className="btn-ghost"
                     onClick={() => toggleBoardMaximize()}
-                    title={t('chrome.maximizeWhiteboard')}
+                    title={isFlow ? t('chrome.maximizeFlow') : t('chrome.maximizeWhiteboard')}
                   >
-                    {t('chrome.maximizeWhiteboard')}
+                    {isFlow ? t('chrome.maximizeFlow') : t('chrome.maximizeWhiteboard')}
                   </button>
                 )}
                 <button
@@ -1904,7 +1910,7 @@ aria-label={t('chrome.info')}
                   className="btn-ghost"
                   onClick={() => setExportOpen(true)}
                   title={t('chrome.exportNote')}
-                  hidden={isWhiteboard}
+                  hidden={isCanvas}
                 >
                   {t('chrome.export')}
                 </button>
@@ -1918,7 +1924,7 @@ aria-label={t('chrome.info')}
                     {`${t('chrome.share')}…`}
                   </button>
                 )}
-                {canEdit && isPersonalWork && selectedId && !isHubNote && !isWhiteboard && (
+                {canEdit && isPersonalWork && selectedId && !isHubNote && !isCanvas && (
                   <button
                     type="button"
                     className="btn-ghost"
@@ -1989,6 +1995,29 @@ aria-label={t('chrome.info')}
                     setCreateFromTextElementId(elementId);
                     setCreateFromTextOpen(true);
                   }}
+                />
+                </div>
+              ) : isFlow ? (
+                <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+                {boardFull && (
+                  <div className="pointer-events-none absolute right-3 top-3 z-20 flex gap-2">
+                    <button
+                      type="button"
+                      className="pointer-events-auto btn-ghost bg-[var(--panel)]/90 text-xs shadow-lg backdrop-blur"
+                      onClick={() => toggleBoardMaximize()}
+                      title={t('chrome.exitMaximize')}
+                    >
+                      {t('chrome.exitMaximize')}
+                    </button>
+                  </div>
+                )}
+                <FlowEditor
+                  noteId={selectedId!}
+                  vaultId={vaultId}
+                  boardPath={notes.find((n) => n.Id === selectedId)?.Path || `${title}.md`}
+                  boardJson={boardJson}
+                  canEdit={canEdit}
+                  onBoardChange={onBoardChange}
                 />
                 </div>
               ) : (
@@ -2156,7 +2185,7 @@ aria-label={t('chrome.info')}
           <div className="min-h-0 flex-1 overflow-auto p-4 text-sm">
             {selectedId && (
               <div className="mb-6">
-                {!isWhiteboard && (
+                {!isCanvas && (
                 <NoteTasksPanel
                   vaultId={vaultId}
                   noteId={selectedId}
@@ -2185,7 +2214,7 @@ aria-label={t('chrome.info')}
                   onOpenPmSettings={isPersonalWork ? undefined : () => setPmTasksOpen(true)}
                 />
                 )}
-                <div className={isWhiteboard ? '' : 'mt-4'}>
+                <div className={isCanvas ? '' : 'mt-4'}>
                   <NoteAttachmentsPanel
                     vaultId={vaultId}
                     noteId={selectedId}
@@ -2194,7 +2223,7 @@ aria-label={t('chrome.info')}
                     onStatus={setStatus}
                     onUploaded={() => setAttachmentsRefresh((n) => n + 1)}
                     onInsertMarkdown={
-                      isWhiteboard
+                      isCanvas
                         ? undefined
                         : (snippet) => {
                             setEditorInsertRequest({ id: Date.now(), snippet });
@@ -2209,7 +2238,7 @@ aria-label={t('chrome.info')}
               {t('chrome.references')}
             </h2>
             <p className="mt-0.5 text-[11px] text-[var(--muted)]">
-              {isWhiteboard ? t('chrome.referencesFromBoard') : t('chrome.referencesFromNote')}
+              {isCanvas ? t('chrome.referencesFromBoard') : t('chrome.referencesFromNote')}
             </p>
             <div className="mt-2 space-y-1">
               {references.length === 0 && <p className="text-[var(--muted)]">{t('chrome.noneYet')}</p>}

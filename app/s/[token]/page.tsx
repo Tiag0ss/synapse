@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEve
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import WhiteboardPeekCanvas from '@/components/WhiteboardPeekCanvas';
+import FlowPeekCanvas from '@/components/FlowPeekCanvas';
 import ImageLightbox from '@/components/ImageLightbox';
 import MermaidLightbox from '@/components/MermaidLightbox';
 import BoardEmbedPortals from '@/components/BoardEmbedPortals';
@@ -16,7 +17,7 @@ import { noteLeafName } from '@/lib/notePaths';
 import NotePeekModal, { type NotePeekTarget } from '@/components/NotePeekModal';
 import { useI18n } from '@/lib/i18n/provider';
 
-type ShareKind = 'note' | 'whiteboard' | 'flashcard';
+type ShareKind = 'note' | 'whiteboard' | 'flow' | 'flashcard';
 
 export default function SharedNotePage() {
   const { t } = useI18n();
@@ -65,7 +66,9 @@ export default function SharedNotePage() {
     const nextKind = String(d.kind || 'note') as ShareKind;
     setTitle(String(d.title || 'Note'));
     setKind(
-      nextKind === 'whiteboard' || nextKind === 'flashcard' ? nextKind : 'note'
+      nextKind === 'whiteboard' || nextKind === 'flow' || nextKind === 'flashcard'
+        ? nextKind
+        : 'note'
     );
     setNoteId(Number(d.noteId) || 0);
     setVaultId(Number(d.vaultId) || 0);
@@ -120,7 +123,9 @@ export default function SharedNotePage() {
       const nextKind = String(meta.data?.kind || 'note') as ShareKind;
       setTitle(String(meta.data?.title || 'Note'));
       setKind(
-        nextKind === 'whiteboard' || nextKind === 'flashcard' ? nextKind : 'note'
+        nextKind === 'whiteboard' || nextKind === 'flow' || nextKind === 'flashcard'
+          ? nextKind
+          : 'note'
       );
       setExpiresAt(meta.data?.expiresAt ? String(meta.data.expiresAt) : null);
       if (meta.data?.unlocked) {
@@ -152,7 +157,7 @@ export default function SharedNotePage() {
 
   useEffect(() => {
     const root = kind === 'flashcard' ? flashBackRef.current : articleRef.current;
-    if (!root || phase !== 'content' || kind === 'whiteboard') return;
+    if (!root || phase !== 'content' || kind === 'whiteboard' || kind === 'flow') return;
     if (kind === 'flashcard' && !flashRevealed) return;
     const onClick = (e: MouseEvent) => {
       if (handleMarkdownCodeCopyClick(e, root)) return;
@@ -314,7 +319,13 @@ export default function SharedNotePage() {
 
       {phase === 'content' && (
         <div className="flex min-h-0 flex-1 flex-col">
-          {kind === 'whiteboard' ? (
+          {kind === 'flow' ? (
+            <FlowPeekCanvas
+              boardJson={boardJson}
+              allowRun
+              className="synapse-flow-fill h-full min-h-0 w-full flex-1 overflow-hidden"
+            />
+          ) : kind === 'whiteboard' ? (
             <WhiteboardPeekCanvas
               noteId={noteId || 1}
               boardJson={boardJson}
